@@ -3804,6 +3804,7 @@ dependencies = [
  "rhema-bible",
  "rhema-broadcast",
  "rhema-detection",
+ "rhema-library",
  "rhema-stt",
  "serde",
  "serde_json",
@@ -3884,6 +3885,18 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.19",
  "tokenizers",
+]
+
+[[package]]
+name = "rhema-library"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "uuid",
 ]
 
 [[package]]

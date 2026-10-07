@@ -4,5 +4,6 @@ pub mod broadcast;
 pub mod detection;
 pub mod diagnostics;
 pub mod fonts;
+pub mod library;
 pub mod remote;
 pub mod stt;

@@ -10,6 +10,20 @@ export type { DetectionResult, DetectionStatus, ReadingAdvance, SemanticSearchRe
 export type { BroadcastTheme, VerseRenderData, VerseSegment, RenderOptions } from "./broadcast"
 export type { Slide, SlideKind, ScriptureSlide, LyricSlide } from "./slide"
 export type {
+  SectionKind,
+  Song,
+  SongInput,
+  SongSection,
+  SongSectionInput,
+  SongSummary,
+  Schedule,
+  ScheduleInput,
+  ScheduleItem,
+  ScheduleItemInput,
+  ScheduleItemKind,
+  ScheduleSummary,
+} from "./library"
+export type {
   BroadcastOutput,
   BroadcastOutputNdiSettings,
   BroadcastOutputStatus,

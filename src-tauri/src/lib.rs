@@ -127,6 +127,15 @@ pub fn run() {
             commands::broadcast::get_ndi_status,
             commands::broadcast::push_ndi_frame,
             commands::fonts::list_system_fonts,
+            commands::library::list_songs,
+            commands::library::search_songs,
+            commands::library::get_song,
+            commands::library::save_song,
+            commands::library::delete_song,
+            commands::library::list_schedules,
+            commands::library::get_schedule,
+            commands::library::save_schedule,
+            commands::library::delete_schedule,
             commands::remote::start_osc,
             commands::remote::stop_osc,
             commands::remote::get_osc_status,
@@ -172,6 +181,15 @@ pub fn run() {
             } else {
                 log::warn!("Bible database not found at {}", db_path.display());
             }
+
+            // The user's songs and schedules live beside their settings, not
+            // in the bundled resources: they must be writable and survive
+            // app updates.
+            let library = match app.path().app_data_dir() {
+                Ok(dir) => commands::library::LibraryState::open(&dir.join("library.db")),
+                Err(e) => commands::library::LibraryState::unavailable(e.to_string()),
+            };
+            app.manage(library);
 
             // Try to load ONNX embedding model and pre-computed verse index
             // Prefer INT8 quantized model (~571MB) over FP32 (~2.4GB)
