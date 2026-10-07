@@ -14,14 +14,18 @@ export default defineConfig({
       // artifacts, ONNX models, NDI SDK). Crawling them blocks the dev
       // server's event loop for minutes on Windows, so the app windows
       // load before Vite can respond and stay white.
+      //
+      // Anchored to the project root: a bare "**/build/**" also matches a
+      // checkout that lives under a folder named "build" and silently stops
+      // HMR for the whole app.
       ignored: [
-        "**/src-tauri/**",
-        "**/models/**",
-        "**/embeddings/**",
-        "**/sdk/**",
-        "**/data/**",
-        "**/build/**",
-      ],
+        "src-tauri",
+        "models",
+        "embeddings",
+        "sdk",
+        "data",
+        "build",
+      ].map((dir) => `${path.resolve(__dirname, dir).replace(/\\/g, "/")}/**`),
     },
   },
   build: {
