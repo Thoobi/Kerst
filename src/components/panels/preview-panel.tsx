@@ -33,11 +33,17 @@ export function PreviewPanel() {
   return (
     <div
       data-slot="preview-panel"
-      className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card"
+      className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs"
     >
-      <PanelHeader title="Program preview" />
-      <div className="flex min-h-0 flex-1 items-center justify-center p-3">
-        <CanvasVerse theme={activeTheme} verse={verseData} />
+      <PanelHeader title="Preview">
+        <span className="font-mono text-[0.6875rem] text-muted-foreground">
+          {translation}
+        </span>
+      </PanelHeader>
+      <div className="px-2 pb-2">
+        <div className="rounded-lg bg-surface-sunken p-1.5 ring-1 ring-border ring-inset">
+          <CanvasVerse theme={activeTheme} verse={verseData} />
+        </div>
       </div>
     </div>
   )

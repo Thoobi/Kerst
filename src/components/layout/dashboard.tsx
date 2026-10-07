@@ -7,81 +7,39 @@ import { SearchPanel } from "@/components/panels/search-panel"
 import { DetectionsPanel } from "@/components/panels/detections-panel"
 import { EmbeddingWarningBanner } from "@/components/ui/embedding-warning-banner"
 
+/**
+ * Three-column operator layout:
+ *
+ *   transcript │ preview · live      │ queue
+ *              │ search              │ detections
+ *
+ * The monitor row sizes to the 16:9 canvases, so search takes whatever
+ * height is left and never squeezes the program output.
+ */
 export function Dashboard() {
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: "0px",
-        display: "grid",
-        // The `auto` row hosts the warning banner and collapses to 0 when
-        // there is nothing to warn about.
-        gridTemplateRows: "56px auto minmax(0, 2fr) minmax(0, 3fr)",
-        overflow: "hidden",
-      }}
-      className="bg-background"
-    >
-      {/* Row 1: Transport Bar */}
-      <div className="col-span-4">
-        <TransportBar />
-      </div>
+    <div className="fixed inset-0 grid grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-background">
+      <TransportBar />
 
-      {/* Row 2: warning banner (collapses when healthy) */}
+      {/* Collapses to nothing when there is nothing to warn about */}
       <EmbeddingWarningBanner />
 
-      {/* Row 2: 4 panels */}
-      <div
-        className="col-span-4 min-h-0 *:min-h-0"
-        style={{
-          padding: "12px",
-          display: "grid",
-          gap: "12px",
-          minHeight: 0,
-          overflow: "hidden",
-          gridTemplateColumns: "320px minmax(0, 1fr) minmax(0, 1fr) 320px",
-          gridTemplateRows: "minmax(0, 1fr)",
-        }}
-      >
+      <div className="grid min-h-0 grid-cols-[clamp(260px,22vw,340px)_minmax(0,1fr)_clamp(280px,24vw,360px)] gap-2 p-2">
         <TranscriptPanel />
-        <PreviewPanel />
-        <LiveOutputPanel />
-        <QueuePanel />
-      </div>
-      {/* Row 3: Search + Detections, split 50/50 so the two-column
-          detections panel has room to breathe */}
-      <div className="col-span-4 grid min-h-0 grid-cols-2 gap-3 px-3 pb-3">
-        <SearchPanel />
-        <DetectionsPanel />
+
+        <div className="flex min-h-0 min-w-0 flex-col gap-2">
+          <div className="grid shrink-0 grid-cols-2 gap-2">
+            <PreviewPanel />
+            <LiveOutputPanel />
+          </div>
+          <SearchPanel />
+        </div>
+
+        <div className="flex min-h-0 flex-col gap-2">
+          <QueuePanel />
+          <DetectionsPanel />
+        </div>
       </div>
     </div>
-    // <div
-    //   style={{
-    //     position: "fixed",
-    //     inset: "6px",
-    //     display: "grid",
-    //     gridTemplateColumns: "320px 1fr 1fr 340px",
-    //     gridTemplateRows: "64px 2fr 3fr",
-    //     gap: "6px",
-    //     overflow: "hidden",
-    //   }}
-    //   className="bg-background"
-    // >
-    //   {/* Row 1: Transport Bar */}
-    //   <div className="col-span-4">
-    //     <TransportBar />
-    //   </div>
-
-    //   {/* Row 2: 4 panels */}
-    //   <TranscriptPanel />
-    //   <PreviewPanel />
-    //   <LiveOutputPanel />
-    //   <QueuePanel />
-
-    //   {/* Row 3: Search + Detections (own grid, independent of top row columns) */}
-    //   <div className="col-span-4 grid min-h-0 grid-cols-[2fr_1fr] gap-[6px]">
-    //     <SearchPanel />
-    //     <DetectionsPanel />
-    //   </div>
-    // </div>
   )
 }

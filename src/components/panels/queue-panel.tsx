@@ -1,5 +1,4 @@
 import { PanelHeader } from "@/components/ui/panel-header"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -39,56 +38,63 @@ function QueueItemRow({
     useQueueStore.getState().removeItem(item.id)
   }
 
-  const sourceBadge =
-    item.source === "manual" ? (
-      <Badge variant="outline" className="shrink-0 text-[0.5rem]">
-        Manual
-      </Badge>
-    ) : (
-      <Badge
-        variant="default"
-        className="shrink-0 bg-ai-direct/15 text-[0.5rem] text-ai-direct hover:bg-ai-direct/15"
-      >
-        AI
-      </Badge>
-    )
+  const isAi = item.source !== "manual"
 
   return (
     <div
       data-queue-idx={index}
       onClick={handlePresent}
       className={cn(
-        "group flex h-10 cursor-pointer items-center gap-2 rounded-md px-2.5 transition-colors",
+        "group relative flex h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2 transition-colors",
         isHighlighted
-          ? "animate-pulse border border-amber-500/40 bg-amber-500/15"
+          ? "animate-pulse bg-amber-500/15 ring-1 ring-amber-500/40 ring-inset"
           : isActive
-            ? "border border-primary/30 bg-primary/10"
-            : "hover:bg-muted/50"
+            ? "bg-primary/10"
+            : "hover:bg-muted/60"
       )}
     >
-      <GripVerticalIcon
-        className="size-3 shrink-0 text-muted-foreground/30 opacity-0 transition-opacity group-hover:opacity-100"
-      />
+      {isActive && !isHighlighted && (
+        <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary" />
+      )}
 
-      <span className="flex-1 truncate text-sm font-medium text-foreground">
+      <span className="w-4 shrink-0 text-right font-mono text-[0.6875rem] text-muted-foreground tabular-nums group-hover:hidden">
+        {index + 1}
+      </span>
+      <GripVerticalIcon className="hidden size-4 shrink-0 text-muted-foreground group-hover:block" />
+
+      <span
+        className={cn(
+          "flex-1 truncate text-sm",
+          isActive ? "font-semibold text-foreground" : "font-medium text-foreground/90"
+        )}
+      >
         {item.reference}
       </span>
 
-      {sourceBadge}
+      <span
+        title={isAi ? "Detected" : "Added manually"}
+        className={cn(
+          "shrink-0 text-[0.625rem] font-medium uppercase tracking-wide group-hover:hidden",
+          isAi ? "text-ai-direct" : "text-muted-foreground"
+        )}
+      >
+        {isAi ? "AI" : "Manual"}
+      </span>
 
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
         <Button
           variant="ghost"
           size="icon-xs"
+          title="Present"
           onClick={(e) => {
             e.stopPropagation()
             handlePresent()
           }}
         >
-          <PlayIcon className="size-2.5" />
+          <PlayIcon />
         </Button>
-        <Button variant="ghost" size="icon-xs" onClick={handleRemove}>
-          <XIcon className="size-2.5" />
+        <Button variant="ghost" size="icon-xs" title="Remove" onClick={handleRemove}>
+          <XIcon />
         </Button>
       </div>
     </div>
@@ -103,25 +109,29 @@ export function QueuePanel() {
   return (
     <div
       data-slot="queue-panel"
-      className="flex flex-col overflow-hidden rounded-lg border border-border bg-card"
+      className="flex min-h-0 basis-2/5 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs"
     >
       <PanelHeader title="Queue">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">{items.length}</Badge>
-          <button
+        <span className="rounded-full bg-muted px-1.5 font-mono text-[0.6875rem] text-muted-foreground tabular-nums">
+          {items.length}
+        </span>
+        {items.length > 0 && (
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground"
             onClick={() => useQueueStore.getState().clearQueue()}
-            className="text-[0.625rem] text-muted-foreground transition-colors hover:text-foreground"
           >
-            Clear all
-          </button>
-        </div>
+            Clear
+          </Button>
+        )}
       </PanelHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-0.5 p-1.5">
+        <div className="flex flex-col gap-0.5 px-1.5 pb-1.5">
           {items.length === 0 && (
-            <p className="p-4 text-center text-xs text-muted-foreground">
-              Verses will appear here when detected or queued
+            <p className="px-4 py-8 text-center text-xs leading-relaxed text-muted-foreground">
+              Detected and queued verses line up here.
             </p>
           )}
           {items.map((item, idx) => (

@@ -61,7 +61,7 @@ function ResultSourceBadges({ result }: { result: SemanticSearchResult }) {
           <span
             key={source}
             className={cn(
-              "text-[0.5rem] font-medium uppercase tracking-wider",
+              "text-[0.625rem] font-medium uppercase tracking-wider",
               style.text
             )}
           >
@@ -70,7 +70,7 @@ function ResultSourceBadges({ result }: { result: SemanticSearchResult }) {
         )
       })}
       {result.sources?.includes("semantic") && (
-        <span className="text-[0.5rem] text-muted-foreground">
+        <span className="text-[0.625rem] text-muted-foreground">
           {Math.round(result.similarity * 100)}%
         </span>
       )}
@@ -95,7 +95,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
         const cleaned = part.toLowerCase().replace(/[^a-z']/g, "")
         if (cleaned.length >= 2 && queryWords.has(cleaned)) {
           return (
-            <mark key={i} className="rounded-[2px] bg-emerald-800/90 px-0.5 text-foreground">
+            <mark key={i} className="rounded-[3px] bg-primary/25 px-0.5 text-foreground">
               {part}
             </mark>
           )
@@ -497,26 +497,25 @@ export function SearchPanel() {
     <div
       ref={panelRef}
       data-slot="search-panel"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card outline-none"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs outline-none"
       onKeyDown={activeTab === "book" ? handleKeyDown : undefined}
       tabIndex={-1}
     >
       {/* STICKY: Tab row + search input */}
-      <div className="flex shrink-0 items-center gap-0 border-b border-border min-h-11">
-        <div className="flex items-center gap-1 px-3 py-1.5">
-          
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border px-2.5">
+        <div className="flex items-center rounded-lg bg-muted p-0.5">
           <button
             data-tour="book-search"
             onClick={() => setActiveTab("book")}
             className={cn(
-              "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+              "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
               activeTab === "book"
-                ? "border-lime-500/50 bg-lime-500/15 "
-                : "border-border text-muted-foreground hover:text-foreground"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <BookOpenIcon className={cn("size-3.5", activeTab === "book" ? "text-lime-400" : "text-muted-foreground")} />
-            Book search
+            <BookOpenIcon className={cn("size-3.5", activeTab === "book" ? "text-primary" : "text-muted-foreground")} />
+            Book
           </button>
           <button
             data-tour="context-search"
@@ -525,27 +524,27 @@ export function SearchPanel() {
               setContextQuery("")
             }}
             className={cn(
-              "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+              "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors",
               activeTab === "context"
-                ? "border-lime-500/50 bg-lime-500/15"
-                : "border-border bg-background  text-muted-foreground hover:text-foreground"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <SparklesIcon className={cn("size-3.5", activeTab === "context" ? "text-lime-400" : "text-muted-foreground")} />
-            Context search
+            <SparklesIcon className={cn("size-3.5", activeTab === "context" ? "text-primary" : "text-muted-foreground")} />
+            Context
           </button>
         </div>
 
         {activeTab === "book" ? (
-          <div className="flex flex-1 items-center gap-2 pr-3">
+          <div className="flex flex-1 items-center gap-2">
             {/* EasyWorship-style autocomplete */}
             <div className="relative flex-1">
               {/* Suggestion overlay */}
               {quickSuggestion && quickSuggestion !== quickInput && (
                 <div className="absolute inset-0 flex items-center px-3 pointer-events-none z-10">
-                  <span className="text-xs font-normal">
+                  <span className="text-sm font-normal">
                     <span className="text-foreground">{quickInput}</span>
-                    <span className="text-gray-500 dark:text-gray-400">{quickSuggestion.slice(quickInput.length)}</span>
+                    <span className="text-muted-foreground">{quickSuggestion.slice(quickInput.length)}</span>
                   </span>
                 </div>
               )}
@@ -559,7 +558,7 @@ export function SearchPanel() {
                 onKeyDown={handleQuickKeyDown}
                 placeholder="Type: J → John 3:16"
                 className={cn(
-                  "h-7 text-xs relative bg-background",
+                  "h-8 text-sm relative bg-background",
                   quickSuggestion && quickSuggestion !== quickInput ? "text-transparent" : ""
                 )}
                 style={quickSuggestion && quickSuggestion !== quickInput ? {
@@ -569,7 +568,7 @@ export function SearchPanel() {
 
               {/* Verse dropdown */}
               {shouldShowVerseDropdown && quickVersesList.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-50 max-h-64 overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+                <div className="absolute top-full left-0 right-0 mt-1.5 z-50 max-h-64 overflow-y-auto rounded-lg border border-border bg-popover shadow-xl">
                   <div className="p-1">
                     {quickVersesList.map((verse) => (
                       <button
@@ -600,7 +599,7 @@ export function SearchPanel() {
                 } catch (err) { console.error(err) }
               }}
             >
-              <SelectTrigger size="sm" className="h-7 w-[72px] shrink-0 text-xs">
+              <SelectTrigger size="sm" className="h-8 w-[76px] shrink-0 font-mono text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -613,12 +612,12 @@ export function SearchPanel() {
             </Select>
           </div>
         ) : (
-          <div className="flex flex-1 items-center gap-2 pr-3">
+          <div className="flex flex-1 items-center gap-2">
             <Input
               placeholder="Search verse text..."
               value={contextQuery}
               onChange={(e) => handleContextSearch(e.target.value)}
-              className="h-7 flex-1 text-xs"
+              className="h-8 flex-1 text-sm"
             />
               <Select
                 value={String(activeTranslationId)}
@@ -630,7 +629,7 @@ export function SearchPanel() {
                   } catch (err) { console.error(err) }
                 }}
               >
-                <SelectTrigger size="sm" className="h-7 w-[72px] shrink-0 text-xs">
+                <SelectTrigger size="sm" className="h-8 w-[76px] shrink-0 font-mono text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -653,9 +652,9 @@ export function SearchPanel() {
         <>
           {/* STICKY: Chapter header */}
 
-          <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2 min-h-9">
+          <div className="flex h-10 shrink-0 items-center justify-between px-4">
             {selectedBook ?
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="font-serif text-base font-semibold text-foreground">
                 {selectedBook.name} {chapter}
               </h3> : null}
             {selectedBook ? <div className="flex items-center gap-1">
@@ -693,16 +692,16 @@ export function SearchPanel() {
                   id={`verse-${verse.id}`}
                   onClick={() => handleVerseClick(verse)}
                   className={cn(
-                    "group flex cursor-pointer items-center gap-3 rounded-lg p-3 transition-colors",
+                    "group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
                     verse.id === effectiveSelectedVerseId
-                      ? "border border-lime-500/50 bg-lime-500/10"
-                      : "border border-transparent hover:bg-muted/50"
+                      ? "bg-primary/10 ring-1 ring-primary/40 ring-inset"
+                      : "hover:bg-muted/60"
                   )}
                 >
-                  <span className="w-6 shrink-0 text-right text-sm font-semibold text-primary">
+                  <span className="w-6 shrink-0 self-start pt-0.5 text-right font-mono text-xs text-muted-foreground tabular-nums">
                     {verse.verse}
                   </span>
-                  <p className="flex-1 text-sm leading-relaxed text-foreground/80">
+                  <p className="flex-1 font-serif text-[0.9375rem] leading-relaxed text-foreground/85">
                     {verse.text}
                   </p>
                   {queuedVerseKeys.has(`${verse.book_number}:${verse.chapter}:${verse.verse}`) ? (
@@ -738,7 +737,7 @@ export function SearchPanel() {
                             className={cn(
                               "shrink-0 opacity-0 group-hover:opacity-100 transition-opacity",
                               verse.id === effectiveSelectedVerseId
-                                ? "hover:bg-lime-500/20 hover:text-lime-500"
+                                ? "hover:bg-primary/20 hover:text-primary"
                                 : "bg-primary/40! text-primary-foreground hover:bg-primary!"
                             )}
                             onClick={(e) => {
@@ -801,12 +800,12 @@ export function SearchPanel() {
                 className="group flex flex-col cursor-pointer gap-1 rounded-lg p-3 transition-colors hover:bg-muted/50 relative"
               >
                 <div className="flex shrink-0 flex-row items-start gap-2">
-                  <span className="text-xs font-semibold ">
+                  <span className="text-sm font-semibold">
                     {result.book_name}   {result.chapter}:{result.verse}
                   </span>
                   <ResultSourceBadges result={result} />
                 </div>
-                <p className="flex-1 text-xs leading-relaxed text-muted-foreground">
+                <p className="flex-1 pr-8 font-serif text-[0.8125rem] leading-relaxed text-muted-foreground">
                   <HighlightedText text={result.verse_text} query={contextQuery} />
                 </p>
                 {queuedVerseKeys.has(`${result.book_number}:${result.chapter}:${result.verse}`) ? (

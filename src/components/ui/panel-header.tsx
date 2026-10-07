@@ -16,17 +16,17 @@ function PanelHeader({
     <div
       data-slot="panel-header"
       className={cn(
-        "flex min-h-11 items-center justify-between border-b border-border bg-card px-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.03)]",
+        "flex h-10 shrink-0 items-center justify-between gap-2 px-3.5",
         className
       )}
       {...props}
     >
-      <span className="flex items-center gap-2 text-[0.6875rem] font-medium uppercase tracking-wider text-muted-foreground">
+      <span className="flex min-w-0 items-center gap-2 truncate text-[0.8125rem] font-medium text-foreground [&_svg]:text-muted-foreground">
         {icon}
         {title}
       </span>
       {children && (
-        <div className="flex items-center gap-1">{children}</div>
+        <div className="flex shrink-0 items-center gap-1.5">{children}</div>
       )}
     </div>
   )

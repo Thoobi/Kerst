@@ -56,18 +56,18 @@ export function LiveOutputPanel() {
     <div
       data-slot="live-output-panel"
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card",
-        isLive && "shadow-[inset_0_2px_0_0_rgba(16,185,129,0.3)]"
+        "flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card shadow-xs transition-colors",
+        isLive ? "border-live-pulse/50" : "border-border"
       )}
     >
-      <PanelHeader title="Live display">
+      <PanelHeader title="Live">
         <label
-          className="flex items-center gap-2"
+          className="flex cursor-pointer items-center gap-1.5"
           title="When on, detected verses are presented to the live display automatically. Turn off for manual control."
         >
           <span
             className={cn(
-              "text-[0.625rem] font-medium uppercase tracking-wider transition-colors",
+              "text-xs transition-colors",
               autoLive ? "text-foreground" : "text-muted-foreground"
             )}
           >
@@ -80,30 +80,44 @@ export function LiveOutputPanel() {
             }
           />
         </label>
-        <label className="ml-2 flex items-center gap-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isLive}
+          onClick={() => handleGoLive(!isLive)}
+          className={cn(
+            "flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+            isLive
+              ? "bg-live-pulse text-white hover:bg-live-pulse/85"
+              : "border border-border text-foreground hover:bg-muted"
+          )}
+        >
           <span
             className={cn(
-              "text-[0.625rem] font-medium uppercase tracking-wider transition-colors",
-              isLive ? "text-emerald-400" : "text-muted-foreground"
+              "size-1.5 rounded-full",
+              isLive ? "animate-pulse bg-white" : "bg-live-pulse"
             )}
-          >
-            {isLive ? "Live" : "Go live"}
-          </span>
-          <Switch
-            checked={isLive}
-            onCheckedChange={handleGoLive}
-            className="data-[state=checked]:bg-emerald-500"
           />
-        </label>
+          {isLive ? "On air" : "Go live"}
+        </button>
       </PanelHeader>
 
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 items-center justify-center p-3 transition-opacity",
-          !isLive && "opacity-40"
-        )}
-      >
-        <CanvasVerse theme={activeTheme} verse={verseData} />
+      <div className="px-2 pb-2">
+        <div
+          className={cn(
+            "relative rounded-lg bg-surface-sunken p-1.5 ring-1 ring-inset transition-shadow",
+            isLive ? "ring-live-pulse/30" : "ring-border"
+          )}
+        >
+          <CanvasVerse theme={activeTheme} verse={verseData} />
+          {!isLive && (
+            <div className="absolute inset-1.5 flex items-center justify-center rounded-md bg-black/55">
+              <span className="rounded-full bg-black/50 px-2.5 py-1 text-[0.6875rem] font-medium tracking-wide text-white/70">
+                Off air
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
