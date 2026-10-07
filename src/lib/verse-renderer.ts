@@ -178,12 +178,24 @@ export function wrapText(
   return lines
 }
 
-export interface VerseInlineHandle {
+/** One hard-broken run of text, wrapped independently of the others. */
+interface VerseParagraph {
   prepared: PreparedRichInline
   /** Per-item kind, indexed by RichInlineFragment.itemIndex. */
   kinds: ("word" | "verseNum")[]
+}
+
+export interface VerseInlineHandle {
+  /** Segments split at `lineBreak`; scripture is always a single paragraph. */
+  paragraphs: VerseParagraph[]
   wordFont: string
   verseNumFont: string
+}
+
+interface VerseLine extends RichInlineLine {
+  kinds: VerseParagraph["kinds"]
+  /** Last line of its paragraph: never justified, like a paragraph end. */
+  paragraphEnd: boolean
 }
 
 /**
@@ -208,9 +220,16 @@ export function prepareVerseInline(
   const verseNumFont = `${vt.fontWeight} ${verseNumFontSize}px "${vt.fontFamily}", serif`
   const letterSpacing = vt.letterSpacing > 0 ? vt.letterSpacing : undefined
 
-  const items: RichInlineItem[] = []
-  const kinds: ("word" | "verseNum")[] = []
+  const paragraphs: VerseParagraph[] = []
+  let items: RichInlineItem[] = []
+  let kinds: ("word" | "verseNum")[] = []
+  const flush = () => {
+    if (items.length) paragraphs.push({ prepared: prepareRichInline(items), kinds })
+    items = []
+    kinds = []
+  }
   for (const segment of verse.segments) {
+    if (segment.lineBreak) flush()
     if (vn.visible && segment.verseNumber !== undefined) {
       items.push({
         text: `${segment.verseNumber} `,
@@ -226,19 +245,28 @@ export function prepareVerseInline(
       kinds.push("word")
     }
   }
-  if (!items.length) return null
+  flush()
+  if (!paragraphs.length) return null
 
-  return { prepared: prepareRichInline(items), kinds, wordFont, verseNumFont }
+  return { paragraphs, wordFont, verseNumFont }
 }
 
 function layoutVerseLines(
   handle: VerseInlineHandle,
   maxWidth: number
-): RichInlineLine[] {
-  const lines: RichInlineLine[] = []
-  walkRichInlineLineRanges(handle.prepared, Math.max(1, maxWidth), (range) => {
-    lines.push(materializeRichInlineLineRange(handle.prepared, range))
-  })
+): VerseLine[] {
+  const lines: VerseLine[] = []
+  for (const { prepared, kinds } of handle.paragraphs) {
+    const start = lines.length
+    walkRichInlineLineRanges(prepared, Math.max(1, maxWidth), (range) => {
+      lines.push({
+        ...materializeRichInlineLineRange(prepared, range),
+        kinds,
+        paragraphEnd: false,
+      })
+    })
+    if (lines.length > start) lines[lines.length - 1].paragraphEnd = true
+  }
   return lines
 }
 
@@ -735,10 +763,10 @@ function drawVerseText(
   }
 
   let currentY = startY
-  for (const [index, line] of lines.entries()) {
+  for (const line of lines) {
     const isJustifiedLine =
       verseAlign === "justify" &&
-      index < lines.length - 1 &&
+      !line.paragraphEnd &&
       line.fragments.length > 1
 
     let extraGap = 0
@@ -758,7 +786,7 @@ function drawVerseText(
       cursorX += fragment.gapBefore + (i > 0 ? extraGap : 0)
       drawFragment(
         fragment.text,
-        handle.kinds[fragment.itemIndex],
+        line.kinds[fragment.itemIndex],
         cursorX,
         currentY
       )
@@ -960,13 +988,17 @@ export function measureVerseHeight(
   if (!handle) {
     return { height: lineHeightPx, maxLineWidth: 1 }
   }
-  const stats = measureRichInlineStats(handle.prepared, Math.max(1, textRectWidth))
+  let lineCount = 0
+  let widest = 0
+  for (const { prepared } of handle.paragraphs) {
+    const stats = measureRichInlineStats(prepared, Math.max(1, textRectWidth))
+    lineCount += stats.lineCount
+    widest = Math.max(widest, stats.maxLineWidth)
+  }
   const maxLineWidth =
-    verseAlign === "justify" && stats.lineCount > 1
-      ? textRectWidth
-      : stats.maxLineWidth
+    verseAlign === "justify" && lineCount > 1 ? textRectWidth : widest
   return {
-    height: Math.max(1, stats.lineCount) * lineHeightPx,
+    height: Math.max(1, lineCount) * lineHeightPx,
     maxLineWidth: Math.max(1, maxLineWidth),
   }
 }

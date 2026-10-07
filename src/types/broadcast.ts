@@ -1,6 +1,11 @@
 export interface VerseSegment {
   verseNumber?: number
   text: string
+  /**
+   * Start this segment on a new line instead of flowing it after the
+   * previous one. Lyrics set it on every line; scripture never does.
+   */
+  lineBreak?: boolean
 }
 
 export interface VerseRenderData {

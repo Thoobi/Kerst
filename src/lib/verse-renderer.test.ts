@@ -57,7 +57,7 @@ vi.mock("@chenglou/pretext/rich-inline", () => {
   }
 })
 
-import { computeVerseLayoutMetrics, renderVerse } from "./verse-renderer"
+import { computeVerseLayoutMetrics, measureVerseHeight, renderVerse } from "./verse-renderer"
 import { BUILTIN_THEMES } from "./builtin-themes"
 
 function stubCtx(): CanvasRenderingContext2D {
@@ -530,5 +530,43 @@ describe("computeVerseLayoutMetrics — background region", () => {
     expect(
       fills.some((c) => c.args[2] === 1920 && c.args[3] === 1080)
     ).toBe(false)
+  })
+})
+
+describe("measureVerseHeight — hard line breaks", () => {
+  const theme = BUILTIN_THEMES[0]
+  const lineHeight = theme.verseText.fontSize * theme.verseText.lineHeight
+  const lines = ["Amazing grace", "How sweet the sound", "That saved a wretch like me"]
+
+  it("flows segments together when no break is set", () => {
+    const flowed: VerseRenderData = {
+      reference: "",
+      segments: lines.map((text) => ({ text })),
+    }
+    const { height } = measureVerseHeight(stubCtx(), theme, flowed, 4000)
+    expect(height).toBe(lineHeight)
+  })
+
+  it("starts each lineBreak segment on its own line", () => {
+    const lyric: VerseRenderData = {
+      reference: "",
+      segments: lines.map((text, i) => ({ text, lineBreak: i > 0 })),
+    }
+    const { height } = measureVerseHeight(stubCtx(), theme, lyric, 4000)
+    expect(height).toBe(lines.length * lineHeight)
+  })
+
+  it("still wraps a long line inside its own paragraph", () => {
+    const lyric: VerseRenderData = {
+      reference: "",
+      segments: [
+        { text: "short" },
+        { text: "a much longer lyric line that has to wrap", lineBreak: true },
+      ],
+    }
+    // Narrow enough that only the second line wraps (stub: 0.6 × px per char).
+    const width = theme.verseText.fontSize * 0.6 * 20
+    const { height } = measureVerseHeight(stubCtx(), theme, lyric, width)
+    expect(height).toBeGreaterThan(2 * lineHeight)
   })
 })

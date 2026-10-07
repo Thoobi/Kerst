@@ -1,15 +1,13 @@
 import { invoke } from "@tauri-apps/api/core"
 import { mark } from "@/lib/latency-marks"
+import { toRenderData } from "@/lib/slides"
 import { useBroadcastStore } from "@/stores/broadcast-store"
 import { useBibleStore } from "@/stores/bible-store"
 import type { VerseRenderData } from "@/types"
 import type { Verse } from "@/types"
 
 export function toVerseRenderData(verse: Verse, translation: string): VerseRenderData {
-  return {
-    reference: `${verse.book_name} ${verse.chapter}:${verse.verse} (${translation})`,
-    segments: [{ verseNumber: verse.verse, text: verse.text }],
-  }
+  return toRenderData({ kind: "scripture", verse, translation })
 }
 
 // Monotonic ticket so an older present whose refetch resolves late can't
