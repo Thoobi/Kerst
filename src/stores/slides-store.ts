@@ -3,7 +3,8 @@ import { deckSlideUrl, libraryApi } from "@/lib/library-api"
 import { importImages, importPdf, planImport, type ImportProgress } from "@/lib/deck-import"
 import { toRenderData } from "@/lib/slides"
 import { useBroadcastStore } from "./broadcast-store"
-import type { Deck, DeckSummary } from "@/types"
+import { useBibleStore } from "./bible-store"
+import type { Deck, DeckSummary, Verse, VerseRenderData } from "@/types"
 
 export interface ImportOutcome {
   imported: Deck[]
@@ -20,6 +21,12 @@ interface SlidesState {
   activeDeck: Deck | null
   /** The slide the operator last sent live from the open deck. */
   cursor: number | null
+  /**
+   * What the Preview panel shows instead of the selected Bible verse: the
+   * slide last clicked or stepped to. Cleared when the operator picks Bible
+   * content again.
+   */
+  previewSlide: VerseRenderData | null
   importing: ImportProgress | null
   /** Why the deck list could not load, e.g. the library is unavailable. */
   loadError: string | null
@@ -40,6 +47,7 @@ export const useSlidesStore = create<SlidesState>((set, get) => ({
   decks: [],
   activeDeck: null,
   cursor: null,
+  previewSlide: null,
   importing: null,
   loadError: null,
 
@@ -67,14 +75,14 @@ export const useSlidesStore = create<SlidesState>((set, get) => ({
     const deck = get().activeDeck
     const slide = deck?.slides[index]
     if (!deck || !slide) return
-    set({ cursor: index })
-    useBroadcastStore.getState().setLiveVerse(
-      toRenderData({
-        kind: "image",
-        url: deckSlideUrl(slide.path),
-        title: `${deck.title} · ${index + 1}`,
-      })
-    )
+    const content = toRenderData({
+      kind: "image",
+      url: deckSlideUrl(slide.path),
+      title: `${deck.title} · ${index + 1}`,
+    })
+    // Like a manual Bible pick, a slide goes live and the preview follows.
+    set({ cursor: index, previewSlide: content })
+    useBroadcastStore.getState().setLiveVerse(content)
   },
 
   step: (delta) => {
@@ -127,7 +135,31 @@ export const useSlidesStore = create<SlidesState>((set, get) => ({
 
   deleteDeck: async (id) => {
     await libraryApi.deleteDeck(id)
-    if (get().activeDeck?.id === id) set({ activeDeck: null, cursor: null })
+    if (get().activeDeck?.id === id) set({ activeDeck: null, cursor: null, previewSlide: null })
     await get().loadDecks()
   },
 }))
+
+/**
+ * A new Bible selection (a clicked verse, a detection, navigation) takes the
+ * preview back from a slide. A translation switch only re-fetches the same
+ * verse in another translation, so it leaves a previewed slide alone.
+ */
+export function isNewBibleSelection(next: Verse | null, prev: Verse | null): boolean {
+  if (next === prev || !next) return false
+  const sameReference =
+    prev !== null &&
+    next.book_number === prev.book_number &&
+    next.chapter === prev.chapter &&
+    next.verse === prev.verse
+  return !(sameReference && next.translation_id !== prev.translation_id)
+}
+
+useBibleStore.subscribe((state, prev) => {
+  if (
+    useSlidesStore.getState().previewSlide &&
+    isNewBibleSelection(state.selectedVerse, prev.selectedVerse)
+  ) {
+    useSlidesStore.setState({ previewSlide: null })
+  }
+})

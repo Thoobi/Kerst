@@ -1,12 +1,13 @@
 import { useEffect } from "react"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
-import { useBibleStore, useBroadcastStore } from "@/stores"
+import { useBibleStore, useBroadcastStore, useSlidesStore } from "@/stores"
 import { bibleActions } from "@/hooks/use-bible"
 import { toVerseRenderData } from "@/hooks/use-broadcast"
 
 export function PreviewPanel() {
   const selectedVerse = useBibleStore((s) => s.selectedVerse)
+  const previewSlide = useSlidesStore((s) => s.previewSlide)
   const translations = useBibleStore((s) => s.translations)
   const activeTranslationId = useBibleStore((s) => s.activeTranslationId)
 
@@ -28,7 +29,9 @@ export function PreviewPanel() {
   const activeTheme = themes.find((t) => t.id === activeThemeId) ?? themes[0]
   const translation = translations.find((t) => t.id === activeTranslationId)?.abbreviation ?? "KJV"
 
-  const verseData = selectedVerse ? toVerseRenderData(selectedVerse, translation) : null
+  // A clicked slide takes the preview until a Bible verse is picked again.
+  const verseData =
+    previewSlide ?? (selectedVerse ? toVerseRenderData(selectedVerse, translation) : null)
 
   return (
     <div
@@ -36,9 +39,15 @@ export function PreviewPanel() {
       className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs"
     >
       <PanelHeader title="Preview">
-        <span className="font-mono text-[0.6875rem] text-muted-foreground">
-          {translation}
-        </span>
+        {previewSlide ? (
+          <span className="truncate text-[0.6875rem] text-muted-foreground">
+            {previewSlide.reference}
+          </span>
+        ) : (
+          <span className="font-mono text-[0.6875rem] text-muted-foreground">
+            {translation}
+          </span>
+        )}
       </PanelHeader>
       <div className="px-2 pb-2">
         <div className="rounded-lg bg-surface-sunken p-1.5 ring-1 ring-border ring-inset">
