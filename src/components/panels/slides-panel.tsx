@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select"
 import { deckSlideUrl } from "@/lib/library-api"
 import { cn } from "@/lib/utils"
+import { isTypingOrHandled } from "@/lib/operator-keys"
 import { useBroadcastStore } from "@/stores"
 import { useSlidesStore, type ImportOutcome } from "@/stores/slides-store"
 
@@ -88,6 +89,7 @@ export function SlidesPanel() {
 
   // Arrow keys, Page Up/Down and Space match what presentation clickers send.
   const onKeyDown = (event: React.KeyboardEvent) => {
+    if (isTypingOrHandled(event)) return
     const { step, presentSlide } = useSlidesStore.getState()
     const last = (activeDeck?.slides.length ?? 0) - 1
     switch (event.key) {
