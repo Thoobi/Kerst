@@ -5,6 +5,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { normalizeTheme } from "@/lib/theme-migrations"
+import { fitFrame, renderScale } from "@/lib/output-frame"
 import "./broadcast-fonts.css"
 import type { BroadcastTheme, VerseRenderData } from "@/types/broadcast"
 import type { NdiConfigEventPayload, NdiFrameRequest } from "@/types"
@@ -69,11 +70,20 @@ function BroadcastCanvas() {
       return
     }
 
+    // Draw at the screen's real pixels. Drawing at the theme's resolution and
+    // letting CSS rescale the finished picture blurs text and images.
     const { theme, verse } = data
-    canvas.width = theme.resolution.width
-    canvas.height = theme.resolution.height
+    const dpr = window.devicePixelRatio || 1
+    const frame = fitFrame(theme.resolution, {
+      width: window.innerWidth * dpr,
+      height: window.innerHeight * dpr,
+    })
+    canvas.width = frame.width
+    canvas.height = frame.height
+    canvas.style.width = `${frame.width / dpr}px`
+    canvas.style.height = `${frame.height / dpr}px`
     const result = renderVerse(ctx, theme, verse, {
-      scale: 1,
+      scale: renderScale(theme.resolution, frame),
       imageCache: themeImageCache(),
     })
     if (!result) {
@@ -100,29 +110,27 @@ function BroadcastCanvas() {
     pushingRef.current = true
 
     try {
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const ctx = canvas.getContext("2d")
-      if (!ctx) return
+      const sourceWidth = ndiConfigRef.current.width
+      const sourceHeight = ndiConfigRef.current.height
 
-      const targetWidth = ndiConfigRef.current.width
-      const targetHeight = ndiConfigRef.current.height
-
-      let sourceCtx = ctx
-      let sourceWidth = canvas.width
-      let sourceHeight = canvas.height
-
-      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-        const ndiCanvas = ndiCanvasRef.current ?? document.createElement("canvas")
-        ndiCanvas.width = targetWidth
-        ndiCanvas.height = targetHeight
-        const ndiCtx = ndiCanvas.getContext("2d")
-        if (!ndiCtx) return
-        ndiCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight)
-        ndiCanvasRef.current = ndiCanvas
-        sourceCtx = ndiCtx
-        sourceWidth = targetWidth
-        sourceHeight = targetHeight
+      // Render NDI frames at NDI's own resolution rather than rescaling the
+      // window's canvas: a 4K sender gets real 4K text, not a stretched 1080p.
+      const ndiCanvas = ndiCanvasRef.current ?? document.createElement("canvas")
+      ndiCanvasRef.current = ndiCanvas
+      ndiCanvas.width = sourceWidth
+      ndiCanvas.height = sourceHeight
+      const sourceCtx = ndiCanvas.getContext("2d", { willReadFrequently: true })
+      if (!sourceCtx) return
+      const data = latestData.current
+      const rendered =
+        data &&
+        renderVerse(sourceCtx, data.theme, data.verse, {
+          scale: renderScale(data.theme.resolution, { width: sourceWidth, height: sourceHeight }),
+          imageCache: themeImageCache(),
+        })
+      if (!rendered) {
+        sourceCtx.fillStyle = "#000"
+        sourceCtx.fillRect(0, 0, sourceWidth, sourceHeight)
       }
 
       const imageData = sourceCtx.getImageData(0, 0, sourceWidth, sourceHeight)
@@ -159,15 +167,13 @@ function BroadcastCanvas() {
   }, [pushNdiBurst])
 
   useEffect(() => {
-    // Set initial canvas size
+    // Black until the first frame arrives; the page background is black too.
     const canvas = canvasRef.current
     if (canvas) {
-      canvas.width = 1920
-      canvas.height = 1080
       const ctx = canvas.getContext("2d")
       if (ctx) {
         ctx.fillStyle = "#000"
-        ctx.fillRect(0, 0, 1920, 1080)
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
       }
     }
 
@@ -232,6 +238,13 @@ function BroadcastCanvas() {
     }
   }, [draw, logDebug, preloadFrameAssets, pushNdiFrame, pushNdiBurst])
 
+  // Going fullscreen, moving to another monitor or a DPI change all resize
+  // the window: redraw at the new pixel size.
+  useEffect(() => {
+    window.addEventListener("resize", draw)
+    return () => window.removeEventListener("resize", draw)
+  }, [draw])
+
   // Slow keepalive: push one frame every 2s if idle (prevents NDI receivers from dropping the source)
   useEffect(() => {
     const timer = setInterval(() => {
@@ -243,15 +256,17 @@ function BroadcastCanvas() {
   }, [pushNdiFrame])
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
       style={{
         width: "100vw",
         height: "100vh",
-        display: "block",
-        objectFit: "contain",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
-    />
+    >
+      <canvas ref={canvasRef} style={{ display: "block" }} />
+    </div>
   )
 }
 

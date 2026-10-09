@@ -548,6 +548,7 @@ function drawImageFill(
   // tint below can be painted inside it rather than over the rect's edges.
   roundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius)
   ctx.clip()
+  ctx.imageSmoothingQuality = "high"
 
   if (image.blur > 0) {
     ctx.filter = `blur(${image.blur}px) brightness(${image.brightness / 100})`
@@ -1406,6 +1407,8 @@ function drawFullFrameImage(
 
   const img = options?.imageCache?.get(url)
   if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+    // The default "low" smoothing turns a downscaled slide soft and jagged.
+    ctx.imageSmoothingQuality = "high"
     const fit = Math.min(frameW / img.naturalWidth, frameH / img.naturalHeight)
     const drawW = img.naturalWidth * fit
     const drawH = img.naturalHeight * fit

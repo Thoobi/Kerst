@@ -621,3 +621,14 @@ describe("renderVerse — full-frame image slides", () => {
     expect(draws[0].args.slice(1)).toEqual([0, 0, 480, 270])
   })
 })
+
+describe("renderVerse — image smoothing", () => {
+  it("draws slide and theme images with high-quality smoothing", () => {
+    const url = "data:image/png;base64,slide"
+    const { ctx } = recordingCtx()
+    renderVerse(ctx, BUILTIN_THEMES[0], { reference: "", segments: [], image: { url } }, {
+      imageCache: new Map([[url, { naturalWidth: 1920, naturalHeight: 1080 } as HTMLImageElement]]),
+    })
+    expect(ctx.imageSmoothingQuality).toBe("high")
+  })
+})
