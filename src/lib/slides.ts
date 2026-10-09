@@ -15,6 +15,8 @@ export function toRenderData(slide: Slide): VerseRenderData {
         reference: slide.footer ?? "",
         segments: slide.lines.map((text, i) => ({ text, lineBreak: i > 0 })),
       }
+    case "image":
+      return { reference: slide.title, segments: [], image: { url: slide.url } }
   }
 }
 
@@ -25,5 +27,7 @@ export function slideLabel(slide: Slide): string {
       return `${slide.verse.book_name} ${slide.verse.chapter}:${slide.verse.verse}`
     case "lyrics":
       return `${slide.songTitle} · ${slide.sectionLabel}`
+    case "image":
+      return slide.title
   }
 }

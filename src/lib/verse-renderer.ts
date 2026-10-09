@@ -1384,6 +1384,36 @@ export function computeVerseLayoutMetrics(
   }
 }
 
+/**
+ * Fit a picture to the whole frame on black, keeping its aspect ratio — how a
+ * presentation slide is shown. The theme plays no part: a 4:3 deck on a 16:9
+ * output gets black bars, never a stretch or a crop. Black while it loads.
+ */
+function drawFullFrameImage(
+  ctx: CanvasRenderingContext2D,
+  theme: BroadcastTheme,
+  url: string,
+  options?: RenderOptions
+): void {
+  const scale = options?.scale ?? 1
+  const frameW = theme.resolution.width * scale
+  const frameH = theme.resolution.height * scale
+
+  ctx.save()
+  if (options?.opacity !== undefined) ctx.globalAlpha = options.opacity
+  ctx.fillStyle = "#000"
+  ctx.fillRect(0, 0, frameW, frameH)
+
+  const img = options?.imageCache?.get(url)
+  if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+    const fit = Math.min(frameW / img.naturalWidth, frameH / img.naturalHeight)
+    const drawW = img.naturalWidth * fit
+    const drawH = img.naturalHeight * fit
+    ctx.drawImage(img, (frameW - drawW) / 2, (frameH - drawH) / 2, drawW, drawH)
+  }
+  ctx.restore()
+}
+
 export function renderVerse(
   ctx: CanvasRenderingContext2D,
   theme: BroadcastTheme,
@@ -1404,6 +1434,11 @@ function renderVerseImpl(
   verse: VerseRenderData | null,
   options?: RenderOptions
 ): VerseLayoutMetrics {
+  if (verse?.image) {
+    drawFullFrameImage(ctx, theme, verse.image.url, options)
+    return computeVerseLayoutMetrics(ctx, theme, null, options)
+  }
+
   const metrics = computeVerseLayoutMetrics(ctx, theme, verse, options)
   const scaledTheme = metrics.scaledTheme
 

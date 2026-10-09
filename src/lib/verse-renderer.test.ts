@@ -570,3 +570,54 @@ describe("measureVerseHeight — hard line breaks", () => {
     expect(height).toBeGreaterThan(2 * lineHeight)
   })
 })
+
+describe("renderVerse — full-frame image slides", () => {
+  const SLIDE_URL = "data:image/png;base64,slide"
+  const SLIDE: VerseRenderData = {
+    reference: "Welcome · 3",
+    segments: [],
+    image: { url: SLIDE_URL },
+  }
+  const slideImage = (naturalWidth: number, naturalHeight: number) =>
+    ({ naturalWidth, naturalHeight }) as HTMLImageElement
+
+  it("fits a 4:3 slide to a 16:9 frame with black bars, not a stretch", () => {
+    const { ctx, calls } = recordingCtx()
+    renderVerse(ctx, BUILTIN_THEMES[0], SLIDE, {
+      imageCache: new Map([[SLIDE_URL, slideImage(1024, 768)]]),
+    })
+
+    const fills = calls.filter((c) => c.method === "fillRect")
+    expect(fills[0].args).toEqual([0, 0, 1920, 1080])
+    const draws = calls.filter((c) => c.method === "drawImage")
+    expect(draws).toHaveLength(1)
+    // 1024x768 scaled to the frame height: 1440 wide, centred.
+    expect(draws[0].args.slice(1)).toEqual([240, 0, 1440, 1080])
+  })
+
+  it("ignores the theme and draws no text", () => {
+    const { ctx, calls } = recordingCtx()
+    renderVerse(ctx, BUILTIN_THEMES[2], { ...SLIDE, segments: VERSE.segments }, {
+      imageCache: new Map([[SLIDE_URL, slideImage(1920, 1080)]]),
+    })
+    expect(calls.some((c) => c.method === "fillText")).toBe(false)
+    expect(calls.some((c) => c.method === "clip")).toBe(false)
+  })
+
+  it("draws black while the slide is still loading", () => {
+    const { ctx, calls } = recordingCtx()
+    renderVerse(ctx, BUILTIN_THEMES[0], SLIDE, { imageCache: new Map() })
+    expect(calls.some((c) => c.method === "drawImage")).toBe(false)
+    expect(calls.filter((c) => c.method === "fillRect")[0].args).toEqual([0, 0, 1920, 1080])
+  })
+
+  it("scales to the preview size", () => {
+    const { ctx, calls } = recordingCtx()
+    renderVerse(ctx, BUILTIN_THEMES[0], SLIDE, {
+      scale: 0.25,
+      imageCache: new Map([[SLIDE_URL, slideImage(1920, 1080)]]),
+    })
+    const draws = calls.filter((c) => c.method === "drawImage")
+    expect(draws[0].args.slice(1)).toEqual([0, 0, 480, 270])
+  })
+})

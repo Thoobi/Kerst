@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { slideLabel, toRenderData } from "./slides"
-import type { LyricSlide, ScriptureSlide } from "@/types"
+import type { ImageSlide, LyricSlide, ScriptureSlide } from "@/types"
 
 const scripture: ScriptureSlide = {
   kind: "scripture",
@@ -26,6 +26,12 @@ const lyric: LyricSlide = {
   footer: "John Newton · Public Domain",
 }
 
+const image: ImageSlide = {
+  kind: "image",
+  url: "data:image/png;base64,slide",
+  title: "Welcome · 3",
+}
+
 describe("toRenderData", () => {
   it("renders scripture exactly as before: reference with translation, one numbered segment", () => {
     expect(toRenderData(scripture)).toEqual({
@@ -45,11 +51,25 @@ describe("toRenderData", () => {
     expect(toRenderData(lyric).reference).toBe("John Newton · Public Domain")
     expect(toRenderData({ ...lyric, footer: undefined }).reference).toBe("")
   })
+
+  it("carries an image slide as a full-frame picture with no text", () => {
+    expect(toRenderData(image)).toEqual({
+      reference: "Welcome · 3",
+      segments: [],
+      image: { url: "data:image/png;base64,slide" },
+    })
+  })
+
+  it("never gives text slides an image", () => {
+    expect(toRenderData(scripture).image).toBeUndefined()
+    expect(toRenderData(lyric).image).toBeUndefined()
+  })
 })
 
 describe("slideLabel", () => {
   it("labels scripture by reference and lyrics by song and section", () => {
     expect(slideLabel(scripture)).toBe("John 3:16")
     expect(slideLabel(lyric)).toBe("Amazing Grace · Verse 1")
+    expect(slideLabel(image)).toBe("Welcome · 3")
   })
 })

@@ -140,7 +140,25 @@ export function preloadThemeImages(
   theme: Parameters<typeof themeImageUrls>[0],
   onReady?: () => void
 ): void {
-  const missing = themeImageUrls(theme).filter((url) => !cache.has(url))
+  preloadImages(themeImageUrls(theme), onReady)
+}
+
+/**
+ * Load every image one rendered frame needs: the theme's, plus the
+ * full-frame picture when the content is an image slide.
+ */
+export function preloadFrameImages(
+  theme: Parameters<typeof themeImageUrls>[0],
+  content: { image?: { url: string } } | null,
+  onReady?: () => void
+): void {
+  const urls = themeImageUrls(theme)
+  if (content?.image?.url) urls.push(content.image.url)
+  preloadImages(urls, onReady)
+}
+
+function preloadImages(urls: string[], onReady?: () => void): void {
+  const missing = urls.filter((url) => !cache.has(url))
   if (missing.length === 0) return
   void Promise.all(missing.map(loadThemeImage)).then(() => onReady?.())
 }

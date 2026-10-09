@@ -11,6 +11,12 @@ export interface VerseSegment {
 export interface VerseRenderData {
   reference: string
   segments: VerseSegment[]
+  /**
+   * A full-frame picture, e.g. an imported presentation slide. When set the
+   * theme is not drawn: the image is fitted to the frame on black, and
+   * `reference` and `segments` are not drawn (`reference` stays the label).
+   */
+  image?: { url: string }
 }
 
 export interface RenderOptions {

@@ -5,7 +5,7 @@ import type { Verse } from "./bible"
  * themes and outputs; `toRenderData` in lib/slides turns it into the
  * reference + segments shape the renderer and output windows understand.
  */
-export type Slide = ScriptureSlide | LyricSlide
+export type Slide = ScriptureSlide | LyricSlide | ImageSlide
 
 export interface ScriptureSlide {
   kind: "scripture"
@@ -24,6 +24,18 @@ export interface LyricSlide {
   lines: string[]
   /** Copyright / CCLI line, shown where scripture shows its reference. */
   footer?: string
+}
+
+/**
+ * A pre-rendered picture shown full frame, ignoring the theme: one page of an
+ * imported presentation deck.
+ */
+export interface ImageSlide {
+  kind: "image"
+  /** Anything an <img> can load: an asset URL, or a data URI. */
+  url: string
+  /** Operator-facing name, e.g. "Welcome deck · 3". */
+  title: string
 }
 
 export type SlideKind = Slide["kind"]

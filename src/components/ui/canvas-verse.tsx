@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback, memo } from "react"
 import { onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
-import { preloadThemeImages, themeImageCache } from "@/lib/theme-image-cache"
+import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import type { BroadcastTheme, VerseRenderData } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -56,10 +56,11 @@ export const CanvasVerse = memo(function CanvasVerse({
     })
   }, [theme, verse, containerWidth])
 
-  // Preload every image the theme uses so the renderer finds them in the cache.
+  // Preload every image the frame uses (theme art, or a full-frame slide) so
+  // the renderer finds them in the cache.
   useEffect(() => {
-    preloadThemeImages(theme, draw)
-  }, [theme, draw])
+    preloadFrameImages(theme, verse, draw)
+  }, [theme, verse, draw])
 
   // Redraw whenever theme, verse, or container size changes.
   useEffect(() => {

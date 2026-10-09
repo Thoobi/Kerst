@@ -3,7 +3,7 @@ import { useRef, useEffect, useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
-import { preloadThemeImages, themeImageCache } from "@/lib/theme-image-cache"
+import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { normalizeTheme } from "@/lib/theme-migrations"
 import "./broadcast-fonts.css"
 import type { BroadcastTheme, VerseRenderData } from "@/types/broadcast"
@@ -83,11 +83,12 @@ function BroadcastCanvas() {
     }
   }, [logDebug])
 
-  // Redraw once a theme's images land. The burst matters: without it NDI
-  // receivers keep the flat fallback frame until the 2s keepalive fires.
-  const preloadThemeAssets = useCallback((theme: BroadcastTheme) => {
-    preloadThemeImages(theme, () => {
-      logDebug("Theme images loaded")
+  // Redraw once a frame's images (theme art, or a full-frame slide) land. The
+  // burst matters: without it NDI receivers keep the flat fallback frame
+  // until the 2s keepalive fires.
+  const preloadFrameAssets = useCallback((payload: BroadcastPayload) => {
+    preloadFrameImages(payload.theme, payload.verse, () => {
+      logDebug("Frame images loaded")
       draw()
       pushNdiBurstRef.current?.()
     })
@@ -177,7 +178,7 @@ function BroadcastCanvas() {
         ...event.payload,
         theme: normalizeTheme(event.payload.theme),
       }
-      preloadThemeAssets(event.payload.theme)
+      preloadFrameAssets(event.payload)
       logDebug("Received broadcast:verse-update", {
         hasVerse: Boolean(event.payload.verse),
         themeId: event.payload.theme.id,
@@ -229,7 +230,7 @@ function BroadcastCanvas() {
       unlisten.then((fn) => fn())
       unlistenNdiConfig.then((fn) => fn())
     }
-  }, [draw, logDebug, preloadThemeAssets, pushNdiFrame, pushNdiBurst])
+  }, [draw, logDebug, preloadFrameAssets, pushNdiFrame, pushNdiBurst])
 
   // Slow keepalive: push one frame every 2s if idle (prevents NDI receivers from dropping the source)
   useEffect(() => {
