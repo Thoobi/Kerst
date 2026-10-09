@@ -22,6 +22,9 @@ export type {
   ScheduleItemInput,
   ScheduleItemKind,
   ScheduleSummary,
+  Deck,
+  DeckSlide,
+  DeckSummary,
 } from "./library"
 export type {
   BroadcastOutput,

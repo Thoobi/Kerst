@@ -104,3 +104,32 @@ export interface ScheduleSummary {
   item_count: number
   updated_at: number
 }
+
+/** One page of an imported deck, pre-rendered to an image file. */
+export interface DeckSlide {
+  id: string
+  /** Absolute path on disk; turn into a URL with `deckSlideUrl`. */
+  path: string
+  width: number
+  height: number
+}
+
+export interface Deck {
+  id: string
+  title: string
+  /** The file it was imported from, e.g. "Welcome.pdf". */
+  source_name: string | null
+  slides: DeckSlide[]
+  created_at: number
+  updated_at: number
+}
+
+export interface DeckSummary {
+  id: string
+  title: string
+  source_name: string | null
+  slide_count: number
+  /** The first slide's image path, for a thumbnail. */
+  cover_path: string | null
+  updated_at: number
+}

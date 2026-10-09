@@ -28,6 +28,10 @@ export function loadThemeImage(url: string): Promise<HTMLImageElement | null> {
 
   const request = new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image()
+    // Deck slides come from Tauri's asset protocol, a different origin that
+    // answers with CORS headers. Without asking for CORS the image would
+    // taint the canvas, and NDI's getImageData readback would throw.
+    if (!url.startsWith("data:") && !url.startsWith("blob:")) img.crossOrigin = "anonymous"
     img.onload = () => {
       cache.set(url, img)
       inFlight.delete(url)

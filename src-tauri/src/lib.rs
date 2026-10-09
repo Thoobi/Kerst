@@ -136,6 +136,12 @@ pub fn run() {
             commands::library::get_schedule,
             commands::library::save_schedule,
             commands::library::delete_schedule,
+            commands::library::list_decks,
+            commands::library::get_deck,
+            commands::library::begin_deck_import,
+            commands::library::add_deck_slide,
+            commands::library::finish_deck_import,
+            commands::library::delete_deck,
             commands::remote::start_osc,
             commands::remote::stop_osc,
             commands::remote::get_osc_status,
@@ -182,11 +188,11 @@ pub fn run() {
                 log::warn!("Bible database not found at {}", db_path.display());
             }
 
-            // The user's songs and schedules live beside their settings, not
+            // The user's songs, schedules and decks live beside their settings, not
             // in the bundled resources: they must be writable and survive
             // app updates.
             let library = match app.path().app_data_dir() {
-                Ok(dir) => commands::library::LibraryState::open(&dir.join("library.db")),
+                Ok(dir) => commands::library::LibraryState::open(&dir),
                 Err(e) => commands::library::LibraryState::unavailable(e.to_string()),
             };
             app.manage(library);

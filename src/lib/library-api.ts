@@ -1,5 +1,8 @@
-import { invoke } from "@tauri-apps/api/core"
+import { convertFileSrc, invoke } from "@tauri-apps/api/core"
 import type {
+  Deck,
+  DeckSlide,
+  DeckSummary,
   Schedule,
   ScheduleInput,
   ScheduleSummary,
@@ -21,4 +24,20 @@ export const libraryApi = {
   getSchedule: (id: string) => invoke<Schedule>("get_schedule", { id }),
   saveSchedule: (schedule: ScheduleInput) => invoke<Schedule>("save_schedule", { schedule }),
   deleteSchedule: (id: string) => invoke<void>("delete_schedule", { id }),
+
+  listDecks: () => invoke<DeckSummary[]>("list_decks"),
+  getDeck: (id: string) => invoke<Deck>("get_deck", { id }),
+  /** Start an import; add every slide, then finish (or delete to cancel). */
+  beginDeckImport: (title: string, sourceName?: string) =>
+    invoke<string>("begin_deck_import", { title, sourceName }),
+  /** Append one PNG or JPEG. Sent as raw bytes, not JSON. */
+  addDeckSlide: (deckId: string, image: Uint8Array) =>
+    invoke<DeckSlide>("add_deck_slide", image, { headers: { "x-deck-id": deckId } }),
+  finishDeckImport: (deckId: string) => invoke<Deck>("finish_deck_import", { deckId }),
+  deleteDeck: (id: string) => invoke<void>("delete_deck", { id }),
+}
+
+/** The URL an <img> or the renderer loads a deck slide's image from. */
+export function deckSlideUrl(path: string): string {
+  return convertFileSrc(path)
 }

@@ -59,6 +59,30 @@ const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX schedule_items_schedule ON schedule_items(schedule_id, position);
     ",
+    // 2: imported presentation decks. Slide images live on disk under the
+    // decks directory; these rows index them.
+    r"
+    CREATE TABLE decks (
+        id          TEXT PRIMARY KEY,
+        title       TEXT NOT NULL,
+        source_name TEXT,
+        -- 'importing' until every slide is in, then 'ready'. Imports that
+        -- never finish are swept on the next start.
+        status      TEXT NOT NULL DEFAULT 'importing',
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL
+    );
+
+    CREATE TABLE deck_slides (
+        id       TEXT PRIMARY KEY,
+        deck_id  TEXT NOT NULL REFERENCES decks(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        file     TEXT NOT NULL,
+        width    INTEGER NOT NULL,
+        height   INTEGER NOT NULL
+    );
+    CREATE INDEX deck_slides_deck ON deck_slides(deck_id, position);
+    ",
 ];
 
 pub(crate) fn migrate(conn: &mut Connection) -> Result<(), LibraryError> {

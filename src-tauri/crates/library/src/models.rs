@@ -194,6 +194,39 @@ pub struct ScheduleSummary {
     pub updated_at: i64,
 }
 
+/// One page of an imported deck, pre-rendered to an image file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeckSlide {
+    pub id: String,
+    /// Absolute path of the image on disk.
+    pub path: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// An imported presentation: its slides, in order.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Deck {
+    pub id: String,
+    pub title: String,
+    /// The file it was imported from, e.g. "Welcome.pdf".
+    pub source_name: Option<String>,
+    pub slides: Vec<DeckSlide>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeckSummary {
+    pub id: String,
+    pub title: String,
+    pub source_name: Option<String>,
+    pub slide_count: i64,
+    /// The first slide's image, for a thumbnail.
+    pub cover_path: Option<String>,
+    pub updated_at: i64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
