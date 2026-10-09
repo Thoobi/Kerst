@@ -2,9 +2,21 @@ import { create } from "zustand"
 import { libraryApi } from "@/lib/library-api"
 import { songSlides, toLyricSlide, type SongSlide } from "@/lib/song-slides"
 import { toRenderData } from "@/lib/slides"
+import { decodeSongFile, parseSongFile } from "@/lib/song-formats"
 import { useBroadcastStore } from "./broadcast-store"
 import { usePreviewStore } from "./preview-store"
 import type { Song, SongInput, SongSummary, VerseRenderData } from "@/types"
+
+export interface SongImportOutcome {
+  imported: Song[]
+  /** Titles skipped because the library already has them. */
+  duplicates: string[]
+  failed: { file: string; reason: string }[]
+}
+
+/** Same title and CCLI number: the same song, however it was imported. */
+const songKey = (title: string, ccli: string | null | undefined) =>
+  `${title.trim().toLowerCase()}|${ccli?.trim() ?? ""}`
 
 interface SongsState {
   /** Songs matching `query` (every song when it is empty). */
@@ -28,6 +40,8 @@ interface SongsState {
   /** Jump to the first screen of the next sung section with this code. */
   jumpToSection: (code: string) => void
   saveSong: (song: SongInput) => Promise<Song>
+  /** Read song files (OpenLyrics, SongSelect, ChordPro, text) into the library. */
+  importFiles: (files: File[]) => Promise<SongImportOutcome>
   deleteSong: (id: string) => Promise<void>
 }
 
@@ -107,6 +121,31 @@ export const useSongsStore = create<SongsState>((set, get) => ({
     }
     await get().search(get().query)
     return song
+  },
+
+  importFiles: async (files) => {
+    const outcome: SongImportOutcome = { imported: [], duplicates: [], failed: [] }
+    const existing = await libraryApi.listSongs()
+    const known = new Set(existing.map((s) => songKey(s.title, s.ccli_number)))
+    for (const file of files) {
+      try {
+        const input = parseSongFile(file.name, decodeSongFile(new Uint8Array(await file.arrayBuffer())))
+        const key = songKey(input.title, input.ccli_number)
+        if (known.has(key)) {
+          outcome.duplicates.push(input.title)
+          continue
+        }
+        const song = await libraryApi.saveSong(input)
+        known.add(key)
+        outcome.imported.push(song)
+      } catch (error) {
+        outcome.failed.push({ file: file.name, reason: error instanceof Error ? error.message : String(error) })
+      }
+    }
+    await get().search(get().query)
+    const first = outcome.imported[0]
+    if (outcome.imported.length === 1 && first) await get().openSong(first.id)
+    return outcome
   },
 
   deleteSong: async (id) => {

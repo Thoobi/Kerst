@@ -11,6 +11,9 @@ describe("parseHeader", () => {
     expect(parseHeader("Refrain")).toEqual({ kind: "chorus", label: "Chorus" })
     expect(parseHeader("[V2]")).toEqual({ kind: "verse", label: "Verse 2" })
     expect(parseHeader("Ending")).toEqual({ kind: "outro", label: "Outro" })
+    expect(parseHeader("Interlude")).toEqual({ kind: "other", label: "Interlude" })
+    expect(parseHeader("MISC 2")).toEqual({ kind: "other", label: "Misc 2" })
+    expect(parseHeader("Instrumental")).toEqual({ kind: "other", label: "Instrumental" })
   })
 
   it("leaves lyric lines alone, including bare letters", () => {

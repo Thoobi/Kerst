@@ -2,19 +2,60 @@ import { useEffect, useRef, useState } from "react"
 import { ask } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
 import {
+  DownloadIcon,
+  MoreHorizontalIcon,
   MusicIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
   Trash2Icon,
+  UploadIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { SongEditorDialog } from "@/components/panels/song-editor-dialog"
 import { cn } from "@/lib/utils"
 import { isTypingOrHandled } from "@/lib/operator-keys"
+import { SONG_FILE_ACCEPT } from "@/lib/song-formats"
+import { exportLibrary, exportSong } from "@/lib/song-files"
 import { useBroadcastStore, useSongsStore } from "@/stores"
+import type { SongImportOutcome } from "@/stores/songs-store"
 import type { Song } from "@/types"
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`
+
+function reportImport({ imported, duplicates, failed }: SongImportOutcome) {
+  if (imported.length > 0) {
+    toast.success(
+      imported.length === 1
+        ? `Imported “${imported[0].title}”`
+        : `Imported ${plural(imported.length, "song")}`
+    )
+  }
+  if (duplicates.length > 0) {
+    toast(`${plural(duplicates.length, "song")} already in the library`, {
+      description: duplicates.join(", "),
+    })
+  }
+  for (const { file, reason } of failed) {
+    toast.error(`Couldn't import ${file}`, { description: reason })
+  }
+}
+
+async function runExport(action: () => Promise<string | null>) {
+  try {
+    const done = await action()
+    if (done) toast.success(done)
+  } catch (error) {
+    toast.error("Export failed", { description: String(error) })
+  }
+}
 
 /** Letter keys that jump to a section, as on most worship software. */
 const SECTION_KEYS: Record<string, string> = {
@@ -43,7 +84,25 @@ export function SongsPanel() {
   const liveVerse = useBroadcastStore((s) => s.liveVerse)
 
   const [editing, setEditing] = useState<{ song: Song | null } | null>(null)
+  const [importing, setImporting] = useState(false)
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const pickFiles = () => fileInput.current?.click()
+
+  const onFilesPicked = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = "" // so picking the same file again still fires
+    if (files.length === 0) return
+    setImporting(true)
+    try {
+      reportImport(await useSongsStore.getState().importFiles(files))
+    } catch (error) {
+      toast.error("Import failed", { description: String(error) })
+    } finally {
+      setImporting(false)
+    }
+  }
 
   useEffect(() => {
     void useSongsStore.getState().search("")
@@ -115,15 +174,71 @@ export function SongsPanel() {
               className="h-8 pl-8 text-xs"
             />
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-auto"
-            onClick={() => setEditing({ song: null })}
-          >
-            <PlusIcon />
-            New song
-          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept={SONG_FILE_ACCEPT}
+            multiple
+            className="hidden"
+            onChange={(e) => void onFilesPicked(e)}
+          />
+          <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={pickFiles}
+              disabled={importing}
+              title="Import OpenLyrics, SongSelect (.txt, .usr), ChordPro or plain text files"
+            >
+              <UploadIcon />
+              {importing ? "Importing…" : "Import"}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-sm" title="Export songs">
+                  <MoreHorizontalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  disabled={!activeSong}
+                  onClick={() =>
+                    activeSong &&
+                    void runExport(async () =>
+                      (await exportSong(activeSong))
+                        ? `Exported “${activeSong.title}”`
+                        : null
+                    )
+                  }
+                >
+                  <DownloadIcon className="mr-2 size-3.5" />
+                  Export this song…
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    void runExport(async () => {
+                      const done = await exportLibrary()
+                      return (
+                        done &&
+                        `Exported ${plural(done.count, "song")} to ${done.folder}`
+                      )
+                    })
+                  }
+                >
+                  <DownloadIcon className="mr-2 size-3.5" />
+                  Export all songs…
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditing({ song: null })}
+            >
+              <PlusIcon />
+              New song
+            </Button>
+          </div>
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(11rem,15rem)_minmax(0,1fr)]">
@@ -252,19 +367,26 @@ export function SongsPanel() {
                     {results.length ? "Pick a song" : "Add your first song"}
                   </p>
                   <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                    Paste lyrics with headings like “Verse 1” and “Chorus”, and
-                    they're split into screens for you.
+                    Import files from SongSelect, OpenLP (OpenLyrics) or
+                    ChordPro, or paste lyrics into a new song and they're split
+                    into screens for you.
                   </p>
                 </div>
                 {results.length === 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditing({ song: null })}
-                  >
-                    <PlusIcon />
-                    New song
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={pickFiles}>
+                      <UploadIcon />
+                      Import songs
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditing({ song: null })}
+                    >
+                      <PlusIcon />
+                      New song
+                    </Button>
+                  </div>
                 )}
               </div>
             )}

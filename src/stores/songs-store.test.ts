@@ -134,4 +134,20 @@ describe("songs store", () => {
     expect(songs.getState().activeSong).toBeNull()
     expect(songs.getState().slides).toEqual([])
   })
+
+  it("imports song files, skipping ones already in the library and reporting bad files", async () => {
+    api.saveSong.mockImplementation(async (input) => ({ ...song, id: `new-${input.title}`, title: input.title }))
+    const { songs } = await stores()
+    const outcome = await songs.getState().importFiles([
+      new File(["Verse 1\nYou are here\n\nChorus\nWay maker"], "Way Maker.txt"),
+      new File(["{title: Amazing Grace}\nAmazing grace"], "grace.cho"), // already in the library
+      new File(["Verse 1\nYou are here"], "Way Maker.txt"), // same file twice in one import
+      new File(["%PDF-1.7"], "slides.pdf"),
+    ])
+    expect(outcome.imported.map((s) => s.title)).toEqual(["Way Maker"])
+    expect(outcome.duplicates).toEqual(["Amazing Grace", "Way Maker"])
+    expect(outcome.failed).toEqual([{ file: "slides.pdf", reason: "not a song file Rhema can read" }])
+    expect(api.saveSong).toHaveBeenCalledTimes(1)
+    expect(api.saveSong.mock.calls[0][0]).toMatchObject({ title: "Way Maker", source: "text" })
+  })
 })

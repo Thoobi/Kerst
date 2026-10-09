@@ -17,7 +17,7 @@ import type { SectionKind, SongSection, SongSectionInput } from "@/types"
  */
 
 const HEADER =
-  /^\s*\[?\s*(verse|chorus|refrain|pre[- ]?chorus|bridge|tag|intro|outro|ending|interlude|v|c|pc|b|t|i|o)\s*(\d+)?\s*\]?\s*:?\s*$/i
+  /^\s*\[?\s*(verse|chorus|refrain|pre[- ]?chorus|bridge|tag|intro|outro|ending|interlude|instrumental|misc|vamp|coda|turnaround|v|c|pc|b|t|i|o)\s*(\d+)?\s*\]?\s*:?\s*$/i
 
 /** Short codes like "V" or "C" only count as headers in brackets: "[V1]". */
 const SHORT_CODES = new Set(["v", "c", "pc", "b", "t", "i", "o"])
@@ -77,7 +77,11 @@ export function parseHeader(line: string): ParsedHeader | null {
   if (SHORT_CODES.has(word) && !line.includes("[")) return null
   const kind = KIND_BY_WORD[word] ?? "other"
   const number = match[2]
-  const name = word === "interlude" || kind !== "other" ? KIND_NAME[kind] : match[1]
+  // Kinds without a fixed name (Instrumental, Misc, Vamp...) keep their own.
+  const name =
+    kind !== "other"
+      ? KIND_NAME[kind]
+      : word.charAt(0).toUpperCase() + word.slice(1)
   return { kind, label: number ? `${name} ${Number(number)}` : name }
 }
 
