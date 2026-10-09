@@ -3,7 +3,7 @@ import { TranscriptPanel } from "@/components/panels/transcript-panel"
 import { PreviewPanel } from "@/components/panels/preview-panel"
 import { LiveOutputPanel } from "@/components/panels/live-output-panel"
 import { QueuePanel } from "@/components/panels/queue-panel"
-import { SearchPanel } from "@/components/panels/search-panel"
+import { ContentPanel } from "@/components/panels/content-panel"
 import { DetectionsPanel } from "@/components/panels/detections-panel"
 import { EmbeddingWarningBanner } from "@/components/ui/embedding-warning-banner"
 
@@ -11,10 +11,11 @@ import { EmbeddingWarningBanner } from "@/components/ui/embedding-warning-banner
  * Three-column operator layout:
  *
  *   transcript │ preview · live      │ queue
- *              │ search              │ detections
+ *              │ content (Bible ·    │ detections
+ *              │   Slides tabs)      │
  *
- * The monitor row sizes to the 16:9 canvases, so search takes whatever
- * height is left and never squeezes the program output.
+ * The monitor row sizes to the 16:9 canvases, so the content tabs take
+ * whatever height is left and never squeeze the program output.
  */
 export function Dashboard() {
   return (
@@ -32,7 +33,7 @@ export function Dashboard() {
             <PreviewPanel />
             <LiveOutputPanel />
           </div>
-          <SearchPanel />
+          <ContentPanel />
         </div>
 
         <div className="flex min-h-0 flex-col gap-2">
