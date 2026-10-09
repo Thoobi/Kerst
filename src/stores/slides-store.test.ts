@@ -34,7 +34,13 @@ async function stores() {
   const { useSlidesStore } = await import("./slides-store")
   const { useBroadcastStore } = await import("./broadcast-store")
   const { useBibleStore } = await import("./bible-store")
-  return { slides: useSlidesStore, broadcast: useBroadcastStore, bible: useBibleStore }
+  const { usePreviewStore } = await import("./preview-store")
+  return {
+    slides: useSlidesStore,
+    broadcast: useBroadcastStore,
+    bible: useBibleStore,
+    preview: usePreviewStore,
+  }
 }
 
 const john316 = (translation_id: number) => ({
@@ -131,41 +137,41 @@ describe("slides store", () => {
   })
 
   it("shows the clicked slide in the preview as well as on live", async () => {
-    const { slides, broadcast } = await stores()
+    const { slides, broadcast, preview } = await stores()
     await slides.getState().openDeck("d1")
     slides.getState().presentSlide(1)
-    expect(slides.getState().previewSlide).toBe(broadcast.getState().liveVerse)
+    expect(preview.getState().content).toBe(broadcast.getState().liveVerse)
     slides.getState().step(1)
-    expect(slides.getState().previewSlide?.reference).toBe("Welcome · 3")
+    expect(preview.getState().content?.reference).toBe("Welcome · 3")
   })
 
   it("hands the preview back when a Bible verse is picked, even the same one again", async () => {
-    const { slides, bible } = await stores()
+    const { slides, bible, preview } = await stores()
     bible.getState().selectVerse(john316(1))
     await slides.getState().openDeck("d1")
     slides.getState().presentSlide(0)
 
     // Re-picking the verse that was already selected still means "show the Bible".
     bible.getState().selectVerse(john316(1))
-    expect(slides.getState().previewSlide).toBeNull()
+    expect(preview.getState().content).toBeNull()
   })
 
   it("keeps the slide in the preview when only the translation changes", async () => {
-    const { slides, bible } = await stores()
+    const { slides, bible, preview } = await stores()
     bible.getState().selectVerse(john316(1))
     await slides.getState().openDeck("d1")
     slides.getState().presentSlide(0)
 
     bible.getState().selectVerse(john316(2)) // same verse, re-fetched in another translation
-    expect(slides.getState().previewSlide).not.toBeNull()
+    expect(preview.getState().content).not.toBeNull()
   })
 
   it("clears the preview when its deck is deleted", async () => {
-    const { slides } = await stores()
+    const { slides, preview } = await stores()
     await slides.getState().loadDecks()
     slides.getState().presentSlide(0)
     api.listDecks.mockResolvedValue([])
     await slides.getState().deleteDeck("d1")
-    expect(slides.getState().previewSlide).toBeNull()
+    expect(preview.getState().content).toBeNull()
   })
 })
