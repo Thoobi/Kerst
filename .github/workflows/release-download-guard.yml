@@ -1,15 +1,17 @@
 name: Release Download Guard
 
 # The website's download buttons link to fixed filenames under
-# /releases/latest/download (web/app/_lib/site.ts), and the site is a static
-# export — it cannot check at runtime whether those files exist. GitHub resolves
-# /latest to the newest published, non-prerelease release, so publishing a
-# release that is missing one of those files silently breaks that platform's
-# download button for everyone.
+# downloads.litdeck.space/latest/ (web/app/_lib/site.ts), and the site is a
+# static export — it cannot check at runtime whether those files exist.
 #
-# This runs the moment a release is published and reverts an incomplete one to
-# draft, which puts /latest back on the last complete release. Nothing is lost:
-# re-run the failed build job, then publish again.
+# The release workflow uploads every build to /v<version>/ in download storage
+# but never touches /latest/. Publishing the release is the human "ship it":
+# this job then checks that the version has every file the site links to and,
+# only if it does, copies them to /latest/. An incomplete release is reverted
+# to draft instead and /latest/ stays on the last complete one. Nothing is
+# lost: re-run the failed build job, then publish again.
+#
+# Setup and the secrets this needs: documentation/downloads.md.
 
 on:
   release:
@@ -20,60 +22,116 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  # Two publishes racing could leave /latest/ with files from both.
+  group: publish-downloads
+  cancel-in-progress: false
+
 jobs:
-  verify-download-targets:
-    name: Verify site download targets
-    # Prereleases are excluded from /releases/latest, so they cannot break the
-    # site's links.
+  publish-downloads:
+    name: Verify and publish site downloads
+    # Prereleases never become what the site offers.
     if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
 
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ github.event.release.tag_name }}
+      RELEASE_ID: ${{ github.event.release.id }}
+      BUCKET: ${{ secrets.DOWNLOADS_S3_BUCKET }}
+      ENDPOINT: ${{ secrets.DOWNLOADS_S3_ENDPOINT }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.DOWNLOADS_S3_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.DOWNLOADS_S3_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.DOWNLOADS_S3_REGION || 'auto' }}
+      # R2 rejects the CRC checksums newer AWS CLIs send by default.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+
     steps:
       - name: Check every platform the site links to
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.event.release.tag_name }}
-          RELEASE_ID: ${{ github.event.release.id }}
+        id: check
+        shell: bash
         run: |
+          if [[ -z "$BUCKET" || -z "$AWS_ACCESS_KEY_ID" || -z "$AWS_SECRET_ACCESS_KEY" ]]; then
+            echo "::error::Download storage secrets are not set, so ${TAG} cannot" \
+                 "be published to the website. See documentation/downloads.md." \
+                 "The release stays published on GitHub; the site keeps offering" \
+                 "whatever /latest/ already holds."
+            exit 1
+          fi
+
           # Keep in sync with the `aliases` list in build-release.yml and the
-          # download* URLs in web/app/_lib/site.ts.
+          # download URLs in web/app/_lib/site.ts.
           required=(
             Litdeck-windows-x64-setup.exe
             Litdeck-macos-arm64.dmg
             Litdeck-linux-x86_64.AppImage
           )
 
-          # Never act on a failed lookup: an API hiccup would otherwise read as
-          # "every asset is missing" and unpublish a perfectly good release.
-          if ! assets=$(gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
-            --paginate --jq '.[].name'); then
-            echo "::error::Could not list assets for ${TAG}. Leaving the release" \
-                 "as published and failing this check instead of guessing."
+          endpoint=()
+          [[ -n "$ENDPOINT" ]] && endpoint=(--endpoint-url "$ENDPOINT")
+
+          # Never act on a failed lookup: a storage hiccup would otherwise read
+          # as "every file is missing" and unpublish a perfectly good release.
+          # list-objects-v2 succeeds on an empty prefix (unlike `aws s3 ls`), so
+          # a non-zero exit here really is a storage or credentials problem.
+          if ! keys=$(aws s3api list-objects-v2 "${endpoint[@]}" \
+            --bucket "$BUCKET" --prefix "${TAG}/" \
+            --query 'Contents[].Key' --output text); then
+            echo "::error::Could not list ${TAG}/ in download storage. Leaving the" \
+                 "release as published and failing this check instead of guessing."
             exit 1
           fi
 
-          echo "Assets on ${TAG}:"
-          echo "${assets}" | sed 's/^/  /'
+          present=$(tr '\t' '\n' <<< "${keys}" | { grep -v '^None$' || true; } | sed "s#^${TAG}/##")
+          echo "Files in ${TAG}/:"
+          echo "${present}" | sed 's/^/  /'
 
           missing=()
           for name in "${required[@]}"; do
-            grep -qxF "$name" <<< "${assets}" || missing+=("$name")
+            grep -qxF "$name" <<< "${present}" || missing+=("$name")
           done
 
           if [[ ${#missing[@]} -eq 0 ]]; then
-            echo "All ${#required[@]} site download targets present on ${TAG}."
+            echo "All ${#required[@]} site download targets present in ${TAG}/."
             exit 0
           fi
 
           echo "::error::${TAG} is missing ${missing[*]}, which the website's" \
-               "download buttons link to. Reverting the release to draft so" \
-               "/releases/latest stays on the last complete release. To fix: open" \
-               "the 'Build, Bundle and Release' run for ${TAG}, choose 'Re-run" \
-               "failed jobs' (not 'Re-run all jobs' — that discards the artifacts" \
-               "the other platforms already built), then publish again."
+               "download buttons link to. Reverting the release to draft and" \
+               "leaving /latest/ on the last complete release. To fix: open the" \
+               "'Build, Bundle and Release' run for ${TAG}, choose 'Re-run failed" \
+               "jobs' (not 'Re-run all jobs' — that discards the artifacts the" \
+               "other platforms already built), then publish again."
 
           gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
             -F draft=true > /dev/null
 
           echo "${TAG} reverted to draft."
           exit 1
+
+      - name: Copy to /latest/
+        shell: bash
+        run: |
+          endpoint=()
+          [[ -n "$ENDPOINT" ]] && endpoint=(--endpoint-url "$ENDPOINT")
+
+          # /latest/ changes with every release, so keep caches short; the
+          # versioned copies under /v<version>/ are the long-lived ones.
+          for name in Litdeck-windows-x64-setup.exe Litdeck-macos-arm64.dmg Litdeck-linux-x86_64.AppImage; do
+            aws s3 cp "s3://${BUCKET}/${TAG}/${name}" "s3://${BUCKET}/latest/${name}" \
+              "${endpoint[@]}" --no-progress \
+              --cache-control "public, max-age=300" \
+              --metadata-directive REPLACE \
+              --content-disposition "attachment; filename=\"${name}\""
+          done
+
+          # A small manifest so anything (the site, the app) can ask what the
+          # current version is without parsing a filename.
+          printf '{\n  "version": "%s",\n  "published_at": "%s"\n}\n' \
+            "${TAG#v}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > latest.json
+          aws s3 cp latest.json "s3://${BUCKET}/latest/latest.json" \
+            "${endpoint[@]}" --no-progress \
+            --content-type application/json --cache-control "public, max-age=60"
+
+          echo "/latest/ now serves ${TAG}."

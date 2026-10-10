@@ -6,9 +6,9 @@ import { Lit } from "./section-heading";
 import { SITE } from "../../_lib/site";
 
 const PLATFORMS = [
-  { label: "Windows", href: SITE.repo.downloadWindows, icon: IconBrandWindows },
-  { label: "macOS (Apple silicon)", href: SITE.repo.downloadMac, icon: IconBrandApple },
-  { label: "Linux (AppImage)", href: SITE.repo.downloadLinux, icon: IconBrandUbuntu },
+  { label: "Windows", href: SITE.downloads.windows, icon: IconBrandWindows },
+  { label: "macOS (Apple silicon)", href: SITE.downloads.mac, icon: IconBrandApple },
+  { label: "Linux (AppImage)", href: SITE.downloads.linux, icon: IconBrandUbuntu },
 ] as const;
 
 /** The last word: the beam comes back on, over the download. */

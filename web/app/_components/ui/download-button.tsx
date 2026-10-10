@@ -15,7 +15,7 @@ const COPY: Record<
   { label: string; icon: TablerIcon }
 > = {
   // Each desktop platform links straight to its installer. "other" covers
-  // phones, tablets, and anything unrecognised, which land on the release page
+  // phones, tablets, and anything unrecognised, which land on the download section
   // rather than being handed a file they cannot open.
   mac: { label: "Download for macOS", icon: IconBrandApple },
   windows: { label: "Download for Windows", icon: IconBrandWindows },

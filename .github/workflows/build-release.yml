@@ -232,7 +232,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: light-${{ matrix.target }}
+          name: litdeck-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
           retention-days: 7
@@ -257,7 +257,7 @@ jobs:
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: light-*
+          pattern: litdeck-*
           path: artifacts
           merge-multiple: false
 
@@ -301,10 +301,11 @@ jobs:
             -exec cp {} release-assets/ \;
 
           # The site's download buttons link to fixed filenames under
-          # /releases/latest/download so a visitor gets the right file in one
-          # click (web/app/_lib/site.ts). Tauri stamps the version into every
-          # bundle name, so ship stable-named copies alongside the versioned
-          # ones — otherwise those links need a hand re-upload every release.
+          # downloads.litdeck.space/latest/ so a visitor gets the right file in
+          # one click (web/app/_lib/site.ts). Tauri stamps the version into
+          # every bundle name, so ship stable-named copies alongside the
+          # versioned ones — otherwise those links need a hand re-upload every
+          # release.
           aliases=(
             # The website's download buttons (web/app/_lib/site.ts) and the
             # release download guard link to these exact names; rename them
@@ -455,3 +456,40 @@ jobs:
             --notes-file release-notes.md
 
           echo "Release notes synced for v${{ steps.version.outputs.version }}."
+
+      # The site downloads from our own storage, not from GitHub. Every attempt
+      # uploads to /v<version>/ (re-runs overwrite in place); nothing reaches
+      # /latest/, which the site links to, until the release is published and
+      # release-download-guard.yml has checked it is complete. Setup and the
+      # secrets this needs: documentation/downloads.md.
+      - name: Upload installers to download storage
+        shell: bash
+        env:
+          BUCKET: ${{ secrets.DOWNLOADS_S3_BUCKET }}
+          ENDPOINT: ${{ secrets.DOWNLOADS_S3_ENDPOINT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.DOWNLOADS_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DOWNLOADS_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.DOWNLOADS_S3_REGION || 'auto' }}
+          # R2 rejects the CRC checksums newer AWS CLIs send by default.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+        run: |
+          if [[ -z "$BUCKET" || -z "$AWS_ACCESS_KEY_ID" || -z "$AWS_SECRET_ACCESS_KEY" ]]; then
+            echo "::warning::Download storage secrets are not set, so the installers" \
+                 "were not uploaded and the website's download buttons will not" \
+                 "change. See documentation/downloads.md."
+            exit 0
+          fi
+
+          endpoint=()
+          [[ -n "$ENDPOINT" ]] && endpoint=(--endpoint-url "$ENDPOINT")
+          prefix="v${{ steps.version.outputs.version }}"
+
+          # Versioned paths never change once written, so let browsers and the
+          # CDN keep them.
+          aws s3 cp release-assets "s3://${BUCKET}/${prefix}/" "${endpoint[@]}" \
+            --recursive --no-progress \
+            --cache-control "public, max-age=31536000, immutable"
+
+          echo "Uploaded to ${prefix}/:"
+          aws s3 ls "s3://${BUCKET}/${prefix}/" "${endpoint[@]}"

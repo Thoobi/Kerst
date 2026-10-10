@@ -39,7 +39,7 @@ export function StructuredData() {
         description: SITE.description,
         applicationCategory: "MultimediaApplication",
         operatingSystem: SITE.operatingSystems.join(", "),
-        downloadUrl: SITE.repo.downloadWindows,
+        downloadUrl: SITE.downloads.windows,
         installUrl: `${SITE.url}/#download`,
         softwareVersion: "latest",
         publisher: { "@id": ORG_ID },

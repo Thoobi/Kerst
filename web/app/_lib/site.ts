@@ -11,27 +11,19 @@ export const SITE = {
   founded: "2025",
   category: "MultimediaApplication",
   operatingSystems: ["Windows", "macOS", "Linux"],
-  repo: {
-    owner: "Thoobi",
-    name: "Kerst",
-    url: "https://github.com/Thoobi/Kerst",
-    releases: "https://github.com/Thoobi/Kerst/releases",
-    latestRelease: "https://github.com/Thoobi/Kerst/releases/latest",
-    // `/releases/latest` resolves to the newest published, non-prerelease
-    // release, so these track each tagged release with no hand re-upload. The
-    // release workflow ships a copy of each installer under these exact stable
-    // filenames (Tauri's own bundle names carry the version); keep them in sync
-    // with the `aliases` list in .github/workflows/build-release.yml or these
-    // links 404.
-    downloadWindows:
-      "https://github.com/Thoobi/Kerst/releases/latest/download/Litdeck-windows-x64-setup.exe",
+  downloads: {
+    // Installers live in our own storage, not on GitHub. CI uploads each
+    // release to /v<version>/ and, once the release is published, copies the
+    // three files below to /latest/ under these exact names
+    // (.github/workflows/build-release.yml and release-download-guard.yml,
+    // set up as in documentation/downloads.md). Rename all three together.
+    base: "https://downloads.litdeck.space",
+    windows: "https://downloads.litdeck.space/latest/Litdeck-windows-x64-setup.exe",
     // Apple Silicon only — the build matrix has no x86_64-apple-darwin target.
-    downloadMac:
-      "https://github.com/Thoobi/Kerst/releases/latest/download/Litdeck-macos-arm64.dmg",
+    mac: "https://downloads.litdeck.space/latest/Litdeck-macos-arm64.dmg",
     // AppImage runs on any distro without a package manager step, so it is the
-    // one-click choice; .deb and .rpm stay on the release page.
-    downloadLinux:
-      "https://github.com/Thoobi/Kerst/releases/latest/download/Litdeck-linux-x86_64.AppImage",
+    // one-click choice.
+    linux: "https://downloads.litdeck.space/latest/Litdeck-linux-x86_64.AppImage",
   },
   stats: {
     languages: "2+",
@@ -42,18 +34,18 @@ export const SITE = {
 /**
  * Where a "Download" CTA should point: straight at the installer for the
  * visitor's platform. Volunteers should not have to pick a file out of a
- * GitHub release page. Unrecognised platforms still land on the release list,
- * where every bundle (.msi, .deb, .rpm) is available.
+ * list. Unrecognised platforms (phones, tablets) land on the download section,
+ * which lists every platform.
  */
 export function downloadHref(platform: string | null | undefined): string {
   switch (platform) {
     case "windows":
-      return SITE.repo.downloadWindows;
+      return SITE.downloads.windows;
     case "mac":
-      return SITE.repo.downloadMac;
+      return SITE.downloads.mac;
     case "linux":
-      return SITE.repo.downloadLinux;
+      return SITE.downloads.linux;
     default:
-      return SITE.repo.latestRelease;
+      return "/#download";
   }
 }
