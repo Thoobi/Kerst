@@ -1,0 +1,55 @@
+name: Build web
+
+# The site is hosted on Vercel, which builds and deploys web/ on its own.
+# This only checks that the site still builds, so a change that would break
+# the Vercel deploy shows up as a red X on the commit or pull request first.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/build-web.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/build-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Next.js build
+        uses: actions/cache@v6
+        with:
+          path: web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}-${{ hashFiles('web/**/*.ts', 'web/**/*.tsx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}-
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional repository variable; unset means downloads.litdeck.space.
+          # See documentation/downloads.md.
+          NEXT_PUBLIC_DOWNLOADS_URL: ${{ vars.DOWNLOADS_URL }}

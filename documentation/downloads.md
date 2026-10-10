@@ -65,19 +65,21 @@ R2 can only serve a custom domain whose DNS is on Cloudflare. Until
 
 1. Bucket → Settings → Public Development URL → Enable. Copy the URL
    (`https://pub-<id>.r2.dev`).
-2. GitHub → repo → Settings → Secrets and variables → Actions → **Variables**
-   → New repository variable: `DOWNLOADS_URL` = that URL.
-3. Re-run *Deploy web to GitHub Pages* (or push anything under `web/`).
+2. Vercel → the website project → Settings → Environment Variables →
+   `NEXT_PUBLIC_DOWNLOADS_URL` = that URL (Production and Preview).
+3. Redeploy the latest deployment (Deployments → ⋯ → Redeploy). The value is
+   baked in at build time, so it only takes effect on a new build.
 
 The site's buttons then link to `https://pub-<id>.r2.dev/latest/…`. The
 `r2.dev` URL is rate-limited and Cloudflare doesn't recommend it for
 production, so treat it as temporary. Once the custom domain is connected,
-delete the `DOWNLOADS_URL` variable (the site falls back to
-`https://downloads.litdeck.space`), redeploy, and turn the development URL
-off. The bucket and the release workflows don't change.
+delete the variable (the site falls back to `https://downloads.litdeck.space`),
+redeploy, and turn the development URL off. The bucket and the release
+workflows don't change.
 
-If the site is built somewhere else (e.g. Vercel), set
-`NEXT_PUBLIC_DOWNLOADS_URL` in that project's environment instead.
+The GitHub *Build web* check reads the same setting from an optional
+`DOWNLOADS_URL` repository variable, but it only checks the build; it doesn't
+affect what visitors see.
 
 ## Using AWS S3 instead
 
