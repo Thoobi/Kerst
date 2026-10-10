@@ -313,6 +313,9 @@ jobs:
             "*_x64-setup.exe:Litdeck-windows-x64-setup.exe"
             "*_aarch64.dmg:Litdeck-macos-arm64.dmg"
             "*_amd64.AppImage:Litdeck-linux-x86_64.AppImage"
+            # The Linux install commands on the site fetch these two.
+            "*_amd64.deb:Litdeck-linux-amd64.deb"
+            "*.x86_64.rpm:Litdeck-linux-x86_64.rpm"
           )
 
           missing=()

@@ -3,12 +3,13 @@ import { Button } from "../ui/button";
 import { DownloadButton } from "../ui/download-button";
 import { Reveal } from "../ui/reveal";
 import { Lit } from "./section-heading";
+import { LinuxInstall } from "./linux-install";
 import { SITE } from "../../_lib/site";
 
 const PLATFORMS = [
   { label: "Windows", href: SITE.downloads.windows, icon: IconBrandWindows },
   { label: "macOS (Apple silicon)", href: SITE.downloads.mac, icon: IconBrandApple },
-  { label: "Linux (AppImage)", href: SITE.downloads.linux, icon: IconBrandUbuntu },
+  { label: "Linux", href: "#linux", icon: IconBrandUbuntu },
 ] as const;
 
 /** The last word: the beam comes back on, over the download. */
@@ -42,6 +43,7 @@ export function DownloadSection() {
             </Button>
           ))}
         </div>
+        <LinuxInstall className="mt-10 max-w-[760px]" />
       </Reveal>
     </section>
   );

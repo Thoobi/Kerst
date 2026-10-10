@@ -18,6 +18,13 @@ on:
     # Deliberately not `edited`: this job edits the release, which would
     # retrigger itself.
     types: [published, released]
+  # Re-publish an already published release to /latest/, e.g. after adding a
+  # file to what /latest/ carries. It never reverts anything to draft.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to serve from /latest/ (e.g. v0.3.2)
+        required: true
 
 permissions:
   contents: write
@@ -31,12 +38,12 @@ jobs:
   publish-downloads:
     name: Verify and publish site downloads
     # Prereleases never become what the site offers.
-    if: ${{ !github.event.release.prerelease }}
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
     runs-on: ubuntu-latest
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      TAG: ${{ github.event.release.tag_name }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
       RELEASE_ID: ${{ github.event.release.id }}
       BUCKET: ${{ secrets.DOWNLOADS_S3_BUCKET }}
       ENDPOINT: ${{ secrets.DOWNLOADS_S3_ENDPOINT }}
@@ -90,6 +97,16 @@ jobs:
           echo "Files in ${TAG}/:"
           echo "${present}" | sed 's/^/  /'
 
+          # The Linux packages the site's install commands fetch. Optional:
+          # matched by pattern so releases from before they had stable names
+          # still provide them, and a missing one never blocks a release.
+          deb=$(grep -E '_amd64\.deb$' <<< "${present}" | head -1 || true)
+          rpm=$(grep -E '\.x86_64\.rpm$' <<< "${present}" | head -1 || true)
+          echo "deb=${deb}" >> "$GITHUB_OUTPUT"
+          echo "rpm=${rpm}" >> "$GITHUB_OUTPUT"
+          [[ -n "$deb" ]] || echo "::warning::No .deb in ${TAG}/; /latest/ keeps its previous one."
+          [[ -n "$rpm" ]] || echo "::warning::No .rpm in ${TAG}/; /latest/ keeps its previous one."
+
           missing=()
           for name in "${required[@]}"; do
             grep -qxF "$name" <<< "${present}" || missing+=("$name")
@@ -107,14 +124,19 @@ jobs:
                "jobs' (not 'Re-run all jobs' — that discards the artifacts the" \
                "other platforms already built), then publish again."
 
-          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
-            -F draft=true > /dev/null
-
-          echo "${TAG} reverted to draft."
+          # Run by hand, there is no release event to undo; just stop.
+          if [[ -n "$RELEASE_ID" ]]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+              -F draft=true > /dev/null
+            echo "${TAG} reverted to draft."
+          fi
           exit 1
 
       - name: Copy to /latest/
         shell: bash
+        env:
+          DEB: ${{ steps.check.outputs.deb }}
+          RPM: ${{ steps.check.outputs.rpm }}
         run: |
           # Keep only scheme://host: R2's dashboard shows the S3 API URL with
           # "/<bucket>" on the end, and a path here gets prepended to every key.
@@ -126,6 +148,19 @@ jobs:
           # versioned copies under /v<version>/ are the long-lived ones.
           for name in Litdeck-windows-x64-setup.exe Litdeck-macos-arm64.dmg Litdeck-linux-x86_64.AppImage; do
             aws s3 cp "s3://${BUCKET}/${TAG}/${name}" "s3://${BUCKET}/latest/${name}" \
+              "${endpoint[@]}" --no-progress \
+              --cache-control "public, max-age=300" \
+              --metadata-directive REPLACE \
+              --content-disposition "attachment; filename=\"${name}\""
+          done
+
+          # Optional Linux packages, under stable names whatever the release
+          # called them.
+          for pair in "${DEB}:Litdeck-linux-amd64.deb" "${RPM}:Litdeck-linux-x86_64.rpm"; do
+            src="${pair%%:*}"
+            name="${pair##*:}"
+            [[ -n "$src" ]] || continue
+            aws s3 cp "s3://${BUCKET}/${TAG}/${src}" "s3://${BUCKET}/latest/${name}" \
               "${endpoint[@]}" --no-progress \
               --cache-control "public, max-age=300" \
               --metadata-directive REPLACE \

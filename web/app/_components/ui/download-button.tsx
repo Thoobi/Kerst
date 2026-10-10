@@ -19,7 +19,7 @@ const COPY: Record<
   // rather than being handed a file they cannot open.
   mac: { label: "Download for macOS", icon: IconBrandApple },
   windows: { label: "Download for Windows", icon: IconBrandWindows },
-  linux: { label: "Download for Linux", icon: IconDownload },
+  linux: { label: "Install on Linux", icon: IconDownload },
   other: { label: "Download", icon: IconDownload },
   default: { label: "Download", icon: IconDownload },
 };

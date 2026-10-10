@@ -31,6 +31,9 @@ export const SITE = {
     // AppImage runs on any distro without a package manager step, so it is the
     // one-click choice.
     linux: `${DOWNLOADS_BASE}/latest/Litdeck-linux-x86_64.AppImage`,
+    // Fetched by the copy-paste install commands (sections/linux-install.tsx).
+    deb: `${DOWNLOADS_BASE}/latest/Litdeck-linux-amd64.deb`,
+    rpm: `${DOWNLOADS_BASE}/latest/Litdeck-linux-x86_64.rpm`,
   },
   stats: {
     languages: "2+",
@@ -51,7 +54,9 @@ export function downloadHref(platform: string | null | undefined): string {
     case "mac":
       return SITE.downloads.mac;
     case "linux":
-      return SITE.downloads.linux;
+      // Linux has several package formats, so send people to the install
+      // command for their distro rather than picking one for them.
+      return "/#linux";
     default:
       return "/#download";
   }
