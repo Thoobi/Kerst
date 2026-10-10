@@ -1,4 +1,4 @@
-// Mirrors rhema-library's models (src-tauri/crates/library/src/models.rs).
+// Mirrors light-library's models (src-tauri/crates/library/src/models.rs).
 // Field names stay snake_case, as with the Bible types.
 
 export type SectionKind =
@@ -65,7 +65,11 @@ export interface SongSummary {
   updated_at: number
 }
 
-export type ScheduleItemKind = "song" | "scripture" | "announcement" | "media" | "sermon"
+/**
+ * What a service item points at. "announcement" is a library text,
+ * "media" a library video, "deck" an imported presentation.
+ */
+export type ScheduleItemKind = "song" | "scripture" | "announcement" | "media" | "deck" | "sermon"
 
 export interface ScheduleItem {
   id: string
@@ -160,4 +164,21 @@ export interface VideoProbe {
   duration_ms: number
   width: number
   height: number
+}
+
+/** A free text shown on screen, e.g. an announcement. Blank lines split screens. */
+export interface Text {
+  id: string
+  title: string
+  body: string
+  /** A library video looped behind the text. */
+  background_video_id: string | null
+  created_at: number
+  updated_at: number
+}
+
+export interface TextInput {
+  id?: string | null
+  title: string
+  body: string
 }

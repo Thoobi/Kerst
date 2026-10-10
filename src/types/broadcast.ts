@@ -23,6 +23,8 @@ export interface VerseRenderData {
    * can show a frame, the poster is drawn instead.
    */
   video?: VideoPlayback
+  /** Lyrics and texts set "lyrics", so the theme's song and text style applies. */
+  style?: "lyrics"
   /**
    * A small credit line in the bottom-right corner, e.g. a song's title and
    * author, kept off the main text so only the words are big on screen.
@@ -113,6 +115,27 @@ export type TextVerticalAlign = "top" | "middle" | "bottom"
 export type TextTransform = "none" | "uppercase" | "lowercase" | "capitalize"
 export type TextDecoration = "none" | "underline" | "line-through"
 
+/**
+ * How songs and texts look on a theme, over its verse text style. Anything
+ * unset follows the theme; scripture always uses the theme itself. Edited
+ * from the quick style panel beside the Songs and Texts tabs.
+ */
+export interface LyricsStyle {
+  fontSize?: number
+  fontWeight?: number
+  lineHeight?: number
+  color?: string
+  horizontalAlign?: TextHorizontalAlign
+  verticalAlign?: TextVerticalAlign
+  shrinkToFit?: boolean
+  outline?: { color: string; width: number } | null
+  /**
+   * "screen": the words use the whole frame (with a margin), whatever size
+   * the theme's verse box is. "theme" or unset: the theme's text area.
+   */
+  area?: "theme" | "screen"
+}
+
 export interface BroadcastTheme {
   id: string
   name: string
@@ -158,6 +181,8 @@ export interface BroadcastTheme {
      */
     shrinkToFit?: boolean
   }
+  /** Songs and texts styled apart from scripture; see `LyricsStyle`. */
+  lyricsText?: LyricsStyle
   verseNumbers: {
     visible: boolean
     fontSize: number

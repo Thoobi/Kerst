@@ -89,45 +89,52 @@ pub fn coerce_string(arg: &OscType) -> Result<String, CommandError> {
 
 /// Parse an OSC address + arguments into a `RemoteCommand`.
 ///
-/// Handles all 12 Rhema OSC addresses:
-/// - `/rhema/next`, `/rhema/prev`, `/rhema/show`, `/rhema/hide` (no arguments)
-/// - `/rhema/send_to_live`, `/rhema/bible_next`, `/rhema/bible_prev`,
-///   `/rhema/add_to_queue` (no arguments)
-/// - `/rhema/theme` (string argument)
-/// - `/rhema/opacity`, `/rhema/confidence` (float argument, normalized to [0.0, 1.0])
-/// - `/rhema/on_air` (bool argument)
+/// Handles all 12 Light OSC addresses:
+/// - `/light/next`, `/light/prev`, `/light/show`, `/light/hide` (no arguments)
+/// - `/light/send_to_live`, `/light/bible_next`, `/light/bible_prev`,
+///   `/light/add_to_queue` (no arguments)
+/// - `/light/theme` (string argument)
+/// - `/light/opacity`, `/light/confidence` (float argument, normalized to [0.0, 1.0])
+/// - `/light/on_air` (bool argument)
+///
+/// Every address also answers under `/rhema/`, the app's former name, so
+/// controllers set up before the rename keep working.
 pub fn parse_osc(address: &str, args: &[OscType]) -> Result<RemoteCommand, CommandError> {
-    match address {
-        "/rhema/next" => Ok(RemoteCommand::Next),
-        "/rhema/prev" => Ok(RemoteCommand::Prev),
-        "/rhema/show" => Ok(RemoteCommand::Show),
-        "/rhema/hide" => Ok(RemoteCommand::Hide),
-        "/rhema/send_to_live" => Ok(RemoteCommand::SendToLive),
-        "/rhema/bible_next" => Ok(RemoteCommand::BibleNext),
-        "/rhema/bible_prev" => Ok(RemoteCommand::BiblePrev),
-        "/rhema/add_to_queue" => Ok(RemoteCommand::AddToQueue),
-        "/rhema/theme" => {
+    let command = address
+        .strip_prefix("/light/")
+        .or_else(|| address.strip_prefix("/rhema/"))
+        .ok_or_else(|| CommandError::UnknownAddress(address.into()))?;
+    match command {
+        "next" => Ok(RemoteCommand::Next),
+        "prev" => Ok(RemoteCommand::Prev),
+        "show" => Ok(RemoteCommand::Show),
+        "hide" => Ok(RemoteCommand::Hide),
+        "send_to_live" => Ok(RemoteCommand::SendToLive),
+        "bible_next" => Ok(RemoteCommand::BibleNext),
+        "bible_prev" => Ok(RemoteCommand::BiblePrev),
+        "add_to_queue" => Ok(RemoteCommand::AddToQueue),
+        "theme" => {
             let arg = args.first().ok_or_else(|| CommandError::MissingArgument {
                 address: address.into(),
             })?;
             let name = coerce_string(arg)?;
             Ok(RemoteCommand::Theme(name))
         }
-        "/rhema/opacity" => {
+        "opacity" => {
             let arg = args.first().ok_or_else(|| CommandError::MissingArgument {
                 address: address.into(),
             })?;
             let val = coerce_f32_normalized(arg)?;
             Ok(RemoteCommand::Opacity(val))
         }
-        "/rhema/confidence" => {
+        "confidence" => {
             let arg = args.first().ok_or_else(|| CommandError::MissingArgument {
                 address: address.into(),
             })?;
             let val = coerce_f32_normalized(arg)?;
             Ok(RemoteCommand::Confidence(val))
         }
-        "/rhema/on_air" => {
+        "on_air" => {
             let arg = args.first().ok_or_else(|| CommandError::MissingArgument {
                 address: address.into(),
             })?;
@@ -268,28 +275,28 @@ mod tests {
 
     #[test]
     fn parse_osc_next() {
-        assert_eq!(parse_osc("/rhema/next", &[]).unwrap(), RemoteCommand::Next);
+        assert_eq!(parse_osc("/light/next", &[]).unwrap(), RemoteCommand::Next);
     }
 
     #[test]
     fn parse_osc_prev() {
-        assert_eq!(parse_osc("/rhema/prev", &[]).unwrap(), RemoteCommand::Prev);
+        assert_eq!(parse_osc("/light/prev", &[]).unwrap(), RemoteCommand::Prev);
     }
 
     #[test]
     fn parse_osc_show() {
-        assert_eq!(parse_osc("/rhema/show", &[]).unwrap(), RemoteCommand::Show);
+        assert_eq!(parse_osc("/light/show", &[]).unwrap(), RemoteCommand::Show);
     }
 
     #[test]
     fn parse_osc_hide() {
-        assert_eq!(parse_osc("/rhema/hide", &[]).unwrap(), RemoteCommand::Hide);
+        assert_eq!(parse_osc("/light/hide", &[]).unwrap(), RemoteCommand::Hide);
     }
 
     #[test]
     fn parse_osc_send_to_live() {
         assert_eq!(
-            parse_osc("/rhema/send_to_live", &[]).unwrap(),
+            parse_osc("/light/send_to_live", &[]).unwrap(),
             RemoteCommand::SendToLive
         );
     }
@@ -297,7 +304,7 @@ mod tests {
     #[test]
     fn parse_osc_bible_next() {
         assert_eq!(
-            parse_osc("/rhema/bible_next", &[]).unwrap(),
+            parse_osc("/light/bible_next", &[]).unwrap(),
             RemoteCommand::BibleNext
         );
     }
@@ -305,7 +312,7 @@ mod tests {
     #[test]
     fn parse_osc_bible_prev() {
         assert_eq!(
-            parse_osc("/rhema/bible_prev", &[]).unwrap(),
+            parse_osc("/light/bible_prev", &[]).unwrap(),
             RemoteCommand::BiblePrev
         );
     }
@@ -313,7 +320,7 @@ mod tests {
     #[test]
     fn parse_osc_add_to_queue() {
         assert_eq!(
-            parse_osc("/rhema/add_to_queue", &[]).unwrap(),
+            parse_osc("/light/add_to_queue", &[]).unwrap(),
             RemoteCommand::AddToQueue
         );
     }
@@ -323,11 +330,11 @@ mod tests {
         // Controllers send a trailing value on every button press; the
         // argument-free commands must treat it as noise, not an error.
         assert_eq!(
-            parse_osc("/rhema/send_to_live", &[OscType::Float(1.0)]).unwrap(),
+            parse_osc("/light/send_to_live", &[OscType::Float(1.0)]).unwrap(),
             RemoteCommand::SendToLive
         );
         assert_eq!(
-            parse_osc("/rhema/bible_next", &[OscType::Int(1)]).unwrap(),
+            parse_osc("/light/bible_next", &[OscType::Int(1)]).unwrap(),
             RemoteCommand::BibleNext
         );
     }
@@ -335,7 +342,7 @@ mod tests {
     #[test]
     fn parse_osc_theme() {
         assert_eq!(
-            parse_osc("/rhema/theme", &[OscType::String("Minimal".into())]).unwrap(),
+            parse_osc("/light/theme", &[OscType::String("Minimal".into())]).unwrap(),
             RemoteCommand::Theme("Minimal".into())
         );
     }
@@ -343,35 +350,35 @@ mod tests {
     #[test]
     fn parse_osc_opacity() {
         assert_eq!(
-            parse_osc("/rhema/opacity", &[OscType::Float(0.5)]).unwrap(),
+            parse_osc("/light/opacity", &[OscType::Float(0.5)]).unwrap(),
             RemoteCommand::Opacity(0.5)
         );
     }
 
     #[test]
     fn parse_osc_confidence_from_int_percent() {
-        let result = parse_osc("/rhema/confidence", &[OscType::Int(80)]).unwrap();
+        let result = parse_osc("/light/confidence", &[OscType::Int(80)]).unwrap();
         assert_eq!(result, RemoteCommand::Confidence(0.8));
     }
 
     #[test]
     fn parse_osc_on_air_from_int() {
         assert_eq!(
-            parse_osc("/rhema/on_air", &[OscType::Int(1)]).unwrap(),
+            parse_osc("/light/on_air", &[OscType::Int(1)]).unwrap(),
             RemoteCommand::OnAir(true)
         );
     }
 
     #[test]
     fn parse_osc_unknown_address_errors() {
-        let result = parse_osc("/rhema/unknown", &[]);
+        let result = parse_osc("/light/unknown", &[]);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Unknown OSC address"));
     }
 
     #[test]
     fn parse_osc_opacity_missing_arg_errors() {
-        let result = parse_osc("/rhema/opacity", &[]);
+        let result = parse_osc("/light/opacity", &[]);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -381,7 +388,7 @@ mod tests {
 
     #[test]
     fn parse_osc_theme_missing_arg_errors() {
-        let result = parse_osc("/rhema/theme", &[]);
+        let result = parse_osc("/light/theme", &[]);
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -391,13 +398,13 @@ mod tests {
 
     #[test]
     fn parse_osc_on_air_missing_arg_errors() {
-        let result = parse_osc("/rhema/on_air", &[]);
+        let result = parse_osc("/light/on_air", &[]);
         assert!(result.is_err());
     }
 
     #[test]
     fn parse_osc_confidence_missing_arg_errors() {
-        let result = parse_osc("/rhema/confidence", &[]);
+        let result = parse_osc("/light/confidence", &[]);
         assert!(result.is_err());
     }
 
@@ -407,11 +414,11 @@ mod tests {
     fn parse_osc_on_air_from_float() {
         // TouchOSC sends Float for toggles
         assert_eq!(
-            parse_osc("/rhema/on_air", &[OscType::Float(1.0)]).unwrap(),
+            parse_osc("/light/on_air", &[OscType::Float(1.0)]).unwrap(),
             RemoteCommand::OnAir(true)
         );
         assert_eq!(
-            parse_osc("/rhema/on_air", &[OscType::Float(0.0)]).unwrap(),
+            parse_osc("/light/on_air", &[OscType::Float(0.0)]).unwrap(),
             RemoteCommand::OnAir(false)
         );
     }
@@ -420,7 +427,7 @@ mod tests {
     fn parse_osc_opacity_from_int_percent() {
         // Companion sends Int 0-100
         assert_eq!(
-            parse_osc("/rhema/opacity", &[OscType::Int(50)]).unwrap(),
+            parse_osc("/light/opacity", &[OscType::Int(50)]).unwrap(),
             RemoteCommand::Opacity(0.5)
         );
     }
@@ -429,8 +436,19 @@ mod tests {
     fn parse_osc_on_air_from_string() {
         // Some controllers send String "true"/"false"
         assert_eq!(
-            parse_osc("/rhema/on_air", &[OscType::String("on".into())]).unwrap(),
+            parse_osc("/light/on_air", &[OscType::String("on".into())]).unwrap(),
             RemoteCommand::OnAir(true)
         );
+    }
+
+    #[test]
+    fn answers_under_the_former_rhema_prefix_too() {
+        assert_eq!(parse_osc("/rhema/next", &[]).unwrap(), RemoteCommand::Next);
+        assert_eq!(
+            parse_osc("/rhema/opacity", &[OscType::Float(0.5)]).unwrap(),
+            parse_osc("/light/opacity", &[OscType::Float(0.5)]).unwrap()
+        );
+        assert!(parse_osc("/other/next", &[]).is_err());
+        assert!(parse_osc("/light", &[]).is_err());
     }
 }

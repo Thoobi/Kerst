@@ -1,4 +1,3 @@
-import { PanelHeader } from "@/components/ui/panel-header"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -101,49 +100,52 @@ function QueueItemRow({
   )
 }
 
-export function QueuePanel() {
+/** The verse count and Clear button, for the panel header. */
+export function QueueActions() {
+  const count = useQueueStore((s) => s.items.length)
+  return (
+    <>
+      <span className="rounded-full bg-muted px-1.5 font-mono text-[0.6875rem] text-muted-foreground tabular-nums">
+        {count}
+      </span>
+      {count > 0 && (
+        <Button
+          variant="ghost"
+          size="xs"
+          className="text-muted-foreground"
+          onClick={() => useQueueStore.getState().clearQueue()}
+        >
+          Clear
+        </Button>
+      )}
+    </>
+  )
+}
+
+/** Detected and queued verses, newest last. */
+export function QueueList() {
   const items = useQueueStore((s) => s.items)
   const activeIndex = useQueueStore((s) => s.activeIndex)
   const highlightedId = useQueueStore((s) => s.highlightedId)
 
   return (
-    <div
-      data-slot="queue-panel"
-      className="flex min-h-0 basis-2/5 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs"
-    >
-      <PanelHeader title="Queue">
-        <span className="rounded-full bg-muted px-1.5 font-mono text-[0.6875rem] text-muted-foreground tabular-nums">
-          {items.length}
-        </span>
-        {items.length > 0 && (
-          <Button
-            variant="ghost"
-            size="xs"
-            className="text-muted-foreground"
-            onClick={() => useQueueStore.getState().clearQueue()}
-          >
-            Clear
-          </Button>
+    // The Bible search finds queued rows by this slot to scroll to them.
+    <div data-slot="queue-panel" className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex flex-col gap-0.5 px-1.5 pb-1.5">
+        {items.length === 0 && (
+          <p className="px-4 py-8 text-center text-xs leading-relaxed text-muted-foreground">
+            Detected and queued verses line up here.
+          </p>
         )}
-      </PanelHeader>
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="flex flex-col gap-0.5 px-1.5 pb-1.5">
-          {items.length === 0 && (
-            <p className="px-4 py-8 text-center text-xs leading-relaxed text-muted-foreground">
-              Detected and queued verses line up here.
-            </p>
-          )}
-          {items.map((item, idx) => (
-            <QueueItemRow
-              key={item.id}
-              item={item}
-              index={idx}
-              isActive={idx === activeIndex}
-              isHighlighted={item.id === highlightedId}
-            />
-          ))}
-        </div>
+        {items.map((item, idx) => (
+          <QueueItemRow
+            key={item.id}
+            item={item}
+            index={idx}
+            isActive={idx === activeIndex}
+            isHighlighted={item.id === highlightedId}
+          />
+        ))}
       </div>
     </div>
   )

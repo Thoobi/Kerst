@@ -24,7 +24,7 @@ signing certificate behind this project — so each OS warns on first run.
 
 **Windows:** SmartScreen warns — *More info → Run anyway*.
 
-**macOS:** drag `Rhema.app` to Applications first, then open it. Gatekeeper
+**macOS:** drag `Light.app` to Applications first, then open it. Gatekeeper
 blocks unsigned apps that carry the browser's quarantine flag; on macOS 15 and
 newer the right-click → Open trick no longer works, so use:
 
@@ -33,7 +33,7 @@ newer the right-click → Open trick no longer works, so use:
 - clear the quarantine flag yourself:
 
   ```sh
-  xattr -cr /Applications/Rhema.app
+  xattr -cr /Applications/Light.app
   ```
 
 Releases do **not** bundle the embedding model or the Whisper model — together
@@ -85,12 +85,12 @@ speech-to-text stay inactive until you build from source and run
 
 | Crate | Purpose |
 |---|---|
-| `rhema-audio` | Audio device enumeration, capture, VAD (cpal) |
-| `rhema-stt` | Local Whisper (gated behind `whisper` Cargo feature) and Deepgram STT streaming + REST fallback |
-| `rhema-bible` | SQLite Bible DB, FTS5 search, cross-references |
-| `rhema-detection` | Verse detection pipeline: direct, semantic, quotation, ensemble merger, sentence buffer, sermon context, reading mode |
-| `rhema-broadcast` | NDI video frame output via FFI |
-| `rhema-api` | Tauri command API layer |
+| `light-audio` | Audio device enumeration, capture, VAD (cpal) |
+| `light-stt` | Local Whisper (gated behind `whisper` Cargo feature) and Deepgram STT streaming + REST fallback |
+| `light-bible` | SQLite Bible DB, FTS5 search, cross-references |
+| `light-detection` | Verse detection pipeline: direct, semantic, quotation, ensemble merger, sentence buffer, sermon context, reading mode |
+| `light-broadcast` | NDI video frame output via FFI |
+| `light-api` | Tauri command API layer |
 | `rhema-notes` | (placeholder) |
 
 ## Prerequisites
@@ -160,7 +160,7 @@ This runs the required phases idempotently, skipping any whose output artifacts 
 
 1. ~~Python environment~~ — skipped by default (only needed for `--with-embedding` below)
 2. Download Bible source data — single bundled archive containing all 10 translations plus the openbible.info cross-references zip
-3. Build SQLite Bible database (`data/rhema.db` with FTS5 + cross-references)
+3. Build SQLite Bible database (`data/light.db` with FTS5 + cross-references)
 4. –6. ~~ONNX model + verse embeddings~~ — skipped by default (see below)
 7. Download Whisper model (`ggml-large-v3-turbo-q8_0.bin`) into `models/whisper/`
 

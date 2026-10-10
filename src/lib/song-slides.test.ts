@@ -76,6 +76,7 @@ describe("toLyricSlide", () => {
     const slide = toLyricSlide(song, songSlides(song)[1])
     expect(slide.sectionLabel).toBe("Verse 1 (2/2)")
     expect(toRenderData(slide)).toEqual({
+      style: "lyrics",
       reference: "",
       credit: "Amazing Grace · John Newton",
       segments: [

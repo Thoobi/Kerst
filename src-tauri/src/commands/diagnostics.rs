@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 use tauri::Manager;
 
 /// Log-file basename configured on the plugin's `LogDir` target in `lib.rs`.
-/// Rotated archives are `rhema_<date>.log` alongside it.
-const LOG_STEM: &str = "rhema";
+/// Rotated archives are `light_<date>.log` alongside it.
+const LOG_STEM: &str = "light";
 
 /// Width of the `[YYYY-MM-DD][HH:MM:SS.mmm]` stamp the formatter writes.
 const TIMESTAMP_LEN: usize = 26;
@@ -97,7 +97,7 @@ fn filter_since(contents: &str, cutoff: Option<i64>) -> Vec<&str> {
 
 /// The active log plus its rotated archives, oldest first.
 ///
-/// Archives are named `rhema_<YYYY-MM-DD_HH-MM-SS>.log`, so a lexical sort of
+/// Archives are named `light_<YYYY-MM-DD_HH-MM-SS>.log`, so a lexical sort of
 /// the archive names is chronological; the live file is always newest.
 fn log_files(dir: &Path) -> Vec<PathBuf> {
     let mut archives: Vec<PathBuf> = std::fs::read_dir(dir)
@@ -109,7 +109,7 @@ fn log_files(dir: &Path) -> Vec<PathBuf> {
             let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
                 return false;
             };
-            name.starts_with(concat!("rhema", "_")) && std::path::Path::new(name)
+            name.starts_with(concat!("light", "_")) && std::path::Path::new(name)
                 .extension()
                 .is_some_and(|ext| ext.eq_ignore_ascii_case("log"))
         })
@@ -131,7 +131,7 @@ fn header(
     last: Option<&str>,
 ) -> String {
     format!(
-        "==== Rhema diagnostic log ====\n\
+        "==== Light diagnostic log ====\n\
          app version : {version}\n\
          platform    : {} {}\n\
          window      : {window}\n\
@@ -211,9 +211,9 @@ pub fn export_diagnostics(
 mod tests {
     use super::*;
 
-    const T1: &str = "[2026-08-19][10:00:00.000][rhema][INFO] one";
-    const T2: &str = "[2026-08-19][10:30:00.000][rhema][INFO] two";
-    const T3: &str = "[2026-08-19][11:00:00.000][rhema][INFO] three";
+    const T1: &str = "[2026-08-19][10:00:00.000][light][INFO] one";
+    const T2: &str = "[2026-08-19][10:30:00.000][light][INFO] two";
+    const T3: &str = "[2026-08-19][11:00:00.000][light][INFO] three";
 
     fn epoch(h: u32, m: u32) -> i64 {
         to_unix_seconds(2026, 8, 19, h, m, 0)
@@ -295,12 +295,12 @@ mod tests {
 
     #[test]
     fn archives_are_ordered_before_the_live_log() {
-        let dir = std::env::temp_dir().join(format!("rhema-diag-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("light-diag-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         for name in [
-            "rhema.log",
-            "rhema_2026-08-19_09-00-00.log",
-            "rhema_2026-08-19_08-00-00.log",
+            "light.log",
+            "light_2026-08-19_09-00-00.log",
+            "light_2026-08-19_08-00-00.log",
             "unrelated.txt",
         ] {
             std::fs::write(dir.join(name), "x").unwrap();
@@ -313,9 +313,9 @@ mod tests {
         assert_eq!(
             names,
             vec![
-                "rhema_2026-08-19_08-00-00.log",
-                "rhema_2026-08-19_09-00-00.log",
-                "rhema.log",
+                "light_2026-08-19_08-00-00.log",
+                "light_2026-08-19_09-00-00.log",
+                "light.log",
             ]
         );
 

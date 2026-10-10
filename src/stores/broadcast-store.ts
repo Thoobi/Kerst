@@ -5,6 +5,7 @@ import type {
   BroadcastOutput,
   BroadcastOutputStatus,
   BroadcastTheme,
+  LyricsStyle,
   Verse,
   VerseRenderData,
 } from "@/types"
@@ -54,6 +55,12 @@ interface BroadcastState {
   setLiveVerse: (verse: VerseRenderData | null, source?: Verse | null) => void
   setAutoLive: (auto: boolean) => void
   syncBroadcastOutput: () => void
+  /**
+   * Change how songs and texts look on the main output's theme (null resets
+   * them to the theme's own style). A built-in theme is copied first, as
+   * the designer does, and the outputs move to the copy.
+   */
+  updateLyricsStyle: (patch: Partial<LyricsStyle> | null) => void
   syncBroadcastOutputFor: (outputId: string) => void
 
   // Output management
@@ -119,16 +126,14 @@ function emitDraftToBroadcast(state: BroadcastState): void {
   }
 }
 
-function defaultMainOutput(): BroadcastOutput {
+function defaultMainOutput(ndiSourceName = "Light Output"): BroadcastOutput {
   return {
     id: MAIN_OUTPUT_ID,
     name: "Main Display",
     type: "display",
     themeId: BUILTIN_THEMES[0].id,
     monitorIndex: 0,
-    // Keeps the pre-multi-output source name so upgrading users' NDI
-    // receivers stay bound after the migration.
-    ndi: defaultNdiSettings("Rhema Output"),
+    ndi: defaultNdiSettings(ndiSourceName),
   }
 }
 
@@ -141,7 +146,10 @@ export function migrateLegacyOutputs(
   activeThemeId?: string,
   altActiveThemeId?: string
 ): BroadcastOutput[] {
-  const main = defaultMainOutput()
+  // An install from before multiple outputs (it saved an active theme)
+  // keeps the NDI source names it had, from when the app was called Rhema,
+  // so receivers stay bound. A fresh install gets Light's names.
+  const main = defaultMainOutput(activeThemeId ? "Rhema Output" : undefined)
   if (activeThemeId) main.themeId = activeThemeId
   const outputs = [main]
   if (altActiveThemeId && altActiveThemeId !== BUILTIN_THEMES[0].id) {
@@ -151,7 +159,7 @@ export function migrateLegacyOutputs(
       type: "ndi",
       themeId: altActiveThemeId,
       monitorIndex: 0,
-      ndi: defaultNdiSettings("Rhema Alt"),
+      ndi: defaultNdiSettings("Rhema Alt"), // only ever a pre-multi-output install
     })
   }
   return outputs
@@ -254,6 +262,32 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     for (const output of get().outputs) {
       get().syncBroadcastOutputFor(output.id)
     }
+  },
+  updateLyricsStyle: (patch) => {
+    const s = get()
+    const mainThemeId = s.outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? s.activeThemeId
+    let theme = s.themes.find((t) => t.id === mainThemeId) ?? s.themes[0]
+    if (!theme) return
+    if (theme.builtin) {
+      const now = Date.now()
+      const copy: BroadcastTheme = {
+        ...theme,
+        id: crypto.randomUUID(),
+        name: `${theme.name} (Custom)`,
+        builtin: false,
+        pinned: false,
+        createdAt: now,
+        updatedAt: now,
+      }
+      set((st) => ({ themes: [...st.themes, copy] }))
+      for (const output of get().outputs) {
+        if (output.themeId === theme.id) get().setOutputTheme(output.id, copy.id)
+      }
+      theme = copy
+    }
+    const lyricsText = patch === null ? undefined : { ...theme.lyricsText, ...patch }
+    get().saveTheme({ ...theme, lyricsText, updatedAt: Date.now() })
+    get().syncBroadcastOutput()
   },
   setActiveTheme: (activeThemeId) => {
     get().setOutputTheme(MAIN_OUTPUT_ID, activeThemeId)

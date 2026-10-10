@@ -11,23 +11,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { libraryFileUrl } from "@/lib/library-api"
-import { useSongsStore } from "@/stores/songs-store"
 import { useVideosStore } from "@/stores/videos-store"
-import type { Song } from "@/types"
 
 const THEME = "theme"
 
 /**
- * Choose a motion background for a song: a library video looped silently
- * behind its lyrics instead of the theme's background.
+ * Choose a motion background for a song or text: a library video looped
+ * silently behind its words instead of the theme's background.
  */
-export function SongBackgroundPicker({ song }: { song: Song }) {
+export function BackgroundPicker({
+  videoId,
+  onChoose,
+}: {
+  videoId: string | null
+  onChoose: (videoId: string | null) => Promise<void>
+}) {
   const videos = useVideosStore((s) => s.videos)
-  const current = videos.find((v) => v.id === song.background_video_id) ?? null
+  const current = videos.find((v) => v.id === videoId) ?? null
 
   const choose = async (value: string) => {
     try {
-      await useSongsStore.getState().setBackground(value === THEME ? null : value)
+      await onChoose(value === THEME ? null : value)
     } catch (error) {
       toast.error("Could not change the background", { description: String(error) })
     }
@@ -55,7 +59,7 @@ export function SongBackgroundPicker({ song }: { song: Song }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-80 w-64">
-        <DropdownMenuLabel className="text-xs">Behind the lyrics</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-xs">Behind the words</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={current?.id ?? THEME} onValueChange={(value) => void choose(value)}>
           <DropdownMenuRadioItem value={THEME} className="text-xs">
             <ImageOffIcon className="size-3.5 text-muted-foreground" />

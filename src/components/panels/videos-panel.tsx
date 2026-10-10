@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ask, open } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
 import {
@@ -27,7 +27,7 @@ import { useBroadcastStore } from "@/stores"
 import { useVideosStore, type VideoImportOutcome } from "@/stores/videos-store"
 import type { Video } from "@/types"
 
-/** Containers the library accepts (rhema_library::videos::VIDEO_EXTENSIONS). */
+/** Containers the library accepts (light_library::videos::VIDEO_EXTENSIONS). */
 const VIDEO_EXTENSIONS = ["mp4", "m4v", "mov", "webm", "ogv", "mkv"]
 
 function reportImport(outcome: VideoImportOutcome) {
@@ -68,6 +68,7 @@ export function VideosPanel() {
   const isLive = useBroadcastStore((s) => s.isLive)
   const liveVideoId = useBroadcastStore((s) => s.liveVerse?.video?.id ?? null)
   const [renaming, setRenaming] = useState<string | null>(null)
+  const focusedId = useVideosStore((s) => s.focusedId)
 
   useEffect(() => {
     void useVideosStore.getState().loadVideos()
@@ -142,6 +143,7 @@ export function VideosPanel() {
                 video={video}
                 live={isLive && liveVideoId === video.id}
                 cued={!isLive && liveVideoId === video.id}
+                focused={focusedId === video.id}
                 renaming={renaming === video.id}
                 onRename={() => setRenaming(video.id)}
                 onRenameDone={() => setRenaming(null)}
@@ -175,6 +177,7 @@ function VideoCard({
   video,
   live,
   cued,
+  focused,
   renaming,
   onRename,
   onRenameDone,
@@ -182,6 +185,8 @@ function VideoCard({
   video: Video
   live: boolean
   cued: boolean
+  /** Picked from the service order: bring it into view and mark it. */
+  focused: boolean
   renaming: boolean
   onRename: () => void
   onRenameDone: () => void
@@ -208,13 +213,19 @@ function VideoCard({
     }
   }
 
+  const cardRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (focused) cardRef.current?.scrollIntoView({ block: "nearest" })
+  }, [focused])
+
   return (
-    <div className="group flex min-w-0 flex-col gap-1">
+    <div ref={cardRef} className="group flex min-w-0 flex-col gap-1">
       <button
         type="button"
         onClick={() => useVideosStore.getState().presentVideo(video.id)}
         className={cn(
           "relative aspect-video overflow-hidden rounded-md bg-black ring-1 ring-border transition-shadow outline-none hover:ring-foreground/40 focus-visible:ring-2 focus-visible:ring-ring",
+          focused && "ring-2 ring-amber-500",
           cued && "ring-2 ring-primary",
           live && "ring-2 ring-live-pulse"
         )}

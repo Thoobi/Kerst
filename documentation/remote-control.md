@@ -1,6 +1,6 @@
 # Remote Control
 
-Rhema provides two remote control protocols for external integration: **OSC** (Open Sound Control) and **HTTP API**. These allow you to control broadcasts, navigate verses, switch themes, and adjust settings from hardware controllers, automation scripts, or custom dashboards.
+Light provides two remote control protocols for external integration: **OSC** (Open Sound Control) and **HTTP API**. These allow you to control broadcasts, navigate verses, switch themes, and adjust settings from hardware controllers, automation scripts, or custom dashboards.
 
 ## Overview
 
@@ -45,7 +45,7 @@ Both protocols support the same command set and can run simultaneously.
 
 ### Firewall & Network
 
-If accessing Rhema from another device on your network:
+If accessing Light from another device on your network:
 - Allow incoming connections on your chosen ports (default 8000/8080)
 - Use your computer's local IP address (e.g., `192.168.1.100`)
 - For local-only access, change host to `127.0.0.1` in settings
@@ -60,7 +60,7 @@ Moves forward in the verse queue and presents the next verse.
 
 **OSC:**
 ```
-/rhema/next
+/light/next
 ```
 
 **HTTP:**
@@ -76,7 +76,7 @@ Moves backward in the verse queue and presents the previous verse.
 
 **OSC:**
 ```
-/rhema/prev
+/light/prev
 ```
 
 **HTTP:**
@@ -92,7 +92,7 @@ Makes the broadcast output visible (sets live state to true).
 
 **OSC:**
 ```
-/rhema/show
+/light/show
 ```
 
 **HTTP:**
@@ -108,7 +108,7 @@ Hides the broadcast output (sets live state to false).
 
 **OSC:**
 ```
-/rhema/hide
+/light/hide
 ```
 
 **HTTP:**
@@ -127,8 +127,8 @@ Sets the broadcast live state to a specific value.
 
 **OSC:**
 ```
-/rhema/on_air true
-/rhema/on_air false
+/light/on_air true
+/light/on_air false
 ```
 
 **HTTP:**
@@ -147,8 +147,8 @@ Changes the active broadcast theme by name (case-insensitive).
 
 **OSC:**
 ```
-/rhema/theme "Classic Dark"
-/rhema/theme "Minimal"
+/light/theme "Classic Dark"
+/light/theme "Minimal"
 ```
 
 **HTTP:**
@@ -167,8 +167,8 @@ Adjusts the opacity of the broadcast output.
 
 **OSC:**
 ```
-/rhema/opacity 0.75
-/rhema/opacity 1.0
+/light/opacity 0.75
+/light/opacity 1.0
 ```
 
 **HTTP:**
@@ -189,7 +189,7 @@ Adjusts the minimum confidence threshold for verse detection.
 
 **OSC:**
 ```
-/rhema/confidence 0.8
+/light/confidence 0.8
 ```
 
 **HTTP:**
@@ -204,14 +204,14 @@ curl -X POST http://localhost:8080/api/v1/command \
 Puts the verse currently showing in **Program preview** on the Live output — the same thing
 the panel's "Send to live" button does.
 
-Detections that Rhema is confident about go straight to Live; everything else stages in
+Detections that Light is confident about go straight to Live; everything else stages in
 Preview first. This command is how you push a staged verse out without touching the app
 window. If nothing is in Preview, the command does nothing — it will never blank what the
 congregation is seeing.
 
 **OSC:**
 ```
-/rhema/send_to_live
+/light/send_to_live
 ```
 
 **HTTP:**
@@ -234,7 +234,7 @@ book it stops — it does not roll over into the next book.
 
 **OSC:**
 ```
-/rhema/bible_next
+/light/bible_next
 ```
 
 **HTTP:**
@@ -251,7 +251,7 @@ previous chapter; at the start of a book it stops.
 
 **OSC:**
 ```
-/rhema/bible_prev
+/light/bible_prev
 ```
 
 **HTTP:**
@@ -269,7 +269,7 @@ duplicates.
 
 **OSC:**
 ```
-/rhema/add_to_queue
+/light/add_to_queue
 ```
 
 **HTTP:**
@@ -284,7 +284,7 @@ curl -X POST http://localhost:8080/api/v1/command \
 >
 > Over **OSC** this is forgiving: controllers that send a value with every button press
 > (TouchOSC and Companion both do) work fine — the extra argument is ignored. Verified with
-> `/rhema/bible_next` carrying a float and `/rhema/add_to_queue` carrying an int; both dispatch
+> `/light/bible_next` carrying a float and `/light/add_to_queue` carrying an int; both dispatch
 > normally.
 >
 > Over **HTTP** it is strict: send `{"command":"bible_next"}` exactly. Adding a `value` key
@@ -338,7 +338,7 @@ A rejected command returns `500` with the reason attached:
 ```json
 {
   "success": false,
-  "error": "Unknown OSC address: /rhema/nope"
+  "error": "Unknown OSC address: /light/nope"
 }
 ```
 
@@ -350,18 +350,18 @@ A rejected command returns `500` with the reason attached:
 
 1. **Install Companion** and configure your Stream Deck
 2. **Add Generic OSC module**:
-   - Host: `127.0.0.1` (or your Rhema computer's IP)
+   - Host: `127.0.0.1` (or your Light computer's IP)
    - Port: `8000`
 3. **Create buttons** for each command:
-   - **Next in Queue**: OSC path `/rhema/next`
-   - **Prev in Queue**: OSC path `/rhema/prev`
-   - **Next Verse (Bible panel)**: OSC path `/rhema/bible_next`
-   - **Prev Verse (Bible panel)**: OSC path `/rhema/bible_prev`
-   - **Send to Live**: OSC path `/rhema/send_to_live`
-   - **Add to Queue**: OSC path `/rhema/add_to_queue`
-   - **Show Output**: OSC path `/rhema/show`
-   - **Hide Output**: OSC path `/rhema/hide`
-   - **Go Live**: OSC path `/rhema/on_air` with argument `true`
+   - **Next in Queue**: OSC path `/light/next`
+   - **Prev in Queue**: OSC path `/light/prev`
+   - **Next Verse (Bible panel)**: OSC path `/light/bible_next`
+   - **Prev Verse (Bible panel)**: OSC path `/light/bible_prev`
+   - **Send to Live**: OSC path `/light/send_to_live`
+   - **Add to Queue**: OSC path `/light/add_to_queue`
+   - **Show Output**: OSC path `/light/show`
+   - **Hide Output**: OSC path `/light/hide`
+   - **Go Live**: OSC path `/light/on_air` with argument `true`
 
 A useful three-button layout for reading through a passage the AI has not detected:
 `bible_next` / `bible_prev` to move, `send_to_live` to push the verse you land on.
@@ -372,26 +372,26 @@ Mobile control surfaces can send OSC commands directly.
 
 **TouchOSC Example:**
 1. Create buttons with OSC message type
-2. Set destination to Rhema computer IP:8000
+2. Set destination to Light computer IP:8000
 3. Configure OSC addresses:
-   - `/rhema/next`
-   - `/rhema/prev`
-   - `/rhema/bible_next`
-   - `/rhema/bible_prev`
-   - `/rhema/send_to_live`
-   - `/rhema/add_to_queue`
-   - `/rhema/show`
-   - `/rhema/hide`
+   - `/light/next`
+   - `/light/prev`
+   - `/light/bible_next`
+   - `/light/bible_prev`
+   - `/light/send_to_live`
+   - `/light/add_to_queue`
+   - `/light/show`
+   - `/light/hide`
 
 ### Node.js / JavaScript Automation
 
 **Using HTTP API:**
 
 ```javascript
-const RHEMA_URL = 'http://localhost:8080/api/v1';
+const LIGHT_URL = 'http://localhost:8080/api/v1';
 
 async function nextVerse() {
-  await fetch(`${RHEMA_URL}/command`, {
+  await fetch(`${LIGHT_URL}/command`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ command: 'next' })
@@ -399,7 +399,7 @@ async function nextVerse() {
 }
 
 async function setTheme(themeName) {
-  await fetch(`${RHEMA_URL}/command`, {
+  await fetch(`${LIGHT_URL}/command`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ command: 'theme', value: themeName })
@@ -407,7 +407,7 @@ async function setTheme(themeName) {
 }
 
 async function getStatus() {
-  const res = await fetch(`${RHEMA_URL}/status`);
+  const res = await fetch(`${LIGHT_URL}/status`);
   return res.json();
 }
 
@@ -426,15 +426,15 @@ import { Client } from 'osc';
 const osc = new Client('localhost', 8000);
 
 // Send commands
-osc.send('/rhema/next');
-osc.send('/rhema/prev');
-osc.send('/rhema/bible_next');
-osc.send('/rhema/bible_prev');
-osc.send('/rhema/send_to_live');
-osc.send('/rhema/add_to_queue');
-osc.send('/rhema/theme', 'Classic Dark');
-osc.send('/rhema/opacity', 0.8);
-osc.send('/rhema/on_air', true);
+osc.send('/light/next');
+osc.send('/light/prev');
+osc.send('/light/bible_next');
+osc.send('/light/bible_prev');
+osc.send('/light/send_to_live');
+osc.send('/light/add_to_queue');
+osc.send('/light/theme', 'Classic Dark');
+osc.send('/light/opacity', 0.8);
+osc.send('/light/on_air', true);
 ```
 
 ### Python Automation
@@ -444,18 +444,18 @@ osc.send('/rhema/on_air', true);
 ```python
 import requests
 
-RHEMA_URL = 'http://localhost:8080/api/v1'
+LIGHT_URL = 'http://localhost:8080/api/v1'
 
 def next_verse():
-    requests.post(f'{RHEMA_URL}/command',
+    requests.post(f'{LIGHT_URL}/command',
                   json={'command': 'next'})
 
 def set_theme(theme_name):
-    requests.post(f'{RHEMA_URL}/command',
+    requests.post(f'{LIGHT_URL}/command',
                   json={'command': 'theme', 'value': theme_name})
 
 def get_status():
-    response = requests.get(f'{RHEMA_URL}/status')
+    response = requests.get(f'{LIGHT_URL}/status')
     return response.json()
 
 # Usage
@@ -473,20 +473,20 @@ from pythonosc import udp_client
 osc = udp_client.SimpleUDPClient('localhost', 8000)
 
 # Send commands
-osc.send_message('/rhema/next', [])
-osc.send_message('/rhema/prev', [])
-osc.send_message('/rhema/bible_next', [])
-osc.send_message('/rhema/bible_prev', [])
-osc.send_message('/rhema/send_to_live', [])
-osc.send_message('/rhema/add_to_queue', [])
-osc.send_message('/rhema/theme', 'Classic Dark')
-osc.send_message('/rhema/opacity', 0.8)
-osc.send_message('/rhema/on_air', True)
+osc.send_message('/light/next', [])
+osc.send_message('/light/prev', [])
+osc.send_message('/light/bible_next', [])
+osc.send_message('/light/bible_prev', [])
+osc.send_message('/light/send_to_live', [])
+osc.send_message('/light/add_to_queue', [])
+osc.send_message('/light/theme', 'Classic Dark')
+osc.send_message('/light/opacity', 0.8)
+osc.send_message('/light/on_air', True)
 ```
 
 ### OBS Studio Integration
 
-While Rhema uses NDI for video output, you can use remote control for automation:
+While Light uses NDI for video output, you can use remote control for automation:
 
 **OBS Advanced Scene Switcher + Shell Command:**
 
@@ -533,7 +533,7 @@ Use this to verify your integration is working correctly.
 
 4. **Network Issues**
    - Verify computer IP address: `ifconfig` (macOS/Linux) or `ipconfig` (Windows)
-   - Test connectivity: `ping <rhema-computer-ip>`
+   - Test connectivity: `ping <light-computer-ip>`
    - Ensure both devices on same network (if remote)
 
 #### Port Already in Use
@@ -595,7 +595,7 @@ All commands are validated before execution:
 - **Transport**: UDP
 - **Library**: Custom parser built on `tokio` async runtime
 - **Message Format**: Standard OSC bundle/message format
-- **Address Pattern**: `/rhema/<command>`
+- **Address Pattern**: `/light/<command>` (the former `/rhema/<command>` still works, so controllers set up before the rename keep working)
 - **Arguments**: Matched positionally to command parameters
 
 ### HTTP Implementation
@@ -634,7 +634,7 @@ Planned additions to remote control:
 - **WebSocket API** for real-time bidirectional communication
 - **MIDI support** for hardware controllers with MIDI over USB
 - **Custom command macros** (trigger multiple commands at once)
-- **Verse navigation by reference** (e.g., `/rhema/goto John 3:16`)
+- **Verse navigation by reference** (e.g., `/light/goto John 3:16`)
 - **Further queue management** — removing, reordering and clearing (adding is covered by `add_to_queue`)
 
 ## Support

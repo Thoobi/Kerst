@@ -13,8 +13,9 @@ export type {
   VerseSegment,
   VideoPlayback,
   RenderOptions,
+  LyricsStyle,
 } from "./broadcast"
-export type { Slide, SlideKind, ScriptureSlide, LyricSlide, ImageSlide } from "./slide"
+export type { Slide, SlideKind, ScriptureSlide, LyricSlide, TextSlide, ImageSlide } from "./slide"
 export type {
   SectionKind,
   Song,
@@ -33,6 +34,8 @@ export type {
   DeckSummary,
   Video,
   VideoProbe,
+  Text,
+  TextInput,
 } from "./library"
 export type {
   BroadcastOutput,

@@ -6,7 +6,7 @@ use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request};
 use tauri::State;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
-use rhema_broadcast::ndi::{NdiRuntime, NdiSessionInfo, NdiStartRequest};
+use light_broadcast::ndi::{NdiRuntime, NdiSessionInfo, NdiStartRequest};
 
 /// Map `output_id` to its Tauri window label (`broadcast-{id}`).
 ///
@@ -76,7 +76,7 @@ pub async fn ensure_broadcast_window(
         &label,
         WebviewUrl::App(window_url(&output_id).into()),
     )
-    .title(title.unwrap_or_else(|| "Rhema Output".to_string()))
+    .title(title.unwrap_or_else(|| "Light Output".to_string()))
     .inner_size(1920.0, 1080.0)
     .visible(false)
     .skip_taskbar(true)
@@ -137,7 +137,7 @@ pub async fn open_broadcast_window(
             &label,
             WebviewUrl::App(window_url(&output_id).into()),
         )
-        .title(title.unwrap_or_else(|| "Rhema Output".to_string()))
+        .title(title.unwrap_or_else(|| "Light Output".to_string()))
         .visible(false)
         .decorations(true)
         .always_on_top(false)

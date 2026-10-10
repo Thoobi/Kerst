@@ -1,4 +1,4 @@
-//! Audio input capture for the Rhema application.
+//! Audio input capture for the Light application.
 //!
 //! Handles device enumeration, live audio capture via `cpal`, gain
 //! control, mono 16-bit PCM conversion, and voice activity detection

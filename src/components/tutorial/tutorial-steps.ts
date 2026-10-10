@@ -35,7 +35,7 @@ export const TUTORIAL_STEPS: Step[] = [
     target: '[data-tour="context-search"]',
     title: "Context Search",
     content:
-      "Search by phrase or topic. Rhema uses AI to find matching verses.",
+      "Search by phrase or topic. Light uses AI to find matching verses.",
     placement: "bottom",
     spotlightPadding: 2,
   },
@@ -50,10 +50,10 @@ export const TUTORIAL_STEPS: Step[] = [
   },
   {
     ...STEP_DEFAULTS,
-    target: '[data-slot="queue-panel"]',
-    title: "Verse Queue",
+    target: '[data-slot="order-panel"]',
+    title: "Service and Queue",
     content:
-      "Your queued verses live here. Drag to reorder, click to present. Build your set list before going live.",
+      "Plan the service here: songs, readings, slides, videos and announcements in order. Click an item to open it ready to present. The Queue tab holds verses detected during the message.",
     placement: "left",
   },
   {

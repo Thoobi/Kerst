@@ -1,18 +1,19 @@
-import { useState } from "react"
-import { BookOpenIcon, FilmIcon, MusicIcon, PresentationIcon } from "lucide-react"
+import { BookOpenIcon, FilmIcon, MegaphoneIcon, MusicIcon, PresentationIcon } from "lucide-react"
 import { SearchPanel } from "@/components/panels/search-panel"
 import { SlidesPanel } from "@/components/panels/slides-panel"
 import { SongsPanel } from "@/components/panels/songs-panel"
 import { VideosPanel } from "@/components/panels/videos-panel"
+import { TextsPanel } from "@/components/panels/texts-panel"
+import { useContentTabStore, type ContentTab } from "@/stores/content-tab-store"
 import { cn } from "@/lib/utils"
 
-type ContentTab = "bible" | "songs" | "slides" | "videos"
 
 const TABS: { id: ContentTab; label: string; icon: typeof BookOpenIcon }[] = [
   { id: "bible", label: "Bible", icon: BookOpenIcon },
   { id: "songs", label: "Songs", icon: MusicIcon },
   { id: "slides", label: "Slides", icon: PresentationIcon },
   { id: "videos", label: "Videos", icon: FilmIcon },
+  { id: "texts", label: "Texts", icon: MegaphoneIcon },
 ]
 
 /**
@@ -21,7 +22,8 @@ const TABS: { id: ContentTab; label: string; icon: typeof BookOpenIcon }[] = [
  * search or a scroll position.
  */
 export function ContentPanel() {
-  const [tab, setTab] = useState<ContentTab>("bible")
+  const tab = useContentTabStore((s) => s.tab)
+  const setTab = useContentTabStore((s) => s.setTab)
 
   return (
     <div data-slot="content-panel" className="flex min-h-0 flex-1 flex-col gap-1.5">
@@ -55,6 +57,9 @@ export function ContentPanel() {
       </div>
       <div className={cn("flex min-h-0 flex-1 flex-col", tab !== "videos" && "hidden")}>
         <VideosPanel />
+      </div>
+      <div className={cn("flex min-h-0 flex-1 flex-col", tab !== "texts" && "hidden")}>
+        <TextsPanel />
       </div>
     </div>
   )

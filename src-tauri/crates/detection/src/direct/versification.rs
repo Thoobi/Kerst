@@ -2,7 +2,7 @@
 //! (e.g. "Revelation 20:22" is impossible — Revelation 20 ends at verse 15).
 //!
 //! The table is the union max across all bundled translations, generated from
-//! `data/rhema.db`:
+//! `data/light.db`:
 //!
 //! ```sql
 //! SELECT book_number, chapter, MAX(verse) FROM verses GROUP BY 1,2 ORDER BY 1,2

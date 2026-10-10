@@ -109,6 +109,17 @@ const MIGRATIONS: &[&str] = &[
     ALTER TABLE songs ADD COLUMN background_video_id TEXT
         REFERENCES videos(id) ON DELETE SET NULL;
     ",
+    // 5: free texts (announcements and the like), shown like lyrics.
+    r"
+    CREATE TABLE texts (
+        id                  TEXT PRIMARY KEY,
+        title               TEXT NOT NULL,
+        body                TEXT NOT NULL,
+        background_video_id TEXT REFERENCES videos(id) ON DELETE SET NULL,
+        created_at          INTEGER NOT NULL,
+        updated_at          INTEGER NOT NULL
+    );
+    ",
 ];
 
 pub(crate) fn migrate(conn: &mut Connection) -> Result<(), LibraryError> {
@@ -119,7 +130,7 @@ pub(crate) fn migrate(conn: &mut Connection) -> Result<(), LibraryError> {
     if current > MIGRATIONS.len() {
         return Err(LibraryError::Invalid(format!(
             "library.db is schema version {current}, newer than this app supports ({}). \
-             Update Rhema to open it.",
+             Update Light to open it.",
             MIGRATIONS.len()
         )));
     }

@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client"
 import { useRef, useEffect, useCallback, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import { backgroundRegion, onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
+import { backgroundRegion, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { normalizeTheme } from "@/lib/theme-migrations"
 import { fitFrame, renderScale } from "@/lib/output-frame"
@@ -108,7 +108,7 @@ function BroadcastCanvas() {
       video: videoRef.current,
       backgroundBehind: true,
     })
-    const region = backgroundRegion(theme, scale)
+    const region = backgroundRegion(themeForContent(theme, verse), scale)
     const box = {
       left: region.x / dpr,
       top: region.y / dpr,

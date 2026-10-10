@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, memo } from "react"
-import { backgroundRegion, onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
+import { backgroundRegion, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { LoopingVideo } from "@/components/ui/looping-video"
 import type { BroadcastTheme, VerseRenderData } from "@/types"
@@ -77,7 +77,7 @@ export const CanvasVerse = memo(function CanvasVerse({
   // theme's background region, which the canvas leaves transparent.
   const backgroundBox =
     verse?.background && containerWidth > 0
-      ? backgroundRegion(theme, containerWidth / theme.resolution.width)
+      ? backgroundRegion(themeForContent(theme, verse), containerWidth / theme.resolution.width)
       : null
 
   return (

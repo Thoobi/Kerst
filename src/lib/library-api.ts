@@ -11,9 +11,11 @@ import type {
   SongSummary,
   Video,
   VideoProbe,
+  Text,
+  TextInput,
 } from "@/types/library"
 
-/** Typed wrappers for the rhema-library commands (src-tauri/src/commands/library.rs). */
+/** Typed wrappers for the light-library commands (src-tauri/src/commands/library.rs). */
 export const libraryApi = {
   listSongs: () => invoke<SongSummary[]>("list_songs"),
   searchSongs: (query: string, limit?: number) =>
@@ -56,6 +58,13 @@ export const libraryApi = {
   updateVideo: (id: string, changes: { title?: string; loop?: boolean }) =>
     invoke<Video>("update_video", { id, title: changes.title, looping: changes.loop }),
   deleteVideo: (id: string) => invoke<void>("delete_video", { id }),
+  listTexts: () => invoke<Text[]>("list_texts"),
+  saveText: (text: TextInput) => invoke<Text>("save_text", { text }),
+  /** Loop a library video behind a text; null goes back to the theme's background. */
+  setTextBackground: (id: string, videoId: string | null) =>
+    invoke<Text>("set_text_background", { id, videoId }),
+  deleteText: (id: string) => invoke<void>("delete_text", { id }),
+
   /** Base URL of the loopback server videos play from (src-tauri/src/media_server.rs). */
   mediaBaseUrl: () => invoke<string>("media_base_url"),
 }

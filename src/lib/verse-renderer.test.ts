@@ -57,7 +57,7 @@ vi.mock("@chenglou/pretext/rich-inline", () => {
   }
 })
 
-import { computeVerseLayoutMetrics, fitVerseText, measureVerseHeight, renderVerse } from "./verse-renderer"
+import { computeVerseLayoutMetrics, fitVerseText, measureVerseHeight, renderVerse, themeForContent } from "./verse-renderer"
 import { BUILTIN_THEMES } from "./builtin-themes"
 
 function stubCtx(): CanvasRenderingContext2D {
@@ -720,5 +720,29 @@ describe("shrink to fit", () => {
     expect(computeVerseLayoutMetrics(stubCtx(), fixed, VERSE, { scale: 0.5 }).fittedVerseFontSize).toBe(
       fixed.verseText.fontSize * 0.5
     )
+  })
+})
+
+describe("song and text style", () => {
+  const theme: BroadcastTheme = {
+    ...freeTheme({ verseBox: { x: 10, y: 40, width: 80, height: 15 } }),
+    lyricsText: { fontSize: 120, fontWeight: 700, area: "screen" },
+  }
+  const lyric: VerseRenderData = { style: "lyrics", reference: "", segments: [{ text: "Way maker" }] }
+
+  it("applies only to songs and texts", () => {
+    expect(themeForContent(theme, VERSE)).toBe(theme)
+    const forLyrics = themeForContent(theme, lyric)
+    expect(forLyrics.verseText).toMatchObject({ fontSize: 120, fontWeight: 700 })
+    expect(forLyrics.verseText.fontFamily).toBe(theme.verseText.fontFamily)
+  })
+
+  it("can give the words the whole screen instead of the theme's box", () => {
+    const forLyrics = themeForContent(theme, lyric)
+    expect(forLyrics.layout).toMatchObject({ mode: "stacked", textAreaWidth: 90, textAreaHeight: 90 })
+    expect(forLyrics.verseText.verticalAlign).toBe("middle")
+    const inBox = computeVerseLayoutMetrics(stubCtx(), { ...theme, lyricsText: { fontSize: 120 } }, lyric)
+    const onScreen = computeVerseLayoutMetrics(stubCtx(), theme, lyric)
+    expect(onScreen.textRect.height).toBeGreaterThan(inBox.textRect.height)
   })
 })

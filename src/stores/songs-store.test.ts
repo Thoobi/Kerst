@@ -197,7 +197,7 @@ describe("songs store", () => {
     ])
     expect(outcome.imported.map((s) => s.title)).toEqual(["Way Maker"])
     expect(outcome.duplicates).toEqual(["Amazing Grace", "Way Maker"])
-    expect(outcome.failed).toEqual([{ file: "slides.pdf", reason: "not a song file Rhema can read" }])
+    expect(outcome.failed).toEqual([{ file: "slides.pdf", reason: "not a song file Light can read" }])
     expect(api.saveSong).toHaveBeenCalledTimes(1)
     expect(api.saveSong.mock.calls[0][0]).toMatchObject({ title: "Way Maker", source: "text" })
   })

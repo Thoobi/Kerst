@@ -12,7 +12,7 @@ const sampleLiveVerse = {
 }
 
 const ndiDefaults = {
-  sourceName: "Rhema",
+  sourceName: "Light",
   resolution: "r1080p",
   frameRate: "fps24",
   alphaMode: "straightAlpha",
@@ -303,6 +303,13 @@ describe("migrateLegacyOutputs", () => {
     const outputs = migrateLegacyOutputs(undefined, undefined)
     expect(outputs).toHaveLength(1)
     expect(outputs[0]).toMatchObject({ id: "main", type: "display", name: "Main Display" })
+    expect(outputs[0].ndi.sourceName).toBe("Light Output")
+  })
+
+  it("keeps the NDI source names an install from the Rhema days already had", async () => {
+    const { migrateLegacyOutputs } = await import("./broadcast-store")
+    const outputs = migrateLegacyOutputs("custom-theme-1", "custom-theme-2")
+    expect(outputs.map((o) => o.ndi.sourceName)).toEqual(["Rhema Output", "Rhema Alt"])
   })
 
   it("carries the legacy active theme onto the main output", async () => {
@@ -369,5 +376,38 @@ describe("updateDraftNested deep paths", () => {
     expect(useBroadcastStore.getState().themes[0].textBox.padding).toBe(
       theme.textBox.padding
     )
+  })
+})
+
+describe("updateLyricsStyle", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it("copies a built-in theme before styling songs on it, and moves the outputs to the copy", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const builtin = useBroadcastStore.getState().themes.find((t) => t.builtin)!
+    useBroadcastStore.getState().setOutputTheme("main", builtin.id)
+
+    useBroadcastStore.getState().updateLyricsStyle({ fontSize: 90, area: "screen" })
+    const state = useBroadcastStore.getState()
+    const main = state.outputs.find((o) => o.id === "main")!
+    const styled = state.themes.find((t) => t.id === main.themeId)!
+    expect(styled.builtin).toBe(false)
+    expect(styled.name).toBe(`${builtin.name} (Custom)`)
+    expect(styled.lyricsText).toEqual({ fontSize: 90, area: "screen" })
+    expect(state.themes.find((t) => t.id === builtin.id)!.lyricsText).toBeUndefined()
+
+    // Further changes edit the copy in place; null resets to the theme's style.
+    useBroadcastStore.getState().updateLyricsStyle({ fontWeight: 700 })
+    const again = useBroadcastStore.getState()
+    expect(again.themes.filter((t) => t.name === `${builtin.name} (Custom)`)).toHaveLength(1)
+    expect(again.themes.find((t) => t.id === main.themeId)!.lyricsText).toEqual({
+      fontSize: 90,
+      area: "screen",
+      fontWeight: 700,
+    })
+    useBroadcastStore.getState().updateLyricsStyle(null)
+    expect(useBroadcastStore.getState().themes.find((t) => t.id === main.themeId)!.lyricsText).toBeUndefined()
   })
 })

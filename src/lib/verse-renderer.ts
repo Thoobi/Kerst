@@ -1182,13 +1182,51 @@ export function backgroundRegion(theme: BroadcastTheme, scale = 1): VerseLayoutR
   return regionFor(buildScaledTheme(theme, scale), 0, 0)
 }
 
+/** Margin around the words when songs and texts use the whole screen, as % of each side. */
+const SCREEN_AREA_MARGIN = 5
+
+/**
+ * The theme as songs and texts see it: its song and text style laid over
+ * its verse text, and, if asked, the whole screen as the text area.
+ * Scripture and everything else get the theme unchanged.
+ */
+export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | null): BroadcastTheme {
+  const style = verse?.style === "lyrics" ? theme.lyricsText : undefined
+  if (!style) return theme
+  const { area, ...text } = style
+  const set = Object.fromEntries(Object.entries(text).filter(([, value]) => value !== undefined))
+  const merged: BroadcastTheme = { ...theme, verseText: { ...theme.verseText, ...set } }
+  if (area !== "screen") return merged
+  const inner = 100 - SCREEN_AREA_MARGIN * 2
+  return {
+    ...merged,
+    // A box's top alignment would pin the words to the top of the whole
+    // screen; centre them unless the style says otherwise.
+    verseText: { ...merged.verseText, verticalAlign: style.verticalAlign ?? "middle" },
+    layout: {
+      ...merged.layout,
+      mode: "stacked",
+      anchor: "center",
+      offsetX: 0,
+      offsetY: 0,
+      backgroundWidth: 100,
+      backgroundHeight: 100,
+      textAreaWidth: inner,
+      textAreaHeight: inner,
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+    },
+    // No container plate around the whole screen.
+    textBox: { ...merged.textBox, enabled: false },
+  }
+}
+
 export function computeVerseLayoutMetrics(
   ctx: CanvasRenderingContext2D,
   theme: BroadcastTheme,
   verse: VerseRenderData | null,
   options?: RenderOptions
 ): VerseLayoutMetrics {
-  const metrics = layoutVerse(ctx, theme, verse, options)
+  const metrics = layoutVerse(ctx, themeForContent(theme, verse), verse, options)
   // No reference text: no reference, and no empty plate where it would be.
   if (verse && !verse.reference.trim()) {
     return { ...metrics, referenceRect: null, referenceSurfaceRect: null }

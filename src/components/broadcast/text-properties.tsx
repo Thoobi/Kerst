@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { BoldIcon, ChevronsUpDownIcon, CheckIcon } from "lucide-react"
 import { useBroadcastStore } from "@/stores/broadcast-store"
 import { SurfaceControls } from "@/components/broadcast/surface-properties"
+import { HorizontalAlignButtons, VerticalAlignButtons } from "@/components/broadcast/align-buttons"
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -216,18 +217,7 @@ const FONT_WEIGHTS = [
   { value: "900", label: "900 - Black" },
 ]
 
-const HORIZONTAL_ALIGN_OPTIONS = [
-  { value: "left", label: "Left" },
-  { value: "center", label: "Center" },
-  { value: "right", label: "Right" },
-  { value: "justify", label: "Justify" },
-] as const
 
-const VERTICAL_ALIGN_OPTIONS = [
-  { value: "top", label: "Top" },
-  { value: "middle", label: "Middle" },
-  { value: "bottom", label: "Bottom" },
-] as const
 
 const TEXT_TRANSFORM_OPTIONS = [
   { value: "none", label: "None" },
@@ -384,46 +374,20 @@ function FontControls({ prefix }: { prefix: "verseText" | "reference" }) {
         />
       </div>
 
-      {/* Horizontal Alignment */}
+      {/* Alignment */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Horizontal Alignment</label>
-        <Select
+        <label className="text-xs font-medium text-muted-foreground">Alignment</label>
+        <HorizontalAlignButtons
           value={horizontalAlign}
-          onValueChange={(v) => update(`${prefix}.horizontalAlign`, v)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {HORIZONTAL_ALIGN_OPTIONS
-              .filter((option) => prefix === "verseText" || option.value !== "justify")
-              .map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+          onChange={(v) => update(`${prefix}.horizontalAlign`, v)}
+          justify={prefix === "verseText"}
+        />
       </div>
 
       {/* Vertical Alignment */}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-muted-foreground">Vertical Alignment</label>
-        <Select
-          value={verticalAlign}
-          onValueChange={(v) => update(`${prefix}.verticalAlign`, v)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VERTICAL_ALIGN_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <VerticalAlignButtons value={verticalAlign} onChange={(v) => update(`${prefix}.verticalAlign`, v)} />
       </div>
 
       {/* Text Transform */}

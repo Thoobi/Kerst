@@ -69,7 +69,7 @@ export function TransportBar() {
       className="grid h-12 grid-cols-[1fr_auto_1fr] items-center border-b border-border bg-card px-3"
     >
       <div className="flex items-center gap-2">
-        <img src="/rhema.svg" alt="" className="size-6 rounded-md" />
+        <img src="/light.svg" alt="" className="size-6 rounded-md" />
         <span className="text-sm font-semibold tracking-tight text-foreground">
           Light
         </span>

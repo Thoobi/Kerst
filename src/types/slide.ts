@@ -6,7 +6,7 @@ import type { VideoPlayback } from "./broadcast"
  * themes and outputs; `toRenderData` in lib/slides turns it into the
  * reference + segments shape the renderer and output windows understand.
  */
-export type Slide = ScriptureSlide | LyricSlide | ImageSlide
+export type Slide = ScriptureSlide | LyricSlide | TextSlide | ImageSlide
 
 export interface ScriptureSlide {
   kind: "scripture"
@@ -26,6 +26,16 @@ export interface LyricSlide {
   /** "Title · Author", small in the bottom-right corner. */
   credit?: string
   /** The song's motion background, looping behind the words. */
+  background?: VideoPlayback
+}
+
+/** One screen of a library text, e.g. an announcement: just the words, big. */
+export interface TextSlide {
+  kind: "text"
+  textId: string
+  title: string
+  lines: string[]
+  /** The text's motion background, looping behind the words. */
   background?: VideoPlayback
 }
 

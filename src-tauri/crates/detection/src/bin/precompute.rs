@@ -1,7 +1,7 @@
 //! CLI binary to pre-compute verse embeddings using the ONNX model.
 //!
 //! Usage:
-//!   cargo run -p rhema-detection --features onnx,vector-search --bin precompute -- \
+//!   cargo run -p light-detection --features onnx,vector-search --bin precompute -- \
 //!     --model models/qwen3-embedding-0.6b/model.onnx \
 //!     --tokenizer models/qwen3-embedding-0.6b/tokenizer.json \
 //!     --verses data/verses-for-embedding.json \
@@ -27,7 +27,7 @@ fn main() {
     let output_ids = get_arg(&args, "--output-ids")
         .unwrap_or_else(|| "embeddings/kjv-qwen3-0.6b-ids.bin".to_string());
 
-    log::info!("=== Rhema Verse Embedding Pre-computation ===");
+    log::info!("=== Light Verse Embedding Pre-computation ===");
     log::info!("Model: {}", model_path);
     log::info!("Tokenizer: {}", tokenizer_path);
     log::info!("Verses: {}", verses_path);
@@ -40,7 +40,7 @@ fn main() {
     }
 
     log::info!("Loading ONNX model...");
-    let embedder = rhema_detection::OnnxEmbedder::load(
+    let embedder = light_detection::OnnxEmbedder::load(
         &PathBuf::from(&model_path),
         &PathBuf::from(&tokenizer_path),
     )
@@ -54,7 +54,7 @@ fn main() {
 
     log::info!(
         "Model loaded. Embedding dimension: {}",
-        rhema_detection::semantic::embedder::TextEmbedder::dimension(&embedder)
+        light_detection::semantic::embedder::TextEmbedder::dimension(&embedder)
     );
 
     // Read verses JSON
@@ -78,7 +78,7 @@ fn main() {
     let verses: Vec<(i64, String)> = entries.into_iter().map(|e| (e.id, e.text)).collect();
 
     // Run pre-computation
-    rhema_detection::semantic::precompute::precompute_embeddings(
+    light_detection::semantic::precompute::precompute_embeddings(
         &embedder,
         &verses,
         &PathBuf::from(&output_embeddings),

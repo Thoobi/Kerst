@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { seedFreeBoxesForTheme } from "@/lib/theme-migrations"
+import { HorizontalAlignButtons, VerticalAlignButtons } from "@/components/broadcast/align-buttons"
 import type { BroadcastTheme, ElementBox } from "@/types/broadcast"
 
 function ElementBoxControls({
@@ -74,6 +75,28 @@ function ElementBoxControls({
   )
 }
 
+/** Left / centre / right and top / middle / bottom for one element's text. */
+function ElementAlignControls({ label, prefix }: { label: string; prefix: "reference" | "verseText" }) {
+  const draftTheme = useBroadcastStore((s) => s.draftTheme)
+  const update = useBroadcastStore((s) => s.updateDraftNested)
+  if (!draftTheme) return null
+  const data = draftTheme[prefix]
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h5 className="text-xs font-medium text-muted-foreground">{label}</h5>
+      <HorizontalAlignButtons
+        value={data.horizontalAlign ?? draftTheme.layout.textAlign}
+        onChange={(v) => update(`${prefix}.horizontalAlign`, v)}
+        justify={prefix === "verseText"}
+      />
+      <VerticalAlignButtons
+        value={data.verticalAlign ?? "top"}
+        onChange={(v) => update(`${prefix}.verticalAlign`, v)}
+      />
+    </div>
+  )
+}
+
 export function LayoutProperties() {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
   const update = useBroadcastStore((s) => s.updateDraftNested)
@@ -131,11 +154,21 @@ export function LayoutProperties() {
       {freeMode && (
         <div className="flex flex-col gap-3">
           <p className="text-[11px] text-muted-foreground">
-            Drag the reference or verse frame on the canvas, or set the boxes
-            here (% of output size).
+            Drag the reference or verse on the canvas to move it, and line its
+            text up within its area here.
           </p>
-          <ElementBoxControls label="Reference Block" boxKey="referenceBox" />
-          <ElementBoxControls label="Verse Block" boxKey="verseBox" />
+          <ElementAlignControls label="Reference" prefix="reference" />
+          <ElementAlignControls label="Verse" prefix="verseText" />
+          <details className="group">
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground select-none hover:text-foreground">
+              Exact position
+            </summary>
+            <div className="mt-2 flex flex-col gap-3">
+              <p className="text-[11px] text-muted-foreground">Each area as % of the output size.</p>
+              <ElementBoxControls label="Reference area" boxKey="referenceBox" />
+              <ElementBoxControls label="Verse area" boxKey="verseBox" />
+            </div>
+          </details>
         </div>
       )}
 

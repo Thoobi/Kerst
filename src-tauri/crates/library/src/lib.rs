@@ -1,4 +1,4 @@
-//! The user's presentation library for the Rhema application.
+//! The user's presentation library for the Light application.
 //!
 //! Unlike the bundled, read-only Bible database, this is a writable `SQLite`
 //! file in the app data directory holding everything a church builds up
@@ -22,6 +22,7 @@ mod folders;
 pub mod models;
 pub mod schedules;
 pub mod songs;
+pub mod texts;
 pub mod videos;
 
 mod schema;

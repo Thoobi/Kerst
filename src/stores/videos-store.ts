@@ -30,6 +30,8 @@ interface VideosState {
   /** Why the library could not be read, e.g. it is unavailable. */
   loadError: string | null
   importing: VideoImportStatus | null
+  /** A video picked from the service order, to point out in the Videos tab. */
+  focusedId: string | null
   /** Live audio level, 0–1. Only the main window makes sound. */
   volume: number
   muted: boolean
@@ -50,6 +52,7 @@ interface VideosState {
   rename: (id: string, title: string) => Promise<void>
   deleteVideo: (id: string) => Promise<void>
   setVolume: (volume: number) => void
+  focusVideo: (id: string | null) => void
   setMuted: (muted: boolean) => void
 }
 
@@ -134,6 +137,7 @@ export const useVideosStore = create<VideosState>((set, get) => ({
   videos: [],
   loadError: null,
   importing: null,
+  focusedId: null,
   volume: 1,
   muted: false,
   mediaBase: null,
@@ -223,6 +227,7 @@ export const useVideosStore = create<VideosState>((set, get) => ({
 
   setVolume: (volume) => set({ volume: Math.min(1, Math.max(0, volume)), muted: false }),
   setMuted: (muted) => set({ muted }),
+  focusVideo: (focusedId) => set({ focusedId }),
 }))
 
 // A video that isn't looping stops at its end: mark it paused there, so the

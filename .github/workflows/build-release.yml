@@ -101,7 +101,7 @@ jobs:
         run: |
           VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Rhema version: $VERSION"
+          echo "Light version: $VERSION"
 
       - name: Pre-build Rust (workaround for whisper-rs-sys env issue)
         run: cargo build --release --target ${{ matrix.target }}
@@ -232,7 +232,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rhema-${{ matrix.target }}
+          name: light-${{ matrix.target }}
           path: dist/
           if-no-files-found: error
           retention-days: 7
@@ -257,7 +257,7 @@ jobs:
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: rhema-*
+          pattern: light-*
           path: artifacts
           merge-multiple: false
 
@@ -273,12 +273,12 @@ jobs:
           VERSION=$(find artifacts -name version.txt -type f | head -1 | xargs cat)
 
           if [[ -z "$VERSION" ]]; then
-            echo "Could not determine Rhema version."
+            echo "Could not determine Light version."
             exit 1
           fi
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Rhema version: $VERSION"
+          echo "Light version: $VERSION"
 
       - name: Prepare release assets
         id: assets
@@ -306,6 +306,9 @@ jobs:
           # bundle name, so ship stable-named copies alongside the versioned
           # ones — otherwise those links need a hand re-upload every release.
           aliases=(
+            # Still named Rhema-*: the website's download buttons (web/) and the
+            # release download guard link to these exact names. Rename all
+            # three together when the site is rebranded.
             "*_x64-setup.exe:Rhema-windows-x64-setup.exe"
             "*_aarch64.dmg:Rhema-macos-arm64.dmg"
             "*_amd64.AppImage:Rhema-linux-x86_64.AppImage"
@@ -354,10 +357,10 @@ jobs:
           # chosen ref happens to be, so they are labelled as dev builds rather
           # than inheriting a release title someone then edits by hand.
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-            RELEASE_NAME="Rhema v${VERSION}"
+            RELEASE_NAME="Light v${VERSION}"
             SUMMARY="Desktop release build for macOS, Linux, and Windows."
           else
-            RELEASE_NAME="Rhema v${VERSION} (dev build)"
+            RELEASE_NAME="Light v${VERSION} (dev build)"
             SUMMARY="Unreleased development build from \`${GITHUB_REF_NAME}\`."
           fi
 

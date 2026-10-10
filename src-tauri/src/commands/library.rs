@@ -7,9 +7,9 @@ use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use rhema_library::{
+use light_library::{
     Deck, DeckSlide, DeckStore, DeckSummary, LibraryDb, Schedule, ScheduleInput, ScheduleSummary,
-    Song, SongInput, SongSummary, Video, VideoProbe, VideoStore,
+    Song, SongInput, SongSummary, Text, TextInput, Video, VideoProbe, VideoStore,
 };
 
 /// The user's library, or why it could not be opened. Managed even on
@@ -288,4 +288,32 @@ pub fn update_video(
 pub fn delete_video(library: State<'_, LibraryState>, id: String) -> Result<(), String> {
     let l = library.library()?;
     l.db.delete_video(&l.videos, &id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_texts(library: State<'_, LibraryState>) -> Result<Vec<Text>, String> {
+    library.db()?.list_texts().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_text(library: State<'_, LibraryState>, text: TextInput) -> Result<Text, String> {
+    library.db()?.save_text(&text).map_err(|e| e.to_string())
+}
+
+/// Loop a library video behind a text, or clear it with `null`.
+#[tauri::command]
+pub fn set_text_background(
+    library: State<'_, LibraryState>,
+    id: String,
+    video_id: Option<String>,
+) -> Result<Text, String> {
+    library
+        .db()?
+        .set_text_background(&id, video_id.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_text(library: State<'_, LibraryState>, id: String) -> Result<(), String> {
+    library.db()?.delete_text(&id).map_err(|e| e.to_string())
 }

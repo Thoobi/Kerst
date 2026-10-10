@@ -320,7 +320,7 @@ mod tests {
 
     impl Fixture {
         fn new() -> Self {
-            let base = std::env::temp_dir().join(format!("rhema-videos-test-{}", new_id()));
+            let base = std::env::temp_dir().join(format!("light-videos-test-{}", new_id()));
             let source_dir = base.join("usb-stick");
             std::fs::create_dir_all(&source_dir).unwrap();
             Self {

@@ -29,9 +29,9 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
 [package]
-name = "rhema"
+name = "light"
 version = "0.3.2"
-description = "Rhema - Real-Time AI Bible Verse Detection"
+description = "Light - Real-Time AI Bible Verse Detection"
 authors = ["Faithful"]
 license = "MIT"
 repository = "https://github.com/openbezal/rhema"
@@ -39,11 +39,11 @@ edition = "2021"
 rust-version = "1.77.2"
 
 [lib]
-name = "rhema_lib"
+name = "light_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "Rhema"
+name = "Light"
 path = "src/main.rs"
 
 [build-dependencies]
@@ -57,13 +57,13 @@ tokio.workspace = true
 tauri = { version = "2.10.3", features = ["protocol-asset"] }
 tauri-plugin-log = "2"
 tauri-plugin-store = "2"
-rhema-audio = { path = "crates/audio" }
-rhema-bible = { path = "crates/bible" }
-rhema-library = { path = "crates/library" }
-rhema-stt = { path = "crates/stt" }
-rhema-broadcast = { path = "crates/broadcast" }
-rhema-detection = { path = "crates/detection", features = ["onnx", "vector-search"] }
-rhema-api = { path = "crates/api" }
+light-audio = { path = "crates/audio" }
+light-bible = { path = "crates/bible" }
+light-library = { path = "crates/library" }
+light-stt = { path = "crates/stt" }
+light-broadcast = { path = "crates/broadcast" }
+light-detection = { path = "crates/detection", features = ["onnx", "vector-search"] }
+light-api = { path = "crates/api" }
 crossbeam-channel = "0.5"
 dotenvy = "0.15"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
@@ -76,7 +76,7 @@ uuid = { version = "1.24", features = ["v4"] }
 
 [features]
 default = ["whisper"]
-whisper = ["rhema-stt/whisper"]
+whisper = ["light-stt/whisper"]
 
 [lints]
 workspace = true

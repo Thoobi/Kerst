@@ -51,7 +51,7 @@ If you're only changing UI code or Rust logic that doesn't need real verse data,
 
 ### Optional: NDI SDK
 
-Broadcast output via NDI requires the NDI 6 SDK. It's only needed if you're working on `rhema-broadcast` or the Theme Designer's live output path.
+Broadcast output via NDI requires the NDI 6 SDK. It's only needed if you're working on `light-broadcast` or the Theme Designer's live output path.
 
 ```sh
 bun run download:ndi-sdk
@@ -101,7 +101,7 @@ Rust commands — run from `src-tauri/`:
 | `cargo clippy --all-targets` | Lint the whole workspace |
 | `cargo fmt` | rustfmt |
 | `cargo test` | Unit tests across all crates |
-| `cargo test -p rhema-detection` | Tests for one crate |
+| `cargo test -p light-detection` | Tests for one crate |
 
 ### Debugging
 
@@ -109,10 +109,10 @@ Rust commands — run from `src-tauri/`:
 - **Rust / Tauri commands**: commands log through the `log` crate via `tauri-plugin-log`. Turn on verbose logging with `RUST_LOG`:
 
   ```sh
-  RUST_LOG=rhema_detection=debug,rhema_stt=debug bun run tauri dev
+  RUST_LOG=light_detection=debug,light_stt=debug bun run tauri dev
   ```
 
-- **STT and verse detection pipelines** are async and streaming. Filtering logs by module (`RUST_LOG=rhema_detection=trace`) is usually faster than stepping through a debugger.
+- **STT and verse detection pipelines** are async and streaming. Filtering logs by module (`RUST_LOG=light_detection=trace`) is usually faster than stepping through a debugger.
 
 ## Commit message format
 

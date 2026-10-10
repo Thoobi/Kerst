@@ -122,8 +122,11 @@ pub struct SongSummary {
 pub enum ScheduleItemKind {
     Song,
     Scripture,
+    /// A text from the library (announcements and the like).
     Announcement,
     Media,
+    /// An imported presentation deck.
+    Deck,
     /// The live-detection part of the service.
     Sermon,
 }
@@ -135,6 +138,7 @@ impl ScheduleItemKind {
             Self::Scripture => "scripture",
             Self::Announcement => "announcement",
             Self::Media => "media",
+            Self::Deck => "deck",
             Self::Sermon => "sermon",
         }
     }
@@ -145,6 +149,7 @@ impl ScheduleItemKind {
             "scripture" => Self::Scripture,
             "announcement" => Self::Announcement,
             "media" => Self::Media,
+            "deck" => Self::Deck,
             "sermon" => Self::Sermon,
             _ => return None,
         })
@@ -261,6 +266,27 @@ pub struct VideoProbe {
     pub duration_ms: i64,
     pub width: u32,
     pub height: u32,
+}
+
+/// A free text shown on screen, e.g. an announcement. Blank lines in the
+/// body split it into screens, like song lyrics.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Text {
+    pub id: String,
+    pub title: String,
+    pub body: String,
+    /// A library video looped behind the text, like a song's.
+    pub background_video_id: Option<String>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+/// A text as sent by the frontend to create (no id) or update.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextInput {
+    pub id: Option<String>,
+    pub title: String,
+    pub body: String,
 }
 
 #[cfg(test)]

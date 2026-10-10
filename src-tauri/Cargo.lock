@@ -2515,6 +2515,146 @@ dependencies = [
 ]
 
 [[package]]
+name = "light"
+version = "0.3.2"
+dependencies = [
+ "axum",
+ "crossbeam-channel",
+ "dotenvy",
+ "fontdb",
+ "light-api",
+ "light-audio",
+ "light-bible",
+ "light-broadcast",
+ "light-detection",
+ "light-library",
+ "light-stt",
+ "log",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-log",
+ "tauri-plugin-store",
+ "tokio",
+ "tower-http",
+ "uuid",
+]
+
+[[package]]
+name = "light-api"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "log",
+ "rosc",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokio",
+ "tower-http",
+]
+
+[[package]]
+name = "light-audio"
+version = "0.1.0"
+dependencies = [
+ "cpal",
+ "crossbeam-channel",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "light-bible"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "light-broadcast"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "libloading 0.8.9",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "light-detection"
+version = "0.1.0"
+dependencies = [
+ "aho-corasick",
+ "bytemuck",
+ "env_logger",
+ "light-bible",
+ "log",
+ "lru",
+ "ndarray 0.16.1",
+ "ort",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokenizers",
+]
+
+[[package]]
+name = "light-library"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "uuid",
+]
+
+[[package]]
+name = "light-notes"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "light-stt"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "crossbeam-channel",
+ "futures-util",
+ "light-audio",
+ "log",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokio",
+ "tokio-tungstenite",
+ "url",
+ "whisper-rs",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3810,146 +3950,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "windows-sys 0.60.2",
-]
-
-[[package]]
-name = "rhema"
-version = "0.3.2"
-dependencies = [
- "axum",
- "crossbeam-channel",
- "dotenvy",
- "fontdb",
- "log",
- "rhema-api",
- "rhema-audio",
- "rhema-bible",
- "rhema-broadcast",
- "rhema-detection",
- "rhema-library",
- "rhema-stt",
- "serde",
- "serde_json",
- "sysinfo",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-log",
- "tauri-plugin-store",
- "tokio",
- "tower-http",
- "uuid",
-]
-
-[[package]]
-name = "rhema-api"
-version = "0.1.0"
-dependencies = [
- "axum",
- "log",
- "rosc",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
- "tokio",
- "tower-http",
-]
-
-[[package]]
-name = "rhema-audio"
-version = "0.1.0"
-dependencies = [
- "cpal",
- "crossbeam-channel",
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
-]
-
-[[package]]
-name = "rhema-bible"
-version = "0.1.0"
-dependencies = [
- "log",
- "rusqlite",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
-]
-
-[[package]]
-name = "rhema-broadcast"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "libloading 0.8.9",
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
-]
-
-[[package]]
-name = "rhema-detection"
-version = "0.1.0"
-dependencies = [
- "aho-corasick",
- "bytemuck",
- "env_logger",
- "log",
- "lru",
- "ndarray 0.16.1",
- "ort",
- "regex",
- "rhema-bible",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
- "tokenizers",
-]
-
-[[package]]
-name = "rhema-library"
-version = "0.1.0"
-dependencies = [
- "log",
- "rusqlite",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
- "uuid",
-]
-
-[[package]]
-name = "rhema-notes"
-version = "0.1.0"
-dependencies = [
- "log",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
-]
-
-[[package]]
-name = "rhema-stt"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "crossbeam-channel",
- "futures-util",
- "log",
- "reqwest 0.12.28",
- "rhema-audio",
- "serde",
- "serde_json",
- "thiserror 2.0.19",
- "tokio",
- "tokio-tungstenite",
- "url",
- "whisper-rs",
 ]
 
 [[package]]

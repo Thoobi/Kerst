@@ -5,7 +5,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::state::AppState;
-use rhema_bible::{Book, CrossReference, Translation, Verse};
+use light_bible::{Book, CrossReference, Translation, Verse};
 
 #[tauri::command]
 pub fn list_translations(

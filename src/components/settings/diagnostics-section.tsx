@@ -47,7 +47,7 @@ export function DiagnosticsSection() {
         sinceMinutes: selected?.minutes ?? null,
       })
       const path = await save({
-        defaultPath: `rhema-logs-${fileStamp()}.log`,
+        defaultPath: `light-logs-${fileStamp()}.log`,
         filters: [{ name: "Log", extensions: ["log", "txt"] }],
       })
       // The user cancelled the save dialog.
