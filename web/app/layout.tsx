@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Google_Sans, JetBrains_Mono, Unbounded } from "next/font/google";
+import { Google_Sans, Inter, JetBrains_Mono, Unbounded } from "next/font/google";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import "./globals.css";
 import { SITE } from "./_lib/site";
@@ -13,11 +13,11 @@ const sans = Google_Sans({
   display: "swap",
 });
 
-// Display: a grotesk with character for the big words.
-const display = Bricolage_Grotesque({
+// Display: Inter for the big, bold words.
+const display = Inter({
   subsets: ["latin"],
-  axes: ["opsz", "wdth"],
-  variable: "--font-bricolage",
+  weight: "variable",
+  variable: "--font-inter",
   display: "swap",
 });
 

@@ -53,33 +53,37 @@ export function HeroSection() {
       <div className="relative mx-auto flex w-full max-w-[1240px] flex-col items-center px-5 pt-16 pb-10 text-center sm:px-8 md:pt-24 md:pb-16">
         <a
           href="#download"
-          className="group inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-black/30 py-1 pr-3.5 pl-1 font-mono text-[11px] tracking-[0.12em] whitespace-nowrap text-muted-foreground uppercase backdrop-blur-md transition-colors hover:text-foreground"
+          style={{ "--blur-delay": "0ms" } as React.CSSProperties}
+          className="blur-in group inline-flex items-center gap-2.5 rounded-full border border-white/10 bg-black/30 py-1 pr-3.5 pl-1 font-mono text-[11px] tracking-[0.12em] whitespace-nowrap text-muted-foreground uppercase backdrop-blur-md transition-colors hover:text-foreground"
         >
           <span className="rounded-full bg-accent px-2 py-0.5 font-medium text-[#0f1402]">New</span>
           <span className="sm:hidden">Live presentation</span>
           <span className="hidden sm:inline">Live presentation · Windows · macOS · Linux</span>
         </a>
 
-        <h1 className="mt-8 font-display text-[60px] leading-[0.9] font-extrabold tracking-[-0.045em] text-foreground sm:text-[100px] md:text-[128px] lg:text-[156px]">
-          Run the
-          <br />
-          <Lit>show.</Lit>
+        <h1 className="mt-8 font-display text-[clamp(44px,9vw,120px)] leading-[0.95] font-medium tracking-[-0.09em] whitespace-nowrap text-foreground">
+          {/* Each word comes out of the blur a beat after the last. */}
+          <span className="blur-in inline-block" style={{ "--blur-delay": "120ms" } as React.CSSProperties}>Run</span>{" "}
+          <span className="blur-in inline-block" style={{ "--blur-delay": "240ms" } as React.CSSProperties}>the</span>{" "}
+          <span className="blur-in inline-block" style={{ "--blur-delay": "380ms" } as React.CSSProperties}>
+            <Lit>show.</Lit>
+          </span>
         </h1>
 
-        <p className="mt-7 max-w-[640px] text-pretty text-lg leading-7 text-muted-foreground md:text-xl md:leading-8">
+        <p style={{ "--blur-delay": "580ms" } as React.CSSProperties} className="blur-in mt-7 max-w-[640px] text-pretty text-lg leading-7 text-muted-foreground md:text-xl md:leading-8">
           Lyrics, slides, videos, scripture and announcements on every screen in
           the room and out to the stream. One app for whoever&apos;s running
           it: a service, a conference, a classroom or a Friday-night gig.
         </p>
 
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+        <div style={{ "--blur-delay": "740ms" } as React.CSSProperties} className="blur-in mt-9 flex flex-wrap items-center justify-center gap-3">
           <DownloadButton size="lg" />
           <Button href="#product" variant="ghost" size="lg">
             See the app
             <IconArrowDown size={16} aria-hidden stroke={2} />
           </Button>
         </div>
-        <p className="mt-4 flex items-center gap-3 text-[13px] text-subtle-foreground">
+        <p style={{ "--blur-delay": "840ms" } as React.CSSProperties} className="blur-in mt-4 flex items-center gap-3 text-[13px] text-subtle-foreground">
           <IconBrandWindows size={14} aria-label="Windows" />
           <IconBrandApple size={14} aria-label="macOS" />
           <IconBrandUbuntu size={14} aria-label="Linux" />
