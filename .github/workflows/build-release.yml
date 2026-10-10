@@ -81,7 +81,8 @@ jobs:
             libssl-dev \
             libasound2-dev \
             libudev-dev \
-            patchelf
+            patchelf \
+            desktop-file-utils
 
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
