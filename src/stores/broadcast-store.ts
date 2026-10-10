@@ -126,7 +126,7 @@ function emitDraftToBroadcast(state: BroadcastState): void {
   }
 }
 
-function defaultMainOutput(ndiSourceName = "Light Output"): BroadcastOutput {
+function defaultMainOutput(ndiSourceName = "Litdeck Output"): BroadcastOutput {
   return {
     id: MAIN_OUTPUT_ID,
     name: "Main Display",
@@ -148,7 +148,7 @@ export function migrateLegacyOutputs(
 ): BroadcastOutput[] {
   // An install from before multiple outputs (it saved an active theme)
   // keeps the NDI source names it had, from when the app was called Rhema,
-  // so receivers stay bound. A fresh install gets Light's names.
+  // so receivers stay bound. A fresh install gets Litdeck's names.
   const main = defaultMainOutput(activeThemeId ? "Rhema Output" : undefined)
   if (activeThemeId) main.themeId = activeThemeId
   const outputs = [main]

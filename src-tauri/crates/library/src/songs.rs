@@ -360,7 +360,7 @@ mod tests {
         assert!(matches!(db.set_song_background(&song.id, Some("no-such-video")), Err(LibraryError::NotFound(_))));
         assert!(matches!(db.set_song_background("no-such-song", None), Err(LibraryError::NotFound(_))));
 
-        let store = crate::videos::VideoStore::new(std::env::temp_dir().join(format!("light-songbg-{}", new_id())));
+        let store = crate::videos::VideoStore::new(std::env::temp_dir().join(format!("litdeck-songbg-{}", new_id())));
         db.delete_video(&store, "loop").unwrap();
         assert_eq!(db.get_song(&song.id).unwrap().background_video_id, None);
 

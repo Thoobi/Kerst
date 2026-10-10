@@ -19,7 +19,7 @@ impl std::fmt::Debug for BibleDb {
 ///
 /// `immutable=1` tells `SQLite` the file cannot change underneath it, so it skips
 /// locking and never creates `-wal` / `-shm` companions. That matters because
-/// the bundled database lives inside `Light.app/Contents/Resources`, where any
+/// the bundled database lives inside `Litdeck.app/Contents/Resources`, where any
 /// new file breaks the macOS code signature seal.
 fn immutable_uri(path: &Path) -> String {
     // Windows separators are not valid in a URI path.
@@ -57,8 +57,8 @@ impl BibleDb {
     /// Open the Bible database for reading.
     ///
     /// Read-only and immutable on purpose. In production this file is
-    /// `Light.app/Contents/Resources/light.db`, and the previous read-write
-    /// open with `journal_mode=WAL` wrote `light.db-wal` and `light.db-shm`
+    /// `Litdeck.app/Contents/Resources/litdeck.db`, and the previous read-write
+    /// open with `journal_mode=WAL` wrote `litdeck.db-wal` and `litdeck.db-shm`
     /// next to it on first launch — inside the signed bundle, which invalidates
     /// the macOS code signature and makes Gatekeeper report the app as damaged.
     /// Nothing at runtime writes to this database; it is built ahead of time by
@@ -90,7 +90,7 @@ mod tests {
 
     fn fixture_path(name: &str) -> std::path::PathBuf {
         let path = std::env::temp_dir().join(format!(
-            "light-db-test-{name}-{}-{:?}.db",
+            "litdeck-db-test-{name}-{}-{:?}.db",
             std::process::id(),
             std::thread::current().id(),
         ));
@@ -183,8 +183,8 @@ mod tests {
     #[test]
     fn immutable_uri_encodes_reserved_characters() {
         assert_eq!(
-            immutable_uri(Path::new("/Applications/My App.app/light.db")),
-            "file:///Applications/My%20App.app/light.db?immutable=1"
+            immutable_uri(Path::new("/Applications/My App.app/litdeck.db")),
+            "file:///Applications/My%20App.app/litdeck.db?immutable=1"
         );
         assert_eq!(
             immutable_uri(Path::new("/tmp/wh#at?/db")),
@@ -195,8 +195,8 @@ mod tests {
     #[test]
     fn immutable_uri_keeps_relative_paths_relative() {
         assert_eq!(
-            immutable_uri(Path::new("data/light.db")),
-            "file:data/light.db?immutable=1"
+            immutable_uri(Path::new("data/litdeck.db")),
+            "file:data/litdeck.db?immutable=1"
         );
     }
 }

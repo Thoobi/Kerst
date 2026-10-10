@@ -15,7 +15,7 @@ import type {
   TextInput,
 } from "@/types/library"
 
-/** Typed wrappers for the light-library commands (src-tauri/src/commands/library.rs). */
+/** Typed wrappers for the litdeck-library commands (src-tauri/src/commands/library.rs). */
 export const libraryApi = {
   listSongs: () => invoke<SongSummary[]>("list_songs"),
   searchSongs: (query: string, limit?: number) =>

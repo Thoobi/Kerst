@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "rhema",
+      "name": "litdeck",
       "dependencies": {
         "@chenglou/pretext": "^0.0.8",
         "@dnd-kit/react": "^0.3.2",

@@ -745,4 +745,16 @@ describe("song and text style", () => {
     const onScreen = computeVerseLayoutMetrics(stubCtx(), theme, lyric)
     expect(onScreen.textRect.height).toBeGreaterThan(inBox.textRect.height)
   })
+
+  it("centres the words even when the theme pins its reference to the top", () => {
+    const stacked: BroadcastTheme = {
+      ...theme,
+      layout: { ...theme.layout, mode: "stacked" },
+      reference: { ...theme.reference, position: "above", verticalAlign: "top" },
+    }
+    const metrics = computeVerseLayoutMetrics(stubCtx(), stacked, lyric)
+    const middle = metrics.verseRect!.y + metrics.verseRect!.height / 2
+    const screenMiddle = stacked.resolution.height / 2
+    expect(Math.abs(middle - screenMiddle)).toBeLessThan(stacked.resolution.height * 0.05)
+  })
 })

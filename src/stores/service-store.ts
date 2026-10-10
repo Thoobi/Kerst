@@ -23,7 +23,9 @@ export interface NewServiceItem {
 }
 
 /** The last service opened, so the app comes back to it. Per machine. */
-const LAST_SERVICE_KEY = "light.lastServiceId"
+const LAST_SERVICE_KEY = "litdeck.lastServiceId"
+/** Where the app kept it while it was called Light. */
+const FORMER_LAST_SERVICE_KEY = "light.lastServiceId"
 
 function rememberService(id: string | null) {
   try {
@@ -36,7 +38,7 @@ function rememberService(id: string | null) {
 
 function lastServiceId(): string | null {
   try {
-    return localStorage.getItem(LAST_SERVICE_KEY)
+    return localStorage.getItem(LAST_SERVICE_KEY) ?? localStorage.getItem(FORMER_LAST_SERVICE_KEY)
   } catch {
     return null
   }

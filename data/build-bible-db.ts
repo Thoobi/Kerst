@@ -1,5 +1,5 @@
 /**
- * Builds light.db from Bible JSON sources + cross-references.
+ * Builds litdeck.db from Bible JSON sources + cross-references.
  * Run: bun run data/build-bible-db.ts
  * Prereq: bun run data/download-sources.ts
  */
@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
 const DATA_DIR = import.meta.dir
-const DB_PATH = join(DATA_DIR, "light.db")
+const DB_PATH = join(DATA_DIR, "litdeck.db")
 const SCHEMA_PATH = join(DATA_DIR, "schema.sql")
 const SOURCES_DIR = join(DATA_DIR, "sources")
 const CROSS_REFS_PATH = join(DATA_DIR, "cross-refs", "cross_references.txt")
@@ -506,7 +506,7 @@ const TRANSLATIONS_META: Array<{
 ]
 
 function main() {
-  console.log("\n🔨 Building light.db...\n")
+  console.log("\n🔨 Building litdeck.db...\n")
 
   // Remove existing DB
   try {
@@ -693,7 +693,7 @@ function main() {
     .query("SELECT COUNT(*) as c FROM cross_references")
     .get() as { c: number }
 
-  console.log(`\n✅ light.db built successfully!`)
+  console.log(`\n✅ litdeck.db built successfully!`)
   console.log(`   ${transTotal.c} translations`)
   console.log(`   ${verseTotal.c.toLocaleString()} verses`)
   console.log(`   ${crossTotal.c.toLocaleString()} cross-references`)

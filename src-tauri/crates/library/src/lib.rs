@@ -1,4 +1,4 @@
-//! The user's presentation library for the Light application.
+//! The user's presentation library for the Litdeck application.
 //!
 //! Unlike the bundled, read-only Bible database, this is a writable `SQLite`
 //! file in the app data directory holding everything a church builds up

@@ -168,7 +168,7 @@ mod tests {
         assert_eq!(edited.background_video_id.as_deref(), Some("loop"));
         assert!(matches!(db.set_text_background(&text.id, Some("nope")), Err(LibraryError::NotFound(_))));
 
-        let store = crate::videos::VideoStore::new(std::env::temp_dir().join(format!("light-textbg-{}", new_id())));
+        let store = crate::videos::VideoStore::new(std::env::temp_dir().join(format!("litdeck-textbg-{}", new_id())));
         db.delete_video(&store, "loop").unwrap();
         assert_eq!(db.get_text(&text.id).unwrap().background_video_id, None);
     }

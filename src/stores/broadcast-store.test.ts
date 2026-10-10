@@ -12,7 +12,7 @@ const sampleLiveVerse = {
 }
 
 const ndiDefaults = {
-  sourceName: "Light",
+  sourceName: "Litdeck",
   resolution: "r1080p",
   frameRate: "fps24",
   alphaMode: "straightAlpha",
@@ -303,7 +303,7 @@ describe("migrateLegacyOutputs", () => {
     const outputs = migrateLegacyOutputs(undefined, undefined)
     expect(outputs).toHaveLength(1)
     expect(outputs[0]).toMatchObject({ id: "main", type: "display", name: "Main Display" })
-    expect(outputs[0].ndi.sourceName).toBe("Light Output")
+    expect(outputs[0].ndi.sourceName).toBe("Litdeck Output")
   })
 
   it("keeps the NDI source names an install from the Rhema days already had", async () => {

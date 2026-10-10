@@ -508,7 +508,7 @@ mod tests {
     impl TempDir {
         fn new(tag: &str) -> Self {
             let dir = std::env::temp_dir()
-                .join(format!("light-ndi-test-{tag}-{}", std::process::id()));
+                .join(format!("litdeck-ndi-test-{tag}-{}", std::process::id()));
             std::fs::create_dir_all(&dir).unwrap();
             Self(dir)
         }

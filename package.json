@@ -1,5 +1,5 @@
 {
-  "name": "light",
+  "name": "litdeck",
   "private": true,
   "version": "0.3.2",
   "type": "module",
@@ -19,8 +19,8 @@
     "quantize:model": "optimum-cli onnxruntime quantize --onnx_model models/qwen3-embedding-0.6b/ --arm64 -o models/qwen3-embedding-0.6b-int8/",
     "precompute:embeddings-onnx": "python3 data/precompute-embeddings-onnx.py",
     "precompute:embeddings-py": "python3 data/precompute-embeddings.py",
-    "precompute:embeddings": "cd src-tauri && cargo run -p light-detection --features precompute-bin --release --bin precompute -- --model ../models/qwen3-embedding-0.6b-int8/model_quantized.onnx --tokenizer ../models/qwen3-embedding-0.6b/tokenizer.json --verses ../data/verses-for-embedding.json --output-embeddings ../embeddings/kjv-qwen3-0.6b.bin --output-ids ../embeddings/kjv-qwen3-0.6b-ids.bin",
-    "bench:search": "cd src-tauri && cargo run -p light-detection --features bench-bin --release --bin search_bench",
+    "precompute:embeddings": "cd src-tauri && cargo run -p litdeck-detection --features precompute-bin --release --bin precompute -- --model ../models/qwen3-embedding-0.6b-int8/model_quantized.onnx --tokenizer ../models/qwen3-embedding-0.6b/tokenizer.json --verses ../data/verses-for-embedding.json --output-embeddings ../embeddings/kjv-qwen3-0.6b.bin --output-ids ../embeddings/kjv-qwen3-0.6b-ids.bin",
+    "bench:search": "cd src-tauri && cargo run -p litdeck-detection --features bench-bin --release --bin search_bench",
     "download:whisper": "bun run data/download-whisper-model.ts",
     "download:ndi-sdk": "bun run data/download-ndi-sdk.ts",
     "setup:windows": "powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1",

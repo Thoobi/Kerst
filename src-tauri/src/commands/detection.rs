@@ -5,11 +5,11 @@ use std::sync::Mutex;
 use serde::Serialize;
 use tauri::State;
 
-use light_detection::fusion::{
+use litdeck_detection::fusion::{
     fuse_rrf, FtsCandidate, VerseKey, FTS5_CONFIDENCE_DECAY, FTS5_MIN_CONFIDENCE,
     FTS5_RANK0_CONFIDENCE,
 };
-use light_detection::{DetectionPipeline, MergedDetection, ReadingMode};
+use litdeck_detection::{DetectionPipeline, MergedDetection, ReadingMode};
 
 use crate::state::AppState;
 
@@ -30,10 +30,10 @@ pub struct DetectionResult {
     pub is_chapter_only: bool,
 }
 
-fn source_to_string(source: &light_detection::DetectionSource) -> String {
+fn source_to_string(source: &litdeck_detection::DetectionSource) -> String {
     match source {
-        light_detection::DetectionSource::DirectReference => "direct".to_string(),
-        light_detection::DetectionSource::Semantic { .. } => "semantic".to_string(),
+        litdeck_detection::DetectionSource::DirectReference => "direct".to_string(),
+        litdeck_detection::DetectionSource::Semantic { .. } => "semantic".to_string(),
     }
 }
 

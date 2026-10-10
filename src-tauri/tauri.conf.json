@@ -1,8 +1,8 @@
 {
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Light",
+  "productName": "Litdeck",
   "version": "0.3.2",
-  "identifier": "com.openbezal.light",
+  "identifier": "space.litdeck.app",
   "build": {
     "frontendDist": "../build",
     "devUrl": "http://localhost:3000",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Light",
+        "title": "Litdeck",
         "width": 1280,
         "height": 800,
         "minWidth": 1024,
@@ -31,7 +31,7 @@
     }
   },
   "bundle": {
-    "resources": { "../data/light.db": "light.db" },
+    "resources": { "../data/litdeck.db": "litdeck.db" },
     "active": true,
     "targets": "all",
     "macOS": {

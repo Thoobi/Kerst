@@ -1,5 +1,5 @@
 {
-  "description": "Golden query set for the search accuracy benchmark (search_bench). Every accept key was verified against data/light.db (KJV translation_id=1). Categories: exact_phrase (verbatim KJV), partial_phrase (partial/reordered/modern-translation wording), paraphrase (different words, same meaning), thematic (topic queries), reference (typed scripture references).",
+  "description": "Golden query set for the search accuracy benchmark (search_bench). Every accept key was verified against data/litdeck.db (KJV translation_id=1). Categories: exact_phrase (verbatim KJV), partial_phrase (partial/reordered/modern-translation wording), paraphrase (different words, same meaning), thematic (topic queries), reference (typed scripture references).",
   "queries": [
     { "id": "ex1", "category": "exact_phrase", "query": "For God so loved the world", "accept": [{ "book_number": 43, "chapter": 3, "verse": 16 }] },
     { "id": "ex2", "category": "exact_phrase", "query": "The Lord is my shepherd", "accept": [{ "book_number": 19, "chapter": 23, "verse": 1 }] },

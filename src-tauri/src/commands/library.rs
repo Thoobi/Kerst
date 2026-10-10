@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use light_library::{
+use litdeck_library::{
     Deck, DeckSlide, DeckStore, DeckSummary, LibraryDb, Schedule, ScheduleInput, ScheduleSummary,
     Song, SongInput, SongSummary, Text, TextInput, Video, VideoProbe, VideoStore,
 };

@@ -425,7 +425,7 @@ mod tests {
     /// translations containing the same verses.
     fn test_db() -> BibleDb {
         let path = std::env::temp_dir().join(format!(
-            "light-search-test-{}-{:?}.db",
+            "litdeck-search-test-{}-{:?}.db",
             std::process::id(),
             std::thread::current().id(),
         ));

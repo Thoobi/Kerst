@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn reopening_a_file_keeps_data_and_does_not_remigrate() {
-        let dir = std::env::temp_dir().join(format!("light-library-test-{}", new_id()));
+        let dir = std::env::temp_dir().join(format!("litdeck-library-test-{}", new_id()));
         let path = dir.join("library.db");
         {
             let db = LibraryDb::open(&path).unwrap();

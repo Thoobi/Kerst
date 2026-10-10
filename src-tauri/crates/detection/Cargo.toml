@@ -1,5 +1,5 @@
 [package]
-name = "light-detection"
+name = "litdeck-detection"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,7 +13,7 @@ log.workspace = true
 thiserror.workspace = true
 aho-corasick = "1"
 lru = "0.12"
-light-bible = { path = "../bible" }
+litdeck-bible = { path = "../bible" }
 regex = "1"
 
 # Optional heavy dependencies for real embedding / vector search

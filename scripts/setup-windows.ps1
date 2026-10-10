@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  One-shot Windows build prerequisites installer for Light.
+  One-shot Windows build prerequisites installer for Litdeck.
 
 .DESCRIPTION
   Installs LLVM (provides libclang.dll required by bindgen when building

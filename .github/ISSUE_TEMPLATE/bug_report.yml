@@ -1,5 +1,5 @@
 name: "\U0001F41B Bug report"
-description: Report a bug in Rhema
+description: Report a bug in Litdeck
 labels: [bug, pending triage]
 body:
   - type: markdown
@@ -10,7 +10,7 @@ body:
     id: area
     attributes:
       label: Affected area
-      description: Which part of Rhema is affected?
+      description: Which part of Litdeck is affected?
       options:
         - Frontend UI
         - Broadcast / NDI output
@@ -43,7 +43,7 @@ body:
       label: Steps to reproduce
       description: Detailed steps to reproduce the behavior.
       placeholder: |
-        1. Open Rhema
+        1. Open Litdeck
         2. Navigate to ...
         3. Click on ...
         4. See error
@@ -54,10 +54,10 @@ body:
     attributes:
       label: Environment
       description: |
-        Please provide the following information. You can find the Rhema and Tauri versions in the app's About screen.
+        Please provide the following information. You can find the Litdeck and Tauri versions in the app's About screen.
       value: |
         - **OS**: [e.g., macOS 15.2, Windows 11, Ubuntu 24.04]
-        - **Rhema version**: [e.g., 0.1.0]
+        - **Litdeck version**: [e.g., 0.1.0]
         - **Installation method**: [e.g., .dmg, .msi, built from source]
       render: markdown
     validations:
@@ -70,7 +70,7 @@ body:
         Logs are the fastest way for us to see what actually happened — they
         carry the transcript and the detections that led to the problem.
 
-        In Rhema, open **Settings → Diagnostics**, choose a time range that
+        In Litdeck, open **Settings → Diagnostics**, choose a time range that
         covers when the issue happened (**Last hour** is usually right), and
         click **Save logs…**. Drag the saved `.log` file onto this issue.
 
@@ -82,7 +82,7 @@ body:
     attributes:
       label: Logs
       description: |
-        Attach the file from Settings → Diagnostics (see above), or paste relevant output here. If you can't reach Settings, the log file lives in `~/Library/Logs/com.openbezal.rhema/` on macOS and `%LOCALAPPDATA%\com.openbezal.rhema\logs\` on Windows.
+        Attach the file from Settings → Diagnostics (see above), or paste relevant output here. If you can't reach Settings, the log file lives in `~/Library/Logs/space.litdeck.app/` on macOS and `%LOCALAPPDATA%\space.litdeck.app\logs\` on Windows.
       render: shell
   - type: textarea
     id: screenshots
@@ -95,7 +95,7 @@ body:
       label: Validations
       description: Before submitting the issue, please make sure you do the following
       options:
-        - label: Check that there isn't [already an issue](https://github.com/openbezal/rhema/issues) that reports the same bug to avoid creating a duplicate.
+        - label: Check that there isn't [already an issue](https://github.com/Thoobi/Kerst/issues) that reports the same bug to avoid creating a duplicate.
           required: true
-        - label: This is a concrete bug, not a question. For questions, use [GitHub Discussions](https://github.com/openbezal/rhema/discussions).
+        - label: This is a concrete bug, not a question. For questions, use [GitHub Discussions](https://github.com/Thoobi/Kerst/discussions).
           required: true

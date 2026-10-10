@@ -1,4 +1,4 @@
-//! External API integrations for the Light application.
+//! External API integrations for the Litdeck application.
 //!
 //! Implements: OSC server, HTTP API (Axum).
 //! Planned: `OpenAI` embeddings client.

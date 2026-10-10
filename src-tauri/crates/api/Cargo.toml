@@ -1,5 +1,5 @@
 [package]
-name = "light-api"
+name = "litdeck-api"
 version = "0.1.0"
 edition = "2021"
 

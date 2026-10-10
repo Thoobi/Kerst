@@ -6,8 +6,8 @@
 //! (the model, embeddings, and database are not checked in).
 //!
 //! Usage (from the repo root):
-//!   cd src-tauri && cargo run -p light-detection --features bench-bin --release \
-//!     --bin `search_bench` -- --db ../data/light.db --golden ../data/search-golden.json \
+//!   cd src-tauri && cargo run -p litdeck-detection --features bench-bin --release \
+//!     --bin `search_bench` -- --db ../data/litdeck.db --golden ../data/search-golden.json \
 //!     --model ../models/qwen3-embedding-0.6b-int8/model_quantized.onnx \
 //!     --tokenizer ../models/qwen3-embedding-0.6b/tokenizer.json \
 //!     --embeddings ../embeddings/kjv-qwen3-0.6b.bin --ids ../embeddings/kjv-qwen3-0.6b-ids.bin
@@ -27,11 +27,11 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use light_bible::BibleDb;
-use light_detection::fusion::{fuse_rrf, FtsCandidate, VerseKey};
-use light_detection::semantic::embedder::TextEmbedder;
-use light_detection::semantic::index::VectorIndex;
-use light_detection::{HnswVectorIndex, OnnxEmbedder};
+use litdeck_bible::BibleDb;
+use litdeck_detection::fusion::{fuse_rrf, FtsCandidate, VerseKey};
+use litdeck_detection::semantic::embedder::TextEmbedder;
+use litdeck_detection::semantic::index::VectorIndex;
+use litdeck_detection::{HnswVectorIndex, OnnxEmbedder};
 
 const K: usize = 15;
 const MRR_DEPTH: usize = 10;
@@ -134,7 +134,7 @@ fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let args: Vec<String> = std::env::args().collect();
 
-    let db_path = get_arg(&args, "--db").unwrap_or_else(|| "../data/light.db".to_string());
+    let db_path = get_arg(&args, "--db").unwrap_or_else(|| "../data/litdeck.db".to_string());
     let golden_path =
         get_arg(&args, "--golden").unwrap_or_else(|| "../data/search-golden.json".to_string());
     let model_path = get_arg(&args, "--model").unwrap_or_else(|| {
@@ -164,7 +164,7 @@ fn main() {
         assert!(
             Path::new(path).exists(),
             "Missing {label} at {path}. The benchmark needs local assets \
-             (data/light.db, models/, embeddings/) — see README / package.json scripts."
+             (data/litdeck.db, models/, embeddings/) — see README / package.json scripts."
         );
     }
 

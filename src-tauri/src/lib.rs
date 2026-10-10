@@ -41,7 +41,7 @@ pub fn run() {
                 .level(tauri_plugin_log::log::LevelFilter::Info)
                 // Memory sampling is for leak-hunting, not bug reports. Keep it
                 // on stdout in dev but out of the file users send us.
-                .level_for("light_lib::memstats", tauri_plugin_log::log::LevelFilter::Warn)
+                .level_for("litdeck_lib::memstats", tauri_plugin_log::log::LevelFilter::Warn)
                 // ONNX Runtime logs one line per tensor allocation while
                 // loading the embedder ("Reserving memory in BFCArena for Cpu
                 // size: N"). That was 93% of the very first real export — 670 KB
@@ -51,7 +51,7 @@ pub fn run() {
                 .targets([
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
-                        file_name: Some("light".into()),
+                        file_name: Some("litdeck".into()),
                     }),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
                 ])
@@ -91,11 +91,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .manage(Mutex::new(state::AppState::new()))
-        .manage(Mutex::new(light_detection::DetectionPipeline::new()))
-        .manage(Mutex::new(light_broadcast::ndi::NdiRuntime::default()))
-        .manage(Mutex::new(light_detection::DirectDetector::new()))
-        .manage(Mutex::new(light_detection::DetectionMerger::new()))
-        .manage(Mutex::new(light_detection::ReadingMode::new()))
+        .manage(Mutex::new(litdeck_detection::DetectionPipeline::new()))
+        .manage(Mutex::new(litdeck_broadcast::ndi::NdiRuntime::default()))
+        .manage(Mutex::new(litdeck_detection::DirectDetector::new()))
+        .manage(Mutex::new(litdeck_detection::DetectionMerger::new()))
+        .manage(Mutex::new(litdeck_detection::ReadingMode::new()))
         .manage(Mutex::new(commands::remote::OscRuntime::new()))
         .manage(Mutex::new(commands::remote::HttpRuntime::new()))
         .invoke_handler(tauri::generate_handler![
@@ -172,7 +172,7 @@ pub fn run() {
             // Point the NDI runtime at the bundled resource dir (production).
             // The source-checkout path stays as a fallback inside the crate.
             if let Ok(resource_dir) = app.path().resource_dir() {
-                let managed_ndi = app.state::<Mutex<light_broadcast::ndi::NdiRuntime>>();
+                let managed_ndi = app.state::<Mutex<litdeck_broadcast::ndi::NdiRuntime>>();
                 let mut ndi = managed_ndi.lock().unwrap();
                 ndi.set_library_search_dirs(vec![resource_dir]);
             }
@@ -181,16 +181,16 @@ pub fn run() {
             let db_path = app
                 .path()
                 .resource_dir()
-                .map(|p| p.join("light.db"))
+                .map(|p| p.join("litdeck.db"))
                 .ok()
                 .filter(|p| p.exists())
                 .unwrap_or_else(|| {
                     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../data/light.db")
+                        .join("../data/litdeck.db")
                 });
 
             if db_path.exists() {
-                let bible_db = light_bible::BibleDb::open(&db_path)
+                let bible_db = litdeck_bible::BibleDb::open(&db_path)
                     .expect("Failed to open Bible database");
 
                 let managed_state = app.state::<Mutex<state::AppState>>();
@@ -207,12 +207,13 @@ pub fn run() {
             // app updates.
             let (library, media) = match app.path().app_data_dir() {
                 Ok(dir) => {
-                    // Rhema → Light changed the data folder; bring the
-                    // user's library across before anything opens it.
-                    match rename_migration::adopt_rhema_data(&dir) {
+                    // Each rename (Rhema → Light → Litdeck) changed the data
+                    // folder; bring the user's library across before anything
+                    // opens it.
+                    match rename_migration::adopt_former_data(&dir) {
                         Ok(0) => {}
-                        Ok(n) => log::info!("Moved {n} item(s) of Rhema data into {}", dir.display()),
-                        Err(e) => log::error!("could not move Rhema data into {}: {e}", dir.display()),
+                        Ok(n) => log::info!("Moved {n} item(s) of earlier data into {}", dir.display()),
+                        Err(e) => log::error!("could not move earlier data into {}: {e}", dir.display()),
                     }
                     (
                         commands::library::LibraryState::open(&dir),
@@ -248,18 +249,18 @@ pub fn run() {
             let ids_path = base_dir.join("embeddings/kjv-qwen3-0.6b-ids.bin");
 
             if model_path.exists() && tokenizer_path.exists() {
-                use light_detection::semantic::embedder::TextEmbedder;
-                use light_detection::semantic::index::VectorIndex;
-                match light_detection::OnnxEmbedder::load(&model_path, &tokenizer_path) {
+                use litdeck_detection::semantic::embedder::TextEmbedder;
+                use litdeck_detection::semantic::index::VectorIndex;
+                match litdeck_detection::OnnxEmbedder::load(&model_path, &tokenizer_path) {
                     Ok(embedder) => {
                         log::info!("ONNX embedding model loaded");
-                        let managed_pipeline = app.state::<Mutex<light_detection::DetectionPipeline>>();
+                        let managed_pipeline = app.state::<Mutex<litdeck_detection::DetectionPipeline>>();
                         let mut pipeline = managed_pipeline.lock().unwrap();
 
                         // If pre-computed embeddings exist, load the vector index
                         if embeddings_path.exists() && ids_path.exists() {
                             let dim = embedder.dimension();
-                            match light_detection::HnswVectorIndex::load(&embeddings_path, &ids_path, dim) {
+                            match litdeck_detection::HnswVectorIndex::load(&embeddings_path, &ids_path, dim) {
                                 Ok(index) => {
                                     log::info!("Verse embeddings loaded ({} vectors)", index.len());
                                     if let Some(warning) =
@@ -269,7 +270,7 @@ pub fn run() {
                                         set_embedding_warning(app.handle(), warning);
                                     }
                                     pipeline.set_semantic(
-                                        light_detection::SemanticDetector::new(
+                                        litdeck_detection::SemanticDetector::new(
                                             Box::new(embedder),
                                             Box::new(index),
                                         ),
@@ -344,7 +345,7 @@ fn spawn_embedding_self_check(app: tauri::AppHandle) {
 
             let top_hit = {
                 let managed_pipeline =
-                    app.state::<Mutex<light_detection::DetectionPipeline>>();
+                    app.state::<Mutex<litdeck_detection::DetectionPipeline>>();
                 let mut pipeline = managed_pipeline.lock().unwrap();
                 if !pipeline.has_semantic() {
                     return;

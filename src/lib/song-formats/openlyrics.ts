@@ -11,7 +11,7 @@ import type { SectionKind, Song, SongInput, SongSectionInput } from "@/types"
  *   </song>
  *
  * Each <lines> block is a screen; <br/> breaks a line. Chords, comments,
- * instrumental parts and all but one language are dropped: Light shows
+ * instrumental parts and all but one language are dropped: Litdeck shows
  * lyrics, not chord charts.
  */
 
@@ -204,7 +204,7 @@ export function toOpenLyrics(song: Song, modified = new Date()): string {
 
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<song xmlns="${OPENLYRICS_NAMESPACE}" version="0.9" createdIn="Light" modifiedIn="Light" modifiedDate="${modified.toISOString()}">`,
+    `<song xmlns="${OPENLYRICS_NAMESPACE}" version="0.9" createdIn="Litdeck" modifiedIn="Litdeck" modifiedDate="${modified.toISOString()}">`,
     `  <properties>`,
     ...properties,
     `  </properties>`,

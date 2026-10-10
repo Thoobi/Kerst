@@ -1,7 +1,7 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
-use light_bible::BibleDb;
+use litdeck_bible::BibleDb;
 
 pub struct AppState {
     pub bible_db: Option<BibleDb>,

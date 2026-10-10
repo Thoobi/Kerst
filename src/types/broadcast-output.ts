@@ -36,7 +36,7 @@ export const MAIN_OUTPUT_ID = "main"
 
 export const outputWindowLabel = (id: string) => `broadcast-${id}`
 
-export const defaultNdiSettings = (sourceName = "Light"): BroadcastOutputNdiSettings => ({
+export const defaultNdiSettings = (sourceName = "Litdeck"): BroadcastOutputNdiSettings => ({
   sourceName,
   resolution: "r1080p",
   frameRate: "fps24",

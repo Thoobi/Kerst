@@ -27,7 +27,7 @@ import { useBroadcastStore } from "@/stores"
 import { useVideosStore, type VideoImportOutcome } from "@/stores/videos-store"
 import type { Video } from "@/types"
 
-/** Containers the library accepts (light_library::videos::VIDEO_EXTENSIONS). */
+/** Containers the library accepts (litdeck_library::videos::VIDEO_EXTENSIONS). */
 const VIDEO_EXTENSIONS = ["mp4", "m4v", "mov", "webm", "ogv", "mkv"]
 
 function reportImport(outcome: VideoImportOutcome) {

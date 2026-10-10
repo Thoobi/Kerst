@@ -1,20 +1,20 @@
 <p align="center">
-  <img src="public/rhema.svg" alt="Rhema logo" width="160" height="160" />
+  <img src="public/litdeck.svg" alt="Litdeck logo" width="160" height="160" />
 </p>
 
-<h1 align="center">Rhema</h1>
+<h1 align="center">Litdeck</h1>
 
 <p align="center">Real-time AI-powered Bible verse detection for live sermons and broadcasts. A Tauri v2 desktop app with a React frontend and Rust backend.</p>
 
-Rhema listens to a live sermon audio feed, transcribes speech in real time, detects Bible verse references (both explicit citations and quoted passages), and renders them as broadcast-ready overlays via NDI for live production.
+Litdeck listens to a live sermon audio feed, transcribes speech in real time, detects Bible verse references (both explicit citations and quoted passages), and renders them as broadcast-ready overlays via NDI for live production.
 
 ## Download
 
 | Platform | | Requires |
 |---|---|---|
-| **Windows** | [**Rhema-windows-x64-setup.exe**](https://github.com/openbezal/rhema/releases/latest/download/Rhema-windows-x64-setup.exe) | Windows 10/11 x64 |
-| **macOS** | [**Rhema-macos-arm64.dmg**](https://github.com/openbezal/rhema/releases/latest/download/Rhema-macos-arm64.dmg) | macOS 11 Big Sur or newer, **Apple Silicon** |
-| **Linux** | [**Rhema-linux-x86_64.AppImage**](https://github.com/openbezal/rhema/releases/latest/download/Rhema-linux-x86_64.AppImage) | x86_64; `.deb` and `.rpm` on the [release page](https://github.com/openbezal/rhema/releases/latest) |
+| **Windows** | [**Litdeck-windows-x64-setup.exe**](https://github.com/Thoobi/Kerst/releases/latest/download/Litdeck-windows-x64-setup.exe) | Windows 10/11 x64 |
+| **macOS** | [**Litdeck-macos-arm64.dmg**](https://github.com/Thoobi/Kerst/releases/latest/download/Litdeck-macos-arm64.dmg) | macOS 11 Big Sur or newer, **Apple Silicon** |
+| **Linux** | [**Litdeck-linux-x86_64.AppImage**](https://github.com/Thoobi/Kerst/releases/latest/download/Litdeck-linux-x86_64.AppImage) | x86_64; `.deb` and `.rpm` on the [release page](https://github.com/Thoobi/Kerst/releases/latest) |
 
 There is no Intel Mac build — on an Intel Mac,
 [build from source](#getting-started).
@@ -24,7 +24,7 @@ signing certificate behind this project — so each OS warns on first run.
 
 **Windows:** SmartScreen warns — *More info → Run anyway*.
 
-**macOS:** drag `Light.app` to Applications first, then open it. Gatekeeper
+**macOS:** drag `Litdeck.app` to Applications first, then open it. Gatekeeper
 blocks unsigned apps that carry the browser's quarantine flag; on macOS 15 and
 newer the right-click → Open trick no longer works, so use:
 
@@ -33,7 +33,7 @@ newer the right-click → Open trick no longer works, so use:
 - clear the quarantine flag yourself:
 
   ```sh
-  xattr -cr /Applications/Light.app
+  xattr -cr /Applications/Litdeck.app
   ```
 
 Releases do **not** bundle the embedding model or the Whisper model — together
@@ -41,7 +41,7 @@ they exceed a gigabyte. The Bible database ships inside the app, so reference
 detection and keyword search work out of the box; embedding re-ranking and local
 speech-to-text stay inactive until you build from source and run
 `bun run setup:all`. All releases are listed at
-[github.com/openbezal/rhema/releases](https://github.com/openbezal/rhema/releases).
+[github.com/Thoobi/Kerst/releases](https://github.com/Thoobi/Kerst/releases).
 
 ## Features
 
@@ -85,13 +85,13 @@ speech-to-text stay inactive until you build from source and run
 
 | Crate | Purpose |
 |---|---|
-| `light-audio` | Audio device enumeration, capture, VAD (cpal) |
-| `light-stt` | Local Whisper (gated behind `whisper` Cargo feature) and Deepgram STT streaming + REST fallback |
-| `light-bible` | SQLite Bible DB, FTS5 search, cross-references |
-| `light-detection` | Verse detection pipeline: direct, semantic, quotation, ensemble merger, sentence buffer, sermon context, reading mode |
-| `light-broadcast` | NDI video frame output via FFI |
-| `light-api` | Tauri command API layer |
-| `rhema-notes` | (placeholder) |
+| `litdeck-audio` | Audio device enumeration, capture, VAD (cpal) |
+| `litdeck-stt` | Local Whisper (gated behind `whisper` Cargo feature) and Deepgram STT streaming + REST fallback |
+| `litdeck-bible` | SQLite Bible DB, FTS5 search, cross-references |
+| `litdeck-detection` | Verse detection pipeline: direct, semantic, quotation, ensemble merger, sentence buffer, sermon context, reading mode |
+| `litdeck-broadcast` | NDI video frame output via FFI |
+| `litdeck-api` | Tauri command API layer |
+| `litdeck-notes` | (placeholder) |
 
 ## Prerequisites
 
@@ -142,7 +142,7 @@ Windows needs an extra build-tools bootstrap before the shared setup pipeline �
 
 ```bash
 git clone <repo-url>
-cd rhema
+cd Kerst
 bun install
 ```
 
@@ -160,7 +160,7 @@ This runs the required phases idempotently, skipping any whose output artifacts 
 
 1. ~~Python environment~~ — skipped by default (only needed for `--with-embedding` below)
 2. Download Bible source data — single bundled archive containing all 10 translations plus the openbible.info cross-references zip
-3. Build SQLite Bible database (`data/light.db` with FTS5 + cross-references)
+3. Build SQLite Bible database (`data/litdeck.db` with FTS5 + cross-references)
 4. –6. ~~ONNX model + verse embeddings~~ — skipped by default (see below)
 7. Download Whisper model (`ggml-large-v3-turbo-q8_0.bin`) into `models/whisper/`
 
@@ -191,7 +191,7 @@ The delete matters: setup skips any artifact that already exists, so a stale ind
 
 #### Speech-to-Text Options
 
-Rhema supports two speech-to-text engines:
+Litdeck supports two speech-to-text engines:
 
 **Option 1: Whisper (Local, Free)**
 Whisper runs locally on your machine with no API costs or per-minute billing.
@@ -245,7 +245,7 @@ bun run tauri build
 ## Project Structure
 
 ```
-rhema/
+Kerst/
 ├── src/                          # React frontend
 │   ├── components/
 │   │   ├── broadcast/            # Theme designer, NDI settings
@@ -314,7 +314,7 @@ rhema/
 
 ## Security
 
-Rhema enforces a restrictive Content Security Policy on the Tauri webview to prevent script injection and unauthorized data exfiltration. The policy is defined in `src-tauri/tauri.conf.json`; see **[SECURITY.md](.github/SECURITY.md)** for the directive-by-directive rationale, threat model, and vulnerability reporting process.
+Litdeck enforces a restrictive Content Security Policy on the Tauri webview to prevent script injection and unauthorized data exfiltration. The policy is defined in `src-tauri/tauri.conf.json`; see **[SECURITY.md](.github/SECURITY.md)** for the directive-by-directive rationale, threat model, and vulnerability reporting process.
 
 ## Environment Variables
 

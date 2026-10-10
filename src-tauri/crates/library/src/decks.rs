@@ -342,7 +342,7 @@ mod tests {
 
     impl Fixture {
         fn new() -> Self {
-            let root = std::env::temp_dir().join(format!("light-decks-test-{}", new_id()));
+            let root = std::env::temp_dir().join(format!("litdeck-decks-test-{}", new_id()));
             Self { db: LibraryDb::open_in_memory().unwrap(), store: DeckStore::new(root) }
         }
 

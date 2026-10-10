@@ -1,4 +1,4 @@
-//! Speech-to-text integration for the Light application.
+//! Speech-to-text integration for the Litdeck application.
 //!
 //! Provides real-time transcription via multiple providers:
 //! - **Deepgram** (cloud) — WebSocket streaming with keyword boosting

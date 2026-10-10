@@ -29,21 +29,21 @@ missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
 [package]
-name = "light"
+name = "litdeck"
 version = "0.3.2"
-description = "Light - Real-Time AI Bible Verse Detection"
+description = "Litdeck - Real-Time AI Bible Verse Detection"
 authors = ["Faithful"]
 license = "MIT"
-repository = "https://github.com/openbezal/rhema"
+repository = "https://github.com/Thoobi/Kerst"
 edition = "2021"
 rust-version = "1.77.2"
 
 [lib]
-name = "light_lib"
+name = "litdeck_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "Light"
+name = "Litdeck"
 path = "src/main.rs"
 
 [build-dependencies]
@@ -57,13 +57,13 @@ tokio.workspace = true
 tauri = { version = "2.10.3", features = ["protocol-asset"] }
 tauri-plugin-log = "2"
 tauri-plugin-store = "2"
-light-audio = { path = "crates/audio" }
-light-bible = { path = "crates/bible" }
-light-library = { path = "crates/library" }
-light-stt = { path = "crates/stt" }
-light-broadcast = { path = "crates/broadcast" }
-light-detection = { path = "crates/detection", features = ["onnx", "vector-search"] }
-light-api = { path = "crates/api" }
+litdeck-audio = { path = "crates/audio" }
+litdeck-bible = { path = "crates/bible" }
+litdeck-library = { path = "crates/library" }
+litdeck-stt = { path = "crates/stt" }
+litdeck-broadcast = { path = "crates/broadcast" }
+litdeck-detection = { path = "crates/detection", features = ["onnx", "vector-search"] }
+litdeck-api = { path = "crates/api" }
 crossbeam-channel = "0.5"
 dotenvy = "0.15"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
@@ -76,7 +76,7 @@ uuid = { version = "1.24", features = ["v4"] }
 
 [features]
 default = ["whisper"]
-whisper = ["light-stt/whisper"]
+whisper = ["litdeck-stt/whisper"]
 
 [lints]
 workspace = true

@@ -1,9 +1,9 @@
 /**
- * Unified pipeline: sets up everything needed for Light from scratch.
+ * Unified pipeline: sets up everything needed for Litdeck from scratch.
  *
  *   Phase 1 – Python environment (.venv + all pip deps)
  *   Phase 2 – Download Bible data (pre-built zip + cross-refs)
- *   Phase 3 – Build light.db (SQLite + FTS5)
+ *   Phase 3 – Build litdeck.db (SQLite + FTS5)
  *   Phase 4 – Download & export ONNX model + INT8 quantization
  *   Phase 5 – Export KJV verses to JSON
  *   Phase 6 – Pre-compute verse embeddings
@@ -33,7 +33,7 @@ const KJV_SOURCE = join(DATA_DIR, "sources", "KJV.json")
 const NIV_SOURCE = join(DATA_DIR, "sources", "NIV.json")
 const ESV_SOURCE = join(DATA_DIR, "sources", "ESV.json")
 const CROSS_REFS = join(DATA_DIR, "cross-refs", "cross_references.txt")
-const DB_PATH = join(DATA_DIR, "light.db")
+const DB_PATH = join(DATA_DIR, "litdeck.db")
 const VERSES_JSON = join(DATA_DIR, "verses-for-embedding.json")
 const EMB_BIN = join(PROJECT_ROOT, "embeddings", "kjv-qwen3-0.6b.bin")
 const IDS_BIN = join(PROJECT_ROOT, "embeddings", "kjv-qwen3-0.6b-ids.bin")
@@ -84,7 +84,7 @@ async function run(
 // ── Main ─────────────────────────────────────────────────────────────
 async function main() {
   console.log("\n╔══════════════════════════════════════════════╗")
-  console.log("║   Light – Full Setup Pipeline                ║")
+  console.log("║   Litdeck – Full Setup Pipeline                ║")
   console.log("╚══════════════════════════════════════════════╝")
   if (force) console.log("  (--force: re-running all phases)\n")
   if (!withEmbedding) {
@@ -194,7 +194,7 @@ async function main() {
   } else if (!shouldSkip("verses JSON", VERSES_JSON)) {
     if (!existsSync(DB_PATH)) {
       console.error(
-        "  ❌ light.db not found. Run phases 2-3 first (or remove --force skip)."
+        "  ❌ litdeck.db not found. Run phases 2-3 first (or remove --force skip)."
       )
       process.exit(1)
     }

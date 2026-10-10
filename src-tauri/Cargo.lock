@@ -2515,20 +2515,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "light"
+name = "linux-raw-sys"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
+
+[[package]]
+name = "litdeck"
 version = "0.3.2"
 dependencies = [
  "axum",
  "crossbeam-channel",
  "dotenvy",
  "fontdb",
- "light-api",
- "light-audio",
- "light-bible",
- "light-broadcast",
- "light-detection",
- "light-library",
- "light-stt",
+ "litdeck-api",
+ "litdeck-audio",
+ "litdeck-bible",
+ "litdeck-broadcast",
+ "litdeck-detection",
+ "litdeck-library",
+ "litdeck-stt",
  "log",
  "serde",
  "serde_json",
@@ -2546,7 +2552,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-api"
+name = "litdeck-api"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -2560,7 +2566,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-audio"
+name = "litdeck-audio"
 version = "0.1.0"
 dependencies = [
  "cpal",
@@ -2572,7 +2578,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-bible"
+name = "litdeck-bible"
 version = "0.1.0"
 dependencies = [
  "log",
@@ -2583,7 +2589,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-broadcast"
+name = "litdeck-broadcast"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
@@ -2595,13 +2601,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-detection"
+name = "litdeck-detection"
 version = "0.1.0"
 dependencies = [
  "aho-corasick",
  "bytemuck",
  "env_logger",
- "light-bible",
+ "litdeck-bible",
  "log",
  "lru",
  "ndarray 0.16.1",
@@ -2614,7 +2620,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-library"
+name = "litdeck-library"
 version = "0.1.0"
 dependencies = [
  "log",
@@ -2626,7 +2632,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-notes"
+name = "litdeck-notes"
 version = "0.1.0"
 dependencies = [
  "log",
@@ -2636,13 +2642,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "light-stt"
+name = "litdeck-stt"
 version = "0.1.0"
 dependencies = [
  "async-trait",
  "crossbeam-channel",
  "futures-util",
- "light-audio",
+ "litdeck-audio",
  "log",
  "reqwest 0.12.28",
  "serde",
@@ -2653,12 +2659,6 @@ dependencies = [
  "url",
  "whisper-rs",
 ]
-
-[[package]]
-name = "linux-raw-sys"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "litemap"

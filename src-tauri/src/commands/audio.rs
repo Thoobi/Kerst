@@ -10,7 +10,7 @@ use crate::events::{
     AudioLevelPayload, AudioTestStoppedPayload, EVENT_AUDIO_LEVEL, EVENT_AUDIO_TEST_STOPPED,
 };
 use crate::state::AppState;
-use light_audio::{AudioConfig, AudioFrame, DeviceInfo};
+use litdeck_audio::{AudioConfig, AudioFrame, DeviceInfo};
 
 /// Hard ceiling on a single test run — the thread self-stops afterwards so a
 /// forgotten test can never leave the microphone open.
@@ -21,7 +21,7 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(60);
 pub fn get_audio_devices(
     _state: State<'_, Mutex<AppState>>,
 ) -> Result<Vec<DeviceInfo>, String> {
-    light_audio::device::enumerate_devices().map_err(|e| e.to_string())
+    litdeck_audio::device::enumerate_devices().map_err(|e| e.to_string())
 }
 
 /// Guard for `start_audio_test`: capture and STT can't share the device.
@@ -79,7 +79,7 @@ pub fn start_audio_test(
             let (audio_tx, audio_rx) = crossbeam_channel::bounded::<AudioFrame>(64);
 
             let capture =
-                match light_audio::capture::start(config, audio_tx, device_lost.clone()) {
+                match litdeck_audio::capture::start(config, audio_tx, device_lost.clone()) {
                     Ok(c) => {
                         let _ = ready_tx.send(Ok(()));
                         c
@@ -116,7 +116,7 @@ pub fn start_audio_test(
                         frame_count += 1;
                         // ~15 Hz at 16 kHz with ~1024-sample frames (as in stt.rs).
                         if frame_count % 4 == 0 {
-                            let level = light_audio::meter::compute_level(&frame.samples);
+                            let level = litdeck_audio::meter::compute_level(&frame.samples);
                             let _ = app.emit(
                                 EVENT_AUDIO_LEVEL,
                                 AudioLevelPayload {

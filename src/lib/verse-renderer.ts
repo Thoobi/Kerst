@@ -1431,8 +1431,10 @@ function layoutVerse(
     }
   }
 
+  // With no reference shown (lyrics, texts), the words alone set the
+  // block's alignment, whatever the reference's own setting says.
   const blockVerticalAlign = resolveVerticalAlign(
-    scaledTheme.reference.position === "above"
+    hasReference && scaledTheme.reference.position === "above"
       ? (scaledTheme.reference.verticalAlign ??
           scaledTheme.verseText.verticalAlign)
       : (scaledTheme.verseText.verticalAlign ??

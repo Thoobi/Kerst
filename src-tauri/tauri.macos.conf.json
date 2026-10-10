@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "bundle": {
     "resources": {
-      "../data/light.db": "light.db",
+      "../data/litdeck.db": "litdeck.db",
       "../sdk/ndi/macos/libndi.dylib": "sdk/ndi/macos/libndi.dylib"
     }
   }

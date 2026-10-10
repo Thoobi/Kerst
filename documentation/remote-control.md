@@ -1,6 +1,6 @@
 # Remote Control
 
-Light provides two remote control protocols for external integration: **OSC** (Open Sound Control) and **HTTP API**. These allow you to control broadcasts, navigate verses, switch themes, and adjust settings from hardware controllers, automation scripts, or custom dashboards.
+Litdeck provides two remote control protocols for external integration: **OSC** (Open Sound Control) and **HTTP API**. These allow you to control broadcasts, navigate verses, switch themes, and adjust settings from hardware controllers, automation scripts, or custom dashboards.
 
 ## Overview
 
@@ -45,7 +45,7 @@ Both protocols support the same command set and can run simultaneously.
 
 ### Firewall & Network
 
-If accessing Light from another device on your network:
+If accessing Litdeck from another device on your network:
 - Allow incoming connections on your chosen ports (default 8000/8080)
 - Use your computer's local IP address (e.g., `192.168.1.100`)
 - For local-only access, change host to `127.0.0.1` in settings
@@ -60,7 +60,7 @@ Moves forward in the verse queue and presents the next verse.
 
 **OSC:**
 ```
-/light/next
+/litdeck/next
 ```
 
 **HTTP:**
@@ -76,7 +76,7 @@ Moves backward in the verse queue and presents the previous verse.
 
 **OSC:**
 ```
-/light/prev
+/litdeck/prev
 ```
 
 **HTTP:**
@@ -92,7 +92,7 @@ Makes the broadcast output visible (sets live state to true).
 
 **OSC:**
 ```
-/light/show
+/litdeck/show
 ```
 
 **HTTP:**
@@ -108,7 +108,7 @@ Hides the broadcast output (sets live state to false).
 
 **OSC:**
 ```
-/light/hide
+/litdeck/hide
 ```
 
 **HTTP:**
@@ -127,8 +127,8 @@ Sets the broadcast live state to a specific value.
 
 **OSC:**
 ```
-/light/on_air true
-/light/on_air false
+/litdeck/on_air true
+/litdeck/on_air false
 ```
 
 **HTTP:**
@@ -147,8 +147,8 @@ Changes the active broadcast theme by name (case-insensitive).
 
 **OSC:**
 ```
-/light/theme "Classic Dark"
-/light/theme "Minimal"
+/litdeck/theme "Classic Dark"
+/litdeck/theme "Minimal"
 ```
 
 **HTTP:**
@@ -167,8 +167,8 @@ Adjusts the opacity of the broadcast output.
 
 **OSC:**
 ```
-/light/opacity 0.75
-/light/opacity 1.0
+/litdeck/opacity 0.75
+/litdeck/opacity 1.0
 ```
 
 **HTTP:**
@@ -189,7 +189,7 @@ Adjusts the minimum confidence threshold for verse detection.
 
 **OSC:**
 ```
-/light/confidence 0.8
+/litdeck/confidence 0.8
 ```
 
 **HTTP:**
@@ -204,14 +204,14 @@ curl -X POST http://localhost:8080/api/v1/command \
 Puts the verse currently showing in **Program preview** on the Live output — the same thing
 the panel's "Send to live" button does.
 
-Detections that Light is confident about go straight to Live; everything else stages in
+Detections that Litdeck is confident about go straight to Live; everything else stages in
 Preview first. This command is how you push a staged verse out without touching the app
 window. If nothing is in Preview, the command does nothing — it will never blank what the
 congregation is seeing.
 
 **OSC:**
 ```
-/light/send_to_live
+/litdeck/send_to_live
 ```
 
 **HTTP:**
@@ -234,7 +234,7 @@ book it stops — it does not roll over into the next book.
 
 **OSC:**
 ```
-/light/bible_next
+/litdeck/bible_next
 ```
 
 **HTTP:**
@@ -251,7 +251,7 @@ previous chapter; at the start of a book it stops.
 
 **OSC:**
 ```
-/light/bible_prev
+/litdeck/bible_prev
 ```
 
 **HTTP:**
@@ -269,7 +269,7 @@ duplicates.
 
 **OSC:**
 ```
-/light/add_to_queue
+/litdeck/add_to_queue
 ```
 
 **HTTP:**
@@ -284,7 +284,7 @@ curl -X POST http://localhost:8080/api/v1/command \
 >
 > Over **OSC** this is forgiving: controllers that send a value with every button press
 > (TouchOSC and Companion both do) work fine — the extra argument is ignored. Verified with
-> `/light/bible_next` carrying a float and `/light/add_to_queue` carrying an int; both dispatch
+> `/litdeck/bible_next` carrying a float and `/litdeck/add_to_queue` carrying an int; both dispatch
 > normally.
 >
 > Over **HTTP** it is strict: send `{"command":"bible_next"}` exactly. Adding a `value` key
@@ -338,7 +338,7 @@ A rejected command returns `500` with the reason attached:
 ```json
 {
   "success": false,
-  "error": "Unknown OSC address: /light/nope"
+  "error": "Unknown OSC address: /litdeck/nope"
 }
 ```
 
@@ -350,18 +350,18 @@ A rejected command returns `500` with the reason attached:
 
 1. **Install Companion** and configure your Stream Deck
 2. **Add Generic OSC module**:
-   - Host: `127.0.0.1` (or your Light computer's IP)
+   - Host: `127.0.0.1` (or your Litdeck computer's IP)
    - Port: `8000`
 3. **Create buttons** for each command:
-   - **Next in Queue**: OSC path `/light/next`
-   - **Prev in Queue**: OSC path `/light/prev`
-   - **Next Verse (Bible panel)**: OSC path `/light/bible_next`
-   - **Prev Verse (Bible panel)**: OSC path `/light/bible_prev`
-   - **Send to Live**: OSC path `/light/send_to_live`
-   - **Add to Queue**: OSC path `/light/add_to_queue`
-   - **Show Output**: OSC path `/light/show`
-   - **Hide Output**: OSC path `/light/hide`
-   - **Go Live**: OSC path `/light/on_air` with argument `true`
+   - **Next in Queue**: OSC path `/litdeck/next`
+   - **Prev in Queue**: OSC path `/litdeck/prev`
+   - **Next Verse (Bible panel)**: OSC path `/litdeck/bible_next`
+   - **Prev Verse (Bible panel)**: OSC path `/litdeck/bible_prev`
+   - **Send to Live**: OSC path `/litdeck/send_to_live`
+   - **Add to Queue**: OSC path `/litdeck/add_to_queue`
+   - **Show Output**: OSC path `/litdeck/show`
+   - **Hide Output**: OSC path `/litdeck/hide`
+   - **Go Live**: OSC path `/litdeck/on_air` with argument `true`
 
 A useful three-button layout for reading through a passage the AI has not detected:
 `bible_next` / `bible_prev` to move, `send_to_live` to push the verse you land on.
@@ -372,16 +372,16 @@ Mobile control surfaces can send OSC commands directly.
 
 **TouchOSC Example:**
 1. Create buttons with OSC message type
-2. Set destination to Light computer IP:8000
+2. Set destination to Litdeck computer IP:8000
 3. Configure OSC addresses:
-   - `/light/next`
-   - `/light/prev`
-   - `/light/bible_next`
-   - `/light/bible_prev`
-   - `/light/send_to_live`
-   - `/light/add_to_queue`
-   - `/light/show`
-   - `/light/hide`
+   - `/litdeck/next`
+   - `/litdeck/prev`
+   - `/litdeck/bible_next`
+   - `/litdeck/bible_prev`
+   - `/litdeck/send_to_live`
+   - `/litdeck/add_to_queue`
+   - `/litdeck/show`
+   - `/litdeck/hide`
 
 ### Node.js / JavaScript Automation
 
@@ -426,15 +426,15 @@ import { Client } from 'osc';
 const osc = new Client('localhost', 8000);
 
 // Send commands
-osc.send('/light/next');
-osc.send('/light/prev');
-osc.send('/light/bible_next');
-osc.send('/light/bible_prev');
-osc.send('/light/send_to_live');
-osc.send('/light/add_to_queue');
-osc.send('/light/theme', 'Classic Dark');
-osc.send('/light/opacity', 0.8);
-osc.send('/light/on_air', true);
+osc.send('/litdeck/next');
+osc.send('/litdeck/prev');
+osc.send('/litdeck/bible_next');
+osc.send('/litdeck/bible_prev');
+osc.send('/litdeck/send_to_live');
+osc.send('/litdeck/add_to_queue');
+osc.send('/litdeck/theme', 'Classic Dark');
+osc.send('/litdeck/opacity', 0.8);
+osc.send('/litdeck/on_air', true);
 ```
 
 ### Python Automation
@@ -473,20 +473,20 @@ from pythonosc import udp_client
 osc = udp_client.SimpleUDPClient('localhost', 8000)
 
 # Send commands
-osc.send_message('/light/next', [])
-osc.send_message('/light/prev', [])
-osc.send_message('/light/bible_next', [])
-osc.send_message('/light/bible_prev', [])
-osc.send_message('/light/send_to_live', [])
-osc.send_message('/light/add_to_queue', [])
-osc.send_message('/light/theme', 'Classic Dark')
-osc.send_message('/light/opacity', 0.8)
-osc.send_message('/light/on_air', True)
+osc.send_message('/litdeck/next', [])
+osc.send_message('/litdeck/prev', [])
+osc.send_message('/litdeck/bible_next', [])
+osc.send_message('/litdeck/bible_prev', [])
+osc.send_message('/litdeck/send_to_live', [])
+osc.send_message('/litdeck/add_to_queue', [])
+osc.send_message('/litdeck/theme', 'Classic Dark')
+osc.send_message('/litdeck/opacity', 0.8)
+osc.send_message('/litdeck/on_air', True)
 ```
 
 ### OBS Studio Integration
 
-While Light uses NDI for video output, you can use remote control for automation:
+While Litdeck uses NDI for video output, you can use remote control for automation:
 
 **OBS Advanced Scene Switcher + Shell Command:**
 
@@ -595,7 +595,7 @@ All commands are validated before execution:
 - **Transport**: UDP
 - **Library**: Custom parser built on `tokio` async runtime
 - **Message Format**: Standard OSC bundle/message format
-- **Address Pattern**: `/light/<command>` (the former `/rhema/<command>` still works, so controllers set up before the rename keep working)
+- **Address Pattern**: `/litdeck/<command>` (the former `/light/<command>` and `/rhema/<command>` still work, so controllers set up before the renames keep working)
 - **Arguments**: Matched positionally to command parameters
 
 ### HTTP Implementation
@@ -634,7 +634,7 @@ Planned additions to remote control:
 - **WebSocket API** for real-time bidirectional communication
 - **MIDI support** for hardware controllers with MIDI over USB
 - **Custom command macros** (trigger multiple commands at once)
-- **Verse navigation by reference** (e.g., `/light/goto John 3:16`)
+- **Verse navigation by reference** (e.g., `/litdeck/goto John 3:16`)
 - **Further queue management** — removing, reordering and clearing (adding is covered by `add_to_queue`)
 
 ## Support

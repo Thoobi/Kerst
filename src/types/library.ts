@@ -1,4 +1,4 @@
-// Mirrors light-library's models (src-tauri/crates/library/src/models.rs).
+// Mirrors litdeck-library's models (src-tauri/crates/library/src/models.rs).
 // Field names stay snake_case, as with the Bible types.
 
 export type SectionKind =

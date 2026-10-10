@@ -58,7 +58,7 @@ export function parseSongFile(fileName: string, text: string): SongInput {
       }
     }
     case null:
-      throw new Error("not a song file Light can read")
+      throw new Error("not a song file Litdeck can read")
   }
 }
 

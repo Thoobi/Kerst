@@ -38,9 +38,9 @@ jobs:
           # Keep in sync with the `aliases` list in build-release.yml and the
           # download* URLs in web/app/_lib/site.ts.
           required=(
-            Rhema-windows-x64-setup.exe
-            Rhema-macos-arm64.dmg
-            Rhema-linux-x86_64.AppImage
+            Litdeck-windows-x64-setup.exe
+            Litdeck-macos-arm64.dmg
+            Litdeck-linux-x86_64.AppImage
           )
 
           # Never act on a failed lookup: an API hiccup would otherwise read as
