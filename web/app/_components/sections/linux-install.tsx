@@ -81,7 +81,7 @@ export function LinuxInstall({ className }: { className?: string }) {
     <div
       id="linux"
       className={cn(
-        "w-full scroll-mt-28 rounded-2xl border border-white/10 bg-black/40 p-4 text-left backdrop-blur-md sm:p-5",
+        "w-full scroll-mt-28 rounded-2xl border border-white/15 bg-[#0a0c24]/60 p-4 text-left shadow-[0_30px_80px_-30px_rgba(10,12,40,0.7)] backdrop-blur-xl sm:p-5",
         className
       )}
     >
@@ -95,7 +95,7 @@ export function LinuxInstall({ className }: { className?: string }) {
           <select
             value={id}
             onChange={(e) => setPicked(e.target.value)}
-            className="h-9 w-full appearance-none rounded-lg border border-white/10 bg-[#0b0c0e] pr-9 pl-3 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-accent/50 sm:w-auto"
+            className="h-9 w-full appearance-none rounded-lg border border-foreground/10 bg-card pr-9 pl-3 text-[14px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-accent/50 sm:w-auto"
           >
             {DISTROS.map((d) => (
               <option key={d.id} value={d.id}>
@@ -111,7 +111,7 @@ export function LinuxInstall({ className }: { className?: string }) {
         </label>
       </div>
 
-      <div className="mt-4 flex items-stretch overflow-hidden rounded-xl border border-white/10 bg-[#060708]">
+      <div className="mt-4 flex items-stretch overflow-hidden rounded-xl border border-foreground/10 bg-background">
         <pre className="min-w-0 flex-1 overflow-x-auto px-4 py-3 font-mono text-[13px] leading-6 text-foreground [scrollbar-width:thin]">
           <span className="text-accent select-none">$ </span>
           {distro.command}
@@ -120,7 +120,7 @@ export function LinuxInstall({ className }: { className?: string }) {
           type="button"
           onClick={copy}
           aria-label={copied ? "Copied" : "Copy command"}
-          className="flex w-12 shrink-0 items-center justify-center border-l border-white/10 text-muted-foreground transition-colors hover:bg-white/[0.04] hover:text-foreground"
+          className="flex w-12 shrink-0 items-center justify-center border-l border-foreground/10 text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
         >
           {copied ? <IconCheck size={18} className="text-accent" /> : <IconCopy size={18} />}
         </button>
@@ -133,7 +133,7 @@ export function LinuxInstall({ className }: { className?: string }) {
         openSUSE Leap aren&apos;t supported yet.
       </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.06] pt-4 text-[13px] text-subtle-foreground">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-foreground/[0.06] pt-4 text-[13px] text-subtle-foreground">
         <span>Or download the package:</span>
         {[
           { label: ".deb", href: SITE.downloads.deb },

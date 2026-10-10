@@ -33,14 +33,12 @@ const sizes: Record<Size, string> = {
 };
 
 const variants: Record<Variant, string> = {
-  primary: "bg-primary text-primary-foreground hover:bg-white/90",
-  secondary:
-    "bg-surface-strong text-foreground hover:bg-white/25",
-  ghost:
-    "border border-border-strong bg-transparent text-foreground hover:bg-white/5",
-  // Lit from within: the main call to action.
+  primary: "bg-primary text-primary-foreground hover:opacity-90",
+  secondary: "bg-surface-strong text-foreground hover:bg-foreground/15",
+  ghost: "border border-border-strong bg-transparent text-foreground hover:bg-foreground/5",
+  // The main call to action: a solid pill in the page's ink (white after dark).
   light:
-    "bg-[linear-gradient(180deg,#e4fb9a_0%,var(--accent)_55%,var(--accent-deep)_130%)] text-[#0f1402] shadow-[0_0_0_1px_rgba(214,248,120,0.5),0_8px_30px_-6px_rgba(150,230,60,0.55),inset_0_1px_0_rgba(255,255,255,0.6)] hover:shadow-[0_0_0_1px_rgba(214,248,120,0.7),0_10px_40px_-6px_rgba(150,230,60,0.75),inset_0_1px_0_rgba(255,255,255,0.6)]",
+    "bg-primary text-primary-foreground shadow-[0_1px_0_rgba(255,255,255,0.25)_inset,0_10px_30px_-12px_rgba(13,14,18,0.55)] hover:opacity-90",
 };
 
 export function Button({

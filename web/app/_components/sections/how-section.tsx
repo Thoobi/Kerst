@@ -27,7 +27,7 @@ export function HowSection() {
         <Reveal>
           <SectionHeading
             id="how-heading"
-            index="05"
+            index="04"
             eyebrow="How it works"
             subtitle="Do the work ahead of time, so on the day you can watch the room instead of hunting for the next slide."
           >
@@ -52,7 +52,7 @@ export function HowSection() {
               </span>
               <div className="flex flex-col gap-3">
                 <span className="font-mono text-[12px] tracking-[0.12em] text-subtle-foreground uppercase">{step.when}</span>
-                <h3 className="font-display text-[34px] leading-none font-bold tracking-[-0.045em] text-foreground">{step.title}</h3>
+                <h3 className="font-serif text-[42px] leading-none tracking-[-0.02em] text-foreground">{step.title}</h3>
                 <p className="text-[16px] leading-7 text-muted-foreground">{step.body}</p>
               </div>
             </Reveal>

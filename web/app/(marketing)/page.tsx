@@ -3,7 +3,6 @@ import { Ribbon } from "../_components/sections/ribbon";
 import { ListenSection } from "../_components/sections/listen-section";
 import { FeaturesSection } from "../_components/sections/features-section";
 import { HowSection } from "../_components/sections/how-section";
-import { ShowcaseSection } from "../_components/sections/showcase-section";
 import { RoomsSection } from "../_components/sections/rooms-section";
 import { DownloadSection } from "../_components/sections/download-section";
 
@@ -12,7 +11,6 @@ export default function Home() {
     <>
       <HeroSection />
       <Ribbon />
-      <ShowcaseSection />
       <RoomsSection />
       <FeaturesSection />
       <ListenSection />

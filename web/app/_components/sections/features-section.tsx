@@ -24,7 +24,7 @@ export function FeaturesSection() {
         <Reveal>
           <SectionHeading
             id="features-heading"
-            index="03"
+            index="02"
             eyebrow="Everything on screen"
             subtitle="One app for the whole show, from the first song to the last notice. No second program for the stream, no juggling windows."
           >
@@ -85,7 +85,7 @@ export function FeaturesSection() {
             title="Style it beside the lyrics"
             body="Size, spacing, alignment and outline, changed right next to the song, and seen in Preview at once."
           >
-            <div className="flex flex-col gap-3 rounded-xl border border-border bg-black/30 p-4">
+            <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
               <Control label="Size" value="96px" fill="62%" />
               <Control label="Line spacing" value="1.20" fill="40%" />
               <div className="flex gap-1.5">
@@ -94,7 +94,7 @@ export function FeaturesSection() {
                     key={a}
                     className={cn(
                       "flex-1 rounded-md py-1 text-center text-[11px]",
-                      a === "Centre" ? "bg-white/10 text-foreground" : "text-subtle-foreground"
+                      a === "Centre" ? "bg-foreground/10 text-foreground" : "text-subtle-foreground"
                     )}
                   >
                     {a}
@@ -114,7 +114,7 @@ export function FeaturesSection() {
               {["Projector", "Side screen", "Stream"].map((s) => (
                 <div key={s} className="flex items-center gap-3 text-[12px] text-muted-foreground">
                   <span className="w-20 shrink-0">{s}</span>
-                  <span className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/10">
+                  <span className="relative h-1 flex-1 overflow-hidden rounded-full bg-foreground/10">
                     <span className="absolute inset-y-0 left-0 w-[58%] rounded-full bg-gradient-to-r from-accent-deep to-accent" />
                   </span>
                   <span className="font-mono text-[11px] text-subtle-foreground">1:42</span>
@@ -163,7 +163,7 @@ export function FeaturesSection() {
                       "flex aspect-video items-center justify-center rounded-md px-1 text-center font-display text-[clamp(9px,1.1vw,14px)] leading-tight font-bold tracking-[-0.03em]",
                       i === 1
                         ? "bg-[#f3f6ec] text-[#10140a] ring-2 ring-accent ring-offset-2 ring-offset-background"
-                        : "bg-white/[0.06] text-muted-foreground"
+                        : "bg-foreground/[0.06] text-muted-foreground"
                     )}
                   >
                     {t}
@@ -201,7 +201,7 @@ function Tile({
           {children}
         </div>
         <div className="flex flex-col gap-1.5">
-          <h3 className="flex items-center gap-2 font-display text-[19px] font-semibold tracking-[-0.02em] text-foreground">
+          <h3 className="flex items-center gap-2 text-[19px] font-medium tracking-[-0.02em] text-foreground">
             <Icon size={18} stroke={1.75} className="text-accent" aria-hidden />
             {title}
           </h3>
@@ -219,7 +219,7 @@ function Control({ label, value, fill }: { label: string; value: string; fill: s
         {label}
         <span className="font-mono text-subtle-foreground">{value}</span>
       </span>
-      <span className="relative h-1 rounded-full bg-white/10">
+      <span className="relative h-1 rounded-full bg-foreground/10">
         <span className="absolute inset-y-0 left-0 rounded-full bg-accent" style={{ width: fill }} />
         <span
           className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent bg-background"
@@ -253,7 +253,7 @@ function Outputs() {
         {outs.map((o) => (
           <div key={o.label} className="flex items-center gap-2">
             <span className="h-px flex-1 bg-gradient-to-r from-accent/70 to-accent/10" />
-            <span className="flex items-center gap-2 rounded-lg border border-border bg-black/30 px-2.5 py-1.5 text-[12px] text-muted-foreground">
+            <span className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-[12px] text-muted-foreground">
               <o.icon size={14} stroke={1.75} aria-hidden />
               {o.label}
             </span>

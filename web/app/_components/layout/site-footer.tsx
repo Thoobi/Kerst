@@ -25,7 +25,7 @@ const GROUPS = [
 /** The footer every marketing page shares. */
 export function SiteFooter() {
   return (
-    <footer className="relative overflow-hidden border-t border-border pt-20 lg:pt-[100px]">
+    <footer className="theme-dark relative mx-2 mb-2 overflow-hidden rounded-[28px] bg-background pt-20 sm:mx-3 sm:mb-3 sm:rounded-[36px] lg:pt-[100px]">
       <Container>
         <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:gap-8">
           <div className="flex flex-col gap-3">

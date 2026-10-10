@@ -25,8 +25,8 @@ export function Ribbon() {
           />
           <span
             className={
-              "font-display text-[34px] font-extrabold tracking-[-0.05em] whitespace-nowrap md:text-[48px] " +
-              (i % 2 ? "text-transparent [-webkit-text-stroke:1px_rgba(251,248,243,0.35)]" : "text-foreground/85")
+              "font-serif text-[40px] tracking-[-0.02em] whitespace-nowrap md:text-[56px] " +
+              (i % 2 ? "text-subtle-foreground italic" : "text-foreground")
             }
           >
             {word}

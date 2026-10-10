@@ -57,7 +57,7 @@ export function RoomsSection() {
         <Reveal>
           <SectionHeading
             id="uses-heading"
-            index="02"
+            index="01"
             eyebrow="Made for any room"
             subtitle="Litdeck doesn't mind what the occasion is. If there's an audience and a screen, it'll run the show, from a classroom projector to a festival stage."
           >
@@ -71,12 +71,12 @@ export function RoomsSection() {
               key={room.title}
               as="li"
               delay={(i % 3) * 90}
-              className="group relative flex flex-col gap-4 bg-background p-7 transition-colors hover:bg-white/[0.02] md:p-8"
+              className="group relative flex flex-col gap-4 bg-background p-7 transition-colors hover:bg-foreground/[0.02] md:p-8"
             >
               <span className="flex size-11 items-center justify-center rounded-xl border border-accent/30 bg-accent/[0.06] text-accent shadow-[0_0_30px_-10px_var(--accent)]">
                 <room.icon size={22} stroke={1.6} aria-hidden />
               </span>
-              <h3 className="font-display text-[26px] leading-tight font-bold tracking-[-0.035em] text-foreground">{room.title}</h3>
+              <h3 className="font-serif text-[32px] leading-tight tracking-[-0.02em] text-foreground">{room.title}</h3>
               <p className="text-[15px] leading-6 text-muted-foreground">{room.body}</p>
               <span className="mt-auto pt-2 font-mono text-[11px] tracking-[0.12em] text-subtle-foreground uppercase">{room.uses}</span>
             </Reveal>

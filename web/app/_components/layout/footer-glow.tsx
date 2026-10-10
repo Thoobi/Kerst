@@ -104,14 +104,14 @@ export function FooterGlow() {
       <span
         className={word + " absolute inset-x-0 top-0 bg-clip-text text-transparent"}
         style={{
-          background: `${pixels}, linear-gradient(180deg, rgba(243,253,224,0.35), rgba(198,244,50,0.22) 55%, rgba(95,208,104,0.12))`,
-          color: "#e9fbb4",
+          background: `${pixels}, linear-gradient(180deg, rgba(255,236,222,0.38), rgba(155,176,255,0.26) 55%, rgba(193,168,255,0.14))`,
+          color: "#dfe6ff",
           WebkitBackgroundClip: "text",
           backgroundClip: "text",
           opacity: "var(--on)",
           maskImage: spotMask,
           WebkitMaskImage: spotMask,
-          filter: "drop-shadow(0 0 14px rgba(198, 244, 50, 0.55))",
+          filter: "drop-shadow(0 0 14px rgba(120, 145, 255, 0.6))",
         }}
       >
         Litdeck
@@ -123,11 +123,11 @@ export function FooterGlow() {
         style={{
           opacity: "calc(var(--on) * 0.9)",
           background:
-            "radial-gradient(circle min(22vw, 300px) at var(--mx) var(--my), rgba(198, 244, 50, 0.10), rgba(95, 208, 104, 0.04) 50%, transparent 75%)",
+            "radial-gradient(circle min(22vw, 300px) at var(--mx) var(--my), rgba(110, 135, 255, 0.14), rgba(193, 168, 255, 0.05) 50%, transparent 75%)",
         }}
       />
       {/* The floor line the wall stands on. */}
-      <div className="absolute bottom-0 left-1/2 h-px w-[80%] -translate-x-1/2 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+      <div className="absolute bottom-0 left-1/2 h-px w-[80%] -translate-x-1/2 bg-gradient-to-r from-transparent via-foreground/15 to-transparent" />
     </div>
   );
 }

@@ -104,7 +104,7 @@ export function ListenSection() {
         <Reveal>
           <SectionHeading
             id="listen-heading"
-            index="04"
+            index="03"
             eyebrow="Optional · For worship teams"
             align="center"
             subtitle="Turn on listening and Litdeck follows the speaker. Give a Bible reference, or simply quote a verse, and it finds the passage and gets it ready for the screen. Not that kind of event? Leave it off; nothing else depends on it."
@@ -158,7 +158,7 @@ export function ListenSection() {
             </div>
 
             {/* What the operator sees: the find, then the screen. */}
-            <div className="flex flex-col gap-5 bg-black/20 p-6 md:p-9">
+            <div className="theme-dark dusk relative flex flex-col gap-5 p-6 md:p-9">
               <div
                 className={cn(
                   "flex items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-500",
@@ -175,14 +175,14 @@ export function ListenSection() {
                 <span
                   className={cn(
                     "ml-auto rounded-[4px] px-2 py-0.5 font-mono text-[11px] font-medium tracking-wider uppercase transition-colors duration-300",
-                    live ? "bg-red-500/90 text-white" : "bg-white/10 text-muted-foreground"
+                    live ? "bg-red-500/90 text-white" : "bg-foreground/10 text-muted-foreground"
                   )}
                 >
                   {live ? "Live" : "Ready"}
                 </span>
               </div>
 
-              <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-[radial-gradient(80%_70%_at_50%_40%,#16200a_0%,#070906_80%)]">
+              <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-foreground/10 bg-[radial-gradient(80%_70%_at_50%_40%,#1d2a7a_0%,#070b2c_80%)]">
                 <div
                   className={cn(
                     "absolute inset-0 flex flex-col items-center justify-center gap-3 px-[8%] text-center transition-all duration-700",

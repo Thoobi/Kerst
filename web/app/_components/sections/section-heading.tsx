@@ -57,7 +57,7 @@ export function SectionHeading({
       {eyebrow && <Eyebrow index={index}>{eyebrow}</Eyebrow>}
       <h2
         id={id}
-        className="max-w-[16ch] text-balance font-display text-[44px] leading-[0.95] font-bold tracking-[-0.045em] text-foreground sm:text-6xl lg:text-[80px]"
+        className="max-w-[16ch] text-balance font-serif text-[48px] leading-[0.98] font-normal tracking-[-0.025em] text-foreground sm:text-[64px] lg:text-[88px]"
       >
         {children}
       </h2>
@@ -75,11 +75,7 @@ export function SectionHeading({
   );
 }
 
-/** The lit half of a heading: the words the light falls on. */
+/** The second voice of a heading: italic, a shade quieter. */
 export function Lit({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="bg-gradient-to-b from-[#f1fcd6] via-accent to-accent-deep bg-clip-text text-transparent">
-      {children}
-    </span>
-  );
+  return <em className="text-subtle-foreground italic">{children}</em>;
 }

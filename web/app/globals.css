@@ -4,23 +4,44 @@
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
 
 :root {
-  --background: #07080a;
-  --foreground: #f4f6f1;
-  --muted-foreground: rgba(251, 248, 243, 0.62);
-  --subtle-foreground: rgba(251, 248, 243, 0.4);
-  --border: rgba(251, 248, 243, 0.08);
-  --border-strong: rgba(251, 248, 243, 0.12);
-  --surface: rgba(251, 248, 243, 0.035);
-  --surface-strong: rgba(251, 248, 243, 0.14);
-  /* Candlelight: the warm gold of a lamp in a dark room. */
-  --accent: #c6f432;
-  --accent-deep: #5fd068;
+  /* Daylight paper: the page is a lit room, the stage is the dusk card. */
+  --background: #f4f3ef;
+  --card: #ffffff;
+  --foreground: #0d0e12;
+  --muted-foreground: rgba(13, 14, 18, 0.62);
+  --subtle-foreground: rgba(13, 14, 18, 0.42);
+  --border: rgba(13, 14, 18, 0.08);
+  --border-strong: rgba(13, 14, 18, 0.14);
+  --surface: rgba(13, 14, 18, 0.03);
+  --surface-strong: rgba(13, 14, 18, 0.07);
+  /* Dusk: electric blue going violet as the light falls. */
+  --accent: #3b5bff;
+  --accent-deep: #7a4dff;
+  --primary: #0d0e12;
+  --primary-foreground: #ffffff;
+}
+
+/* The stage after dark: the hero sky, the download band and the footer. */
+.theme-dark {
+  --background: #0a0b10;
+  --card: #12131a;
+  --foreground: #f5f6fb;
+  --muted-foreground: rgba(245, 246, 251, 0.68);
+  --subtle-foreground: rgba(245, 246, 251, 0.44);
+  --border: rgba(245, 246, 251, 0.1);
+  --border-strong: rgba(245, 246, 251, 0.18);
+  --surface: rgba(245, 246, 251, 0.05);
+  --surface-strong: rgba(245, 246, 251, 0.14);
+  --accent: #9bb0ff;
+  --accent-deep: #c1a8ff;
   --primary: #ffffff;
-  --primary-foreground: #000000;
+  --primary-foreground: #0d0e12;
+  color: var(--foreground);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-subtle-foreground: var(--subtle-foreground);
@@ -35,6 +56,7 @@
   --font-sans: var(--font-google-sans), ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
   --font-signage: var(--font-unbounded), var(--font-bricolage), sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
@@ -58,7 +80,7 @@ body {
 
 ::selection {
   background: var(--accent);
-  color: var(--primary-foreground);
+  color: #ffffff;
 }
 
 html.lenis,
@@ -176,6 +198,30 @@ html.lenis body {
  * the screens it lands on.
  * ------------------------------------------------------------------------- */
 
+/* Dusk: deep blue overhead, warming to a lilac and peach horizon. */
+.dusk {
+  background:
+    radial-gradient(70% 45% at 18% 8%, rgba(96, 124, 255, 0.45), transparent 70%),
+    radial-gradient(60% 40% at 85% 18%, rgba(140, 92, 255, 0.35), transparent 70%),
+    linear-gradient(180deg, #070b2c 0%, #12207a 26%, #2c48d8 52%, #7d7ef0 72%, #e3b3e6 88%, #ffd8c4 100%);
+}
+/* The sun just under the horizon, swelling and settling. */
+.dusk-sun {
+  background:
+    radial-gradient(55% 60% at 50% 100%, rgba(255, 226, 196, 0.85) 0%, rgba(255, 170, 190, 0.45) 35%, transparent 70%);
+  animation: dusk-sun 12s ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+}
+@keyframes dusk-sun {
+  from { opacity: 0.75; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.08); }
+}
+.dusk-grain {
+  opacity: 0.18;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 /* A cone of light from a lens at the top centre, soft at the edges. */
 .beam {
   position: absolute;
@@ -185,8 +231,8 @@ html.lenis body {
   transform: translateX(-50%);
   pointer-events: none;
   background:
-    radial-gradient(40% 55% at 50% 0%, rgba(236, 252, 200, 0.55) 0%, rgba(198, 244, 50, 0.18) 35%, transparent 70%),
-    conic-gradient(from 180deg at 50% 0%, transparent 157deg, rgba(214, 248, 120, 0.14) 168deg, rgba(236, 252, 200, 0.24) 180deg, rgba(214, 248, 120, 0.14) 192deg, transparent 203deg);
+    radial-gradient(40% 55% at 50% 0%, rgba(225, 232, 255, 0.55) 0%, rgba(120, 145, 255, 0.2) 35%, transparent 70%),
+    conic-gradient(from 180deg at 50% 0%, transparent 157deg, rgba(150, 170, 255, 0.14) 168deg, rgba(225, 232, 255, 0.24) 180deg, rgba(150, 170, 255, 0.14) 192deg, transparent 203deg);
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
   filter: blur(6px);
@@ -206,8 +252,8 @@ html.lenis body {
   width: 3px;
   height: 3px;
   border-radius: 9999px;
-  background: rgba(236, 252, 200, 0.9);
-  box-shadow: 0 0 8px rgba(198, 244, 50, 0.8);
+  background: rgba(235, 240, 255, 0.9);
+  box-shadow: 0 0 8px rgba(140, 160, 255, 0.8);
   pointer-events: none;
   animation: mote-drift var(--mote-duration, 14s) linear infinite;
   animation-delay: var(--mote-delay, 0s);
@@ -228,7 +274,7 @@ html.lenis body {
   inset: 0;
   z-index: 60;
   pointer-events: none;
-  opacity: 0.06;
+  opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -250,10 +296,10 @@ html.lenis body {
 /* A motion background that never stops moving. */
 .motion-bg {
   background:
-    radial-gradient(60% 80% at 20% 100%, rgba(95, 208, 104, 0.75) 0%, transparent 60%),
-    radial-gradient(50% 70% at 85% 0%, rgba(198, 244, 50, 0.55) 0%, transparent 65%),
-    radial-gradient(70% 90% at 60% 60%, rgba(120, 60, 160, 0.45) 0%, transparent 70%),
-    #120c10;
+    radial-gradient(60% 80% at 20% 100%, rgba(255, 170, 160, 0.7) 0%, transparent 60%),
+    radial-gradient(50% 70% at 85% 0%, rgba(80, 110, 255, 0.65) 0%, transparent 65%),
+    radial-gradient(70% 90% at 60% 60%, rgba(130, 80, 220, 0.55) 0%, transparent 70%),
+    #0c0f2e;
   background-size: 160% 160%;
   animation: motion-bg 14s ease-in-out infinite alternate;
 }

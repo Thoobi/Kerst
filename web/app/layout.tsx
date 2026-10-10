@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Google_Sans, JetBrains_Mono, Unbounded } from "next/font/google";
+import { Bricolage_Grotesque, Google_Sans, Instrument_Serif, JetBrains_Mono, Unbounded } from "next/font/google";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import "./globals.css";
 import { SITE } from "./_lib/site";
@@ -26,6 +26,15 @@ const mono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
   variable: "--font-jetbrains",
+  display: "swap",
+});
+
+// Headlines: an editorial serif, upright and italic.
+const serif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-instrument",
   display: "swap",
 });
 
@@ -117,7 +126,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`dark h-full antialiased ${sans.variable} ${display.variable} ${mono.variable} ${signage.variable}`}
+      className={`dark h-full antialiased ${sans.variable} ${display.variable} ${mono.variable} ${signage.variable} ${serif.variable}`}
       data-theme="dark"
       suppressHydrationWarning
     >

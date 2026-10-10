@@ -72,12 +72,14 @@ export function SiteHeader() {
   const bar = cn(
     "flex h-12 items-center rounded-2xl border transition-[background-color,border-color,box-shadow] duration-300",
     scrolled
-      ? "border-white/10 bg-[#0b0c0e]/70 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.9)] backdrop-blur-xl"
-      : "border-white/[0.06] bg-white/[0.02] backdrop-blur-md"
+      ? "border-foreground/[0.07] bg-card/80 shadow-[0_12px_40px_-18px_rgba(13,14,18,0.35)] backdrop-blur-xl"
+      : "border-white/15 bg-white/10 backdrop-blur-md"
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5">
+    // Over the dusk sky at the top it takes the dark theme; scrolled onto the
+    // light page it turns into a frosted white pill.
+    <header className={cn("sticky top-0 z-50 w-full px-3 pt-3 sm:px-5", !scrolled && "theme-dark")}>
 
       <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-3">
         {/* Left: the name and the way round the site. */}
@@ -85,7 +87,7 @@ export function SiteHeader() {
           <Link href="/" aria-label="Litdeck home" className="mr-2 shrink-0">
             <LitdeckLogo size="sm" />
           </Link>
-          <span aria-hidden className="mr-1 hidden h-5 w-px bg-white/10 lg:block" />
+          <span aria-hidden className="mr-1 hidden h-5 w-px bg-foreground/10 lg:block" />
           <DesktopNav />
         </div>
 
@@ -100,7 +102,7 @@ export function SiteHeader() {
             aria-controls="mobile-nav"
             aria-label="Open menu"
             onClick={() => setMenuOpen(true)}
-            className="flex size-9 flex-col items-center justify-center gap-[5px] rounded-xl hover:bg-white/[0.06] lg:hidden"
+            className="flex size-9 flex-col items-center justify-center gap-[5px] rounded-xl hover:bg-foreground/[0.06] lg:hidden"
           >
             <span className="h-px w-4 bg-foreground" />
             <span className="h-px w-4 bg-foreground" />
@@ -155,7 +157,7 @@ function DesktopNav() {
       <span
         aria-hidden
         className={cn(
-          "absolute top-1/2 h-9 -translate-y-1/2 rounded-xl bg-white/[0.07] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "absolute top-1/2 h-9 -translate-y-1/2 rounded-xl bg-foreground/[0.07] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
           pill ? "opacity-100" : "opacity-0"
         )}
         style={pill ? { left: pill.left, width: pill.width } : undefined}
@@ -209,7 +211,7 @@ function ProductPanel({ open, onNavigate }: { open: boolean; onNavigate: () => v
         open ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0"
       )}
     >
-      <div className="grid grid-cols-[1fr_320px] gap-2 rounded-2xl border border-white/10 bg-[#0b0c0e] p-2 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+      <div className="grid grid-cols-[1fr_320px] gap-2 rounded-2xl border border-foreground/10 bg-card p-2 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl">
         <ul className="flex flex-col gap-0.5 p-1">
           {PRODUCT.map((f) => (
             <li key={f.title}>
@@ -220,7 +222,7 @@ function ProductPanel({ open, onNavigate }: { open: boolean; onNavigate: () => v
                 onFocus={() => setActive(f.preview)}
                 className={cn(
                   "group flex items-center gap-3 rounded-xl p-2.5 transition-colors",
-                  active === f.preview ? "bg-white/[0.06]" : "hover:bg-white/[0.04]"
+                  active === f.preview ? "bg-foreground/[0.06]" : "hover:bg-foreground/[0.04]"
                 )}
               >
                 <span
@@ -228,7 +230,7 @@ function ProductPanel({ open, onNavigate }: { open: boolean; onNavigate: () => v
                     "flex size-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
                     active === f.preview
                       ? "border-accent/40 bg-accent/10 text-accent"
-                      : "border-white/10 text-muted-foreground"
+                      : "border-foreground/10 text-muted-foreground"
                   )}
                 >
                   <f.icon size={18} stroke={1.75} aria-hidden />
@@ -241,7 +243,7 @@ function ProductPanel({ open, onNavigate }: { open: boolean; onNavigate: () => v
             </li>
           ))}
         </ul>
-        <div className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-black/40" aria-hidden>
+        <div className="relative overflow-hidden rounded-xl border border-foreground/[0.06] bg-surface" aria-hidden>
           <PanelPreview kind={active} />
         </div>
       </div>
@@ -299,7 +301,7 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
       aria-modal="true"
       aria-label="Menu"
       className={cn(
-        "fixed inset-0 z-[70] flex flex-col bg-[#07080a]/[0.97] backdrop-blur-xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden",
+        "fixed inset-0 z-[70] flex flex-col bg-background/[0.97] backdrop-blur-xl transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden",
         open ? "visible opacity-100" : "invisible opacity-0"
       )}
     >
@@ -310,7 +312,7 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
           type="button"
           onClick={onClose}
           aria-label="Close menu"
-          className="flex size-10 items-center justify-center rounded-xl border border-white/10 text-foreground"
+          className="flex size-10 items-center justify-center rounded-xl border border-foreground/10 text-foreground"
         >
           <IconX size={18} />
         </button>
@@ -324,13 +326,13 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
             href={l.href}
             onClick={onClose}
             className={cn(
-              "group flex items-center gap-4 border-b border-white/[0.07] py-4 transition-all duration-500",
+              "group flex items-center gap-4 border-b border-foreground/[0.07] py-4 transition-all duration-500",
               open ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
             )}
             style={{ transitionDelay: open ? `${80 + i * 50}ms` : "0ms" }}
           >
             <span className="font-mono text-[12px] text-accent tabular-nums">0{i + 1}</span>
-            <span className="flex-1 font-display text-[34px] leading-none font-bold tracking-[-0.04em] text-foreground">
+            <span className="flex-1 font-serif text-[40px] leading-none tracking-[-0.02em] text-foreground">
               {l.label}
             </span>
             <IconArrowUpRight size={20} className="text-subtle-foreground transition-colors group-hover:text-accent" />
