@@ -11,8 +11,8 @@ export default function Home() {
   return (
     <>
       <HeroSection />
-      <ShowcaseSection />
       <Ribbon />
+      <ShowcaseSection />
       <RoomsSection />
       <FeaturesSection />
       <ListenSection />

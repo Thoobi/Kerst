@@ -216,11 +216,11 @@ function ProductPanel({ open, onNavigate }: { open: boolean; onNavigate: () => v
   return (
     <div
       className={cn(
-        "absolute top-full left-0 w-[640px] pt-3 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "absolute top-full left-0 w-[720px] pt-3 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         open ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0"
       )}
     >
-      <div className="grid grid-cols-[1fr_250px] gap-2 rounded-2xl border border-white/10 bg-[#0b0c0e] p-2 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl">
+      <div className="grid grid-cols-[1fr_320px] gap-2 rounded-2xl border border-white/10 bg-[#0b0c0e] p-2 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.95)] backdrop-blur-xl">
         <ul className="flex flex-col gap-0.5 p-1">
           {PRODUCT.map((f) => (
             <li key={f.title}>
@@ -260,62 +260,36 @@ function ProductPanel({ open, onNavigate }: { open: boolean; onNavigate: () => v
   );
 }
 
-/** A tiny live picture of each part of Litdeck, for the Product panel. */
+const PREVIEWS: Record<Preview, { src: string; label: string; fit: "cover" | "contain" }> = {
+  songs: { src: "/screens/menu/songs.webp", label: "Live · Lyrics", fit: "contain" },
+  order: { src: "/screens/menu/order.webp", label: "Running order", fit: "cover" },
+  screens: { src: "/screens/menu/screens.webp", label: "Outputs · 2 on air", fit: "contain" },
+  listen: { src: "/screens/menu/listen.webp", label: "Detections", fit: "cover" },
+};
+
+/** A crop of the real app for each part of Litdeck, for the Product panel. */
 function PanelPreview({ kind }: { kind: Preview }) {
   return (
-    <div key={kind} className="animate-[preview-in_400ms_cubic-bezier(0.22,1,0.36,1)] absolute inset-0 flex flex-col p-4">
-      <span className="font-mono text-[10px] tracking-[0.14em] text-subtle-foreground uppercase">
-        {kind === "listen" && "Detected · Reference"}
-        {kind === "songs" && "Live · Song"}
-        {kind === "order" && "Running order"}
-        {kind === "screens" && "Outputs · 3"}
+    <>
+      {(Object.keys(PREVIEWS) as Preview[]).map((k) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={k}
+          src={PREVIEWS[k].src}
+          alt=""
+          loading="lazy"
+          className={cn(
+            "absolute inset-0 size-full transition-[opacity,transform] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]",
+            PREVIEWS[k].fit === "cover" ? "object-cover object-top" : "object-contain object-center p-3 pb-9",
+            k === kind ? "scale-100 opacity-100" : "scale-[1.03] opacity-0"
+          )}
+        />
+      ))}
+      {/* A label strip, like the caption on a multiviewer tile. */}
+      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-3 pt-8 pb-2.5 font-mono text-[10px] tracking-[0.14em] text-muted-foreground uppercase">
+        {PREVIEWS[kind].label}
       </span>
-      <div className="mt-3 flex flex-1 flex-col justify-center">
-        {kind === "listen" && (
-          <div className="flex flex-col gap-3">
-            <p className="text-[13px] leading-5 text-muted-foreground">
-              &ldquo;&hellip;Paul tells the <span className="rounded bg-accent/15 px-0.5 text-accent">Romans in chapter eight, verse twenty-eight</span>&hellip;&rdquo;
-            </p>
-            <div className="rounded-lg border border-accent/30 bg-accent/[0.06] px-3 py-2">
-              <span className="text-[13px] font-medium text-foreground">Romans 8:28</span>
-            </div>
-          </div>
-        )}
-        {kind === "songs" && (
-          <div className="motion-bg flex aspect-video flex-col items-center justify-center rounded-lg px-3 text-center font-display text-[13px] leading-tight font-semibold text-white">
-            Leave the lights on,
-            <br />
-            sing it back to me
-          </div>
-        )}
-        {kind === "order" && (
-          <ol className="flex flex-col gap-1 text-[12px]">
-            {["Doors open", "Keynote", "Encore", "Sponsor reel"].map((t, i) => (
-              <li
-                key={t}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-2 py-1.5",
-                  i === 1 ? "bg-accent/10 text-foreground" : "text-muted-foreground"
-                )}
-              >
-                <span className="font-mono text-[10px] text-subtle-foreground">0{i + 1}</span>
-                {t}
-              </li>
-            ))}
-          </ol>
-        )}
-        {kind === "screens" && (
-          <div className="flex flex-col gap-2 font-mono text-[11px] text-muted-foreground">
-            {["Main projector", "Confidence", "NDI → OBS"].map((s) => (
-              <span key={s} className="flex items-center gap-2">
-                <span className="size-1.5 rounded-full bg-red-500 shadow-[0_0_6px_#ef4444]" />
-                {s}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    </>
   );
 }
 
