@@ -68,6 +68,10 @@ pub struct Song {
     pub arrangement: Vec<String>,
     /// Where the song came from: "manual", "easyworship", "songselect", ...
     pub source: String,
+    /// A library video looped behind the lyrics instead of the theme's
+    /// background. Set with `LibraryDb::set_song_background`; saving the
+    /// song leaves it alone.
+    pub background_video_id: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -225,6 +229,38 @@ pub struct DeckSummary {
     /// The first slide's image, for a thumbnail.
     pub cover_path: Option<String>,
     pub updated_at: i64,
+}
+
+/// An imported video, copied into the library so it plays even after the
+/// original (say, on a USB stick) is gone.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Video {
+    pub id: String,
+    pub title: String,
+    /// The file it was imported from, e.g. "Countdown.mp4".
+    pub source_name: Option<String>,
+    /// Absolute path of the library's copy.
+    pub path: String,
+    /// A still frame for thumbnails, once the frontend has made one.
+    pub poster_path: Option<String>,
+    pub duration_ms: Option<i64>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    /// Start again from the top when it ends, e.g. a countdown or a
+    /// background loop, instead of holding the last frame.
+    #[serde(rename = "loop")]
+    pub looping: bool,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+/// What the frontend learns by loading an imported video, sent to finish
+/// the import.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VideoProbe {
+    pub duration_ms: i64,
+    pub width: u32,
+    pub height: u32,
 }
 
 #[cfg(test)]

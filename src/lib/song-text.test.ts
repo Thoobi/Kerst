@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseArrangement, parseHeader, parseSongText, sectionCodes, songToText } from "./song-text"
+import { keepSectionIds, parseArrangement, parseHeader, parseSongText, sectionCodes, songToText } from "./song-text"
 
 describe("parseHeader", () => {
   it("reads the usual ways people label sections", () => {
@@ -106,5 +106,21 @@ describe("sectionCodes and parseArrangement", () => {
       order: [0, 1, 2, 1, 5],
       unknown: ["X9"],
     })
+  })
+})
+
+describe("keepSectionIds", () => {
+  it("gives each old id out once, so repeated names don't share one", () => {
+    const previous = [
+      { id: "c1", label: "Chorus" },
+      { id: "v1", label: "Verse" },
+      { id: "c2", label: "Chorus" },
+    ]
+    const next = [{ label: "chorus" }, { label: "Chorus" }, { label: "Chorus" }, { label: "Verse" }]
+    expect(keepSectionIds(previous, next)).toEqual(["c1", "c2", undefined, "v1"])
+  })
+
+  it("leaves renamed and new sections without an id", () => {
+    expect(keepSectionIds([{ id: "a", label: "Verse 1" }], [{ label: "Bridge" }])).toEqual([undefined])
   })
 })

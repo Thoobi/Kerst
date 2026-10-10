@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { SongEditorDialog } from "@/components/panels/song-editor-dialog"
+import { SongBackgroundPicker } from "@/components/panels/song-background-picker"
 import { cn } from "@/lib/utils"
 import { isTypingOrHandled } from "@/lib/operator-keys"
 import { SONG_FILE_ACCEPT } from "@/lib/song-formats"
@@ -287,6 +288,7 @@ export function SongsPanel() {
                       </div>
                     )}
                   </div>
+                  <SongBackgroundPicker song={activeSong} />
                   <Button
                     variant="ghost"
                     size="icon-sm"

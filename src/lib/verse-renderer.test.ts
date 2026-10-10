@@ -57,7 +57,7 @@ vi.mock("@chenglou/pretext/rich-inline", () => {
   }
 })
 
-import { computeVerseLayoutMetrics, measureVerseHeight, renderVerse } from "./verse-renderer"
+import { computeVerseLayoutMetrics, fitVerseText, measureVerseHeight, renderVerse } from "./verse-renderer"
 import { BUILTIN_THEMES } from "./builtin-themes"
 
 function stubCtx(): CanvasRenderingContext2D {
@@ -630,5 +630,95 @@ describe("renderVerse — image smoothing", () => {
       imageCache: new Map([[url, { naturalWidth: 1920, naturalHeight: 1080 } as HTMLImageElement]]),
     })
     expect(ctx.imageSmoothingQuality).toBe("high")
+  })
+})
+
+describe("fitVerseText — lyrics", () => {
+  const lyric = (lines: string[]): VerseRenderData => ({
+    reference: "",
+    segments: lines.map((text, i) => ({ text, lineBreak: i > 0 })),
+  })
+  const SHORT_LINES = lyric(["Grace to follow", "Strength to stand", "Love to hold me", "Hope to land"])
+  const theme = BUILTIN_THEMES[0]
+
+  it("flows short lyric lines across a short, wide box so the text stays big", () => {
+    // Like the user's theme: a wide band barely tall enough for two lines.
+    const fit = fitVerseText(stubCtx(), theme, SHORT_LINES, 1536, 216)
+    expect(fit.verse.segments.every((segment) => !segment.lineBreak)).toBe(true)
+    // Four stacked lines would need the font cut to a quarter of the height.
+    expect(fit.fontSize).toBeGreaterThan(216 / 4 / theme.verseText.lineHeight)
+  })
+
+  it("keeps the line breaks when they already fit at full size", () => {
+    const fit = fitVerseText(stubCtx(), theme, SHORT_LINES, 1536, 2000)
+    expect(fit.fontSize).toBe(theme.verseText.fontSize)
+    expect(fit.verse).toBe(SHORT_LINES)
+  })
+
+  it("leaves scripture alone", () => {
+    const fit = fitVerseText(stubCtx(), theme, VERSE, 1536, 216)
+    expect(fit.verse).toBe(VERSE)
+  })
+
+  it("draws the text as it was fitted", () => {
+    const metrics = computeVerseLayoutMetrics(stubCtx(), freeTheme({ verseBox: { x: 10, y: 40, width: 80, height: 20 } }), SHORT_LINES)
+    expect(metrics.fittedVerse?.segments.some((segment) => segment.lineBreak)).toBe(false)
+  })
+})
+
+describe("content without a reference", () => {
+  const theme = BUILTIN_THEMES[0]
+  const words = { ...VERSE, reference: "" }
+
+  it("draws no reference or reference plate", () => {
+    const metrics = computeVerseLayoutMetrics(stubCtx(), theme, words)
+    expect(metrics.referenceRect).toBeNull()
+    expect(metrics.referenceSurfaceRect ?? null).toBeNull()
+  })
+
+  it("gives the reference's space to the text", () => {
+    const withReference = computeVerseLayoutMetrics(stubCtx(), theme, VERSE, { scale: 0.2 })
+    const without = computeVerseLayoutMetrics(stubCtx(), theme, words, { scale: 0.2 })
+    expect(without.fittedVerseFontSize!).toBeGreaterThanOrEqual(withReference.fittedVerseFontSize!)
+  })
+})
+
+describe("fitting is the same at every canvas size", () => {
+  const longLyric: VerseRenderData = {
+    reference: "",
+    segments: [
+      "Here we go, hey",
+      "The angels bow down at the thought of You",
+      "The darkness gives way to the light for You (come on)",
+      "The price that You paid gives us life brand new",
+    ].map((text, i) => ({ text, lineBreak: i > 0 })),
+  }
+
+  it("scales the full-size fit for a small preview instead of refitting", () => {
+    // A preview panel about 339 px wide: refitting there hit the 8 px floor
+    // and overflowed, while the full-size output fitted fine.
+    const theme = freeTheme({ verseBox: { x: 10, y: 40, width: 80, height: 20 } })
+    const scale = 339 / theme.resolution.width
+    const full = computeVerseLayoutMetrics(stubCtx(), theme, longLyric)
+    const small = computeVerseLayoutMetrics(stubCtx(), theme, longLyric, { scale })
+    expect(small.fittedVerseFontSize!).toBeCloseTo(full.fittedVerseFontSize! * scale, 5)
+    expect(small.fittedVerse).toEqual(full.fittedVerse)
+  })
+})
+
+describe("shrink to fit", () => {
+  const smallBox = freeTheme({ verseBox: { x: 10, y: 40, width: 80, height: 10 } })
+
+  it("shrinks text that doesn't fit by default", () => {
+    const metrics = computeVerseLayoutMetrics(stubCtx(), smallBox, VERSE)
+    expect(metrics.fittedVerseFontSize!).toBeLessThan(smallBox.verseText.fontSize)
+  })
+
+  it("uses exactly the set size when turned off, at any canvas size", () => {
+    const fixed = { ...smallBox, verseText: { ...smallBox.verseText, shrinkToFit: false } }
+    expect(computeVerseLayoutMetrics(stubCtx(), fixed, VERSE).fittedVerseFontSize).toBe(fixed.verseText.fontSize)
+    expect(computeVerseLayoutMetrics(stubCtx(), fixed, VERSE, { scale: 0.5 }).fittedVerseFontSize).toBe(
+      fixed.verseText.fontSize * 0.5
+    )
   })
 })

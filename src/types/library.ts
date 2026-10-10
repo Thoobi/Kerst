@@ -31,6 +31,8 @@ export interface Song {
   /** Section ids in sung order (V1 C V2 C …). Empty means as written. */
   arrangement: string[]
   source: string
+  /** A library video looped behind the lyrics instead of the theme's background. */
+  background_video_id: string | null
   created_at: number
   updated_at: number
 }
@@ -132,4 +134,30 @@ export interface DeckSummary {
   /** The first slide's image path, for a thumbnail. */
   cover_path: string | null
   updated_at: number
+}
+
+/** An imported video, copied into the library. */
+export interface Video {
+  id: string
+  title: string
+  /** The file it was imported from, e.g. "Countdown.mp4". */
+  source_name: string | null
+  /** Absolute path of the library's copy; turn into a URL with `videoFileUrl`. */
+  path: string
+  /** A still frame for thumbnails. */
+  poster_path: string | null
+  duration_ms: number | null
+  width: number | null
+  height: number | null
+  /** Start again from the top when it ends instead of holding the last frame. */
+  loop: boolean
+  created_at: number
+  updated_at: number
+}
+
+/** What loading a video tells us, sent to finish its import. */
+export interface VideoProbe {
+  duration_ms: number
+  width: number
+  height: number
 }

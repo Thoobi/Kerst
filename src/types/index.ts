@@ -7,7 +7,13 @@ export type {
 export type { Translation, Book, Verse, CrossReference } from "./bible"
 export type { QueueItem } from "./queue"
 export type { DetectionResult, DetectionStatus, ReadingAdvance, SemanticSearchResult } from "./detection"
-export type { BroadcastTheme, VerseRenderData, VerseSegment, RenderOptions } from "./broadcast"
+export type {
+  BroadcastTheme,
+  VerseRenderData,
+  VerseSegment,
+  VideoPlayback,
+  RenderOptions,
+} from "./broadcast"
 export type { Slide, SlideKind, ScriptureSlide, LyricSlide, ImageSlide } from "./slide"
 export type {
   SectionKind,
@@ -25,6 +31,8 @@ export type {
   Deck,
   DeckSlide,
   DeckSummary,
+  Video,
+  VideoProbe,
 } from "./library"
 export type {
   BroadcastOutput,
@@ -37,7 +45,6 @@ export type {
   NdiAlphaMode,
   NdiConfigEventPayload,
   NdiFrameRate,
-  NdiFrameRequest,
   NdiResolution,
   NdiSessionInfo,
   NdiStartRequest,

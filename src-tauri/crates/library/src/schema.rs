@@ -83,6 +83,32 @@ const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX deck_slides_deck ON deck_slides(deck_id, position);
     ",
+    // 3: imported videos. Each is copied into its own folder under the
+    // videos directory, beside a poster frame; these rows index them.
+    r"
+    CREATE TABLE videos (
+        id          TEXT PRIMARY KEY,
+        title       TEXT NOT NULL,
+        source_name TEXT,
+        file        TEXT NOT NULL,
+        poster      TEXT,
+        duration_ms INTEGER,
+        width       INTEGER,
+        height      INTEGER,
+        looping     INTEGER NOT NULL DEFAULT 0,
+        -- 'importing' until the copy is in and the frontend has probed it,
+        -- then 'ready'. Imports that never finish are swept on the next start.
+        status      TEXT NOT NULL DEFAULT 'importing',
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL
+    );
+    ",
+    // 4: a motion background per song, played behind its lyrics. Cleared
+    // when the video is deleted.
+    r"
+    ALTER TABLE songs ADD COLUMN background_video_id TEXT
+        REFERENCES videos(id) ON DELETE SET NULL;
+    ",
 ];
 
 pub(crate) fn migrate(conn: &mut Connection) -> Result<(), LibraryError> {

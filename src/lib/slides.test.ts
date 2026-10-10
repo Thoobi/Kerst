@@ -23,7 +23,7 @@ const lyric: LyricSlide = {
   songTitle: "Amazing Grace",
   sectionLabel: "Verse 1",
   lines: ["Amazing grace", "How sweet the sound"],
-  footer: "John Newton · Public Domain",
+  credit: "Amazing Grace · John Newton",
 }
 
 const image: ImageSlide = {
@@ -47,9 +47,10 @@ describe("toRenderData", () => {
     ])
   })
 
-  it("shows the copyright footer in the reference slot", () => {
-    expect(toRenderData(lyric).reference).toBe("John Newton · Public Domain")
-    expect(toRenderData({ ...lyric, footer: undefined }).reference).toBe("")
+  it("keeps lyrics free of a reference and carries the credit for the corner", () => {
+    expect(toRenderData(lyric).reference).toBe("")
+    expect(toRenderData(lyric).credit).toBe("Amazing Grace · John Newton")
+    expect(toRenderData({ ...lyric, credit: undefined })).not.toHaveProperty("credit")
   })
 
   it("carries an image slide as a full-frame picture with no text", () => {

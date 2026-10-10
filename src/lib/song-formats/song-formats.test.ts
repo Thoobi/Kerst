@@ -137,6 +137,7 @@ describe("OpenLyrics export", () => {
     ],
     arrangement: ["a", "b", "a", "c"],
     source: "manual",
+    background_video_id: null,
     created_at: 0,
     updated_at: 0,
   }

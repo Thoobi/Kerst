@@ -11,9 +11,12 @@ export function toRenderData(slide: Slide): VerseRenderData {
       }
     }
     case "lyrics":
+      // No reference: only the words are big; the credit sits in a corner.
       return {
-        reference: slide.footer ?? "",
+        reference: "",
         segments: slide.lines.map((text, i) => ({ text, lineBreak: i > 0 })),
+        ...(slide.credit ? { credit: slide.credit } : {}),
+        ...(slide.background ? { background: slide.background } : {}),
       }
     case "image":
       return { reference: slide.title, segments: [], image: { url: slide.url } }

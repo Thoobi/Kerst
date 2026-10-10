@@ -1,22 +1,24 @@
 import { useState } from "react"
-import { BookOpenIcon, MusicIcon, PresentationIcon } from "lucide-react"
+import { BookOpenIcon, FilmIcon, MusicIcon, PresentationIcon } from "lucide-react"
 import { SearchPanel } from "@/components/panels/search-panel"
 import { SlidesPanel } from "@/components/panels/slides-panel"
 import { SongsPanel } from "@/components/panels/songs-panel"
+import { VideosPanel } from "@/components/panels/videos-panel"
 import { cn } from "@/lib/utils"
 
-type ContentTab = "bible" | "songs" | "slides"
+type ContentTab = "bible" | "songs" | "slides" | "videos"
 
 const TABS: { id: ContentTab; label: string; icon: typeof BookOpenIcon }[] = [
   { id: "bible", label: "Bible", icon: BookOpenIcon },
   { id: "songs", label: "Songs", icon: MusicIcon },
   { id: "slides", label: "Slides", icon: PresentationIcon },
+  { id: "videos", label: "Videos", icon: FilmIcon },
 ]
 
 /**
- * What the operator can put on screen, one tab per kind of content. Videos
- * join as a tab here. Inactive tabs stay mounted (just hidden) so
- * switching never loses a search or a scroll position.
+ * What the operator can put on screen, one tab per kind of content.
+ * Inactive tabs stay mounted (just hidden) so switching never loses a
+ * search or a scroll position.
  */
 export function ContentPanel() {
   const [tab, setTab] = useState<ContentTab>("bible")
@@ -50,6 +52,9 @@ export function ContentPanel() {
       </div>
       <div className={cn("flex min-h-0 flex-1 flex-col", tab !== "slides" && "hidden")}>
         <SlidesPanel />
+      </div>
+      <div className={cn("flex min-h-0 flex-1 flex-col", tab !== "videos" && "hidden")}>
+        <VideosPanel />
       </div>
     </div>
   )

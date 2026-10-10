@@ -244,3 +244,21 @@ export function parseArrangement(text: string, codes: string[]): ParsedArrangeme
   }
   return { order, unknown }
 }
+
+/**
+ * Carry section ids over an edit: a section keeps the id of an old section
+ * with the same name, so anything pointing at it survives. Each old id is
+ * used once, in order, so a song with three sections all called "Chorus"
+ * keeps three ids rather than giving one id to all three.
+ */
+export function keepSectionIds(
+  previous: Pick<SongSection, "id" | "label">[],
+  next: Pick<SongSection, "label">[]
+): (string | undefined)[] {
+  const idsByLabel = new Map<string, string[]>()
+  for (const section of previous) {
+    const key = section.label.trim().toLowerCase()
+    idsByLabel.set(key, [...(idsByLabel.get(key) ?? []), section.id])
+  }
+  return next.map((section) => idsByLabel.get(section.label.trim().toLowerCase())?.shift())
+}

@@ -118,7 +118,7 @@ function syncStatusSnapshot() {
   invoke("update_remote_status", {
     onAir: broadcast.isLive,
     activeTheme: activeTheme?.name ?? null,
-    liveVerse: broadcast.liveVerse?.reference ?? null,
+    liveVerse: broadcast.liveVerse?.reference || broadcast.liveVerse?.credit || null,
     queueLength: queue.items.length,
     confidenceThreshold: settings.confidenceThreshold,
   }).catch(() => {

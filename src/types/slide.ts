@@ -1,4 +1,5 @@
 import type { Verse } from "./bible"
+import type { VideoPlayback } from "./broadcast"
 
 /**
  * One thing that can be on screen. Every kind renders through the same
@@ -22,8 +23,10 @@ export interface LyricSlide {
   sectionLabel: string
   /** One entry per sung line; each starts on its own line on screen. */
   lines: string[]
-  /** Copyright / CCLI line, shown where scripture shows its reference. */
-  footer?: string
+  /** "Title · Author", small in the bottom-right corner. */
+  credit?: string
+  /** The song's motion background, looping behind the words. */
+  background?: VideoPlayback
 }
 
 /**

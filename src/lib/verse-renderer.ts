@@ -14,6 +14,7 @@ import type {
   SurfaceFill,
   ThemeImageFill,
   VerseRenderData,
+  VideoPlayback,
   RenderOptions,
 } from "@/types/broadcast"
 
@@ -104,6 +105,12 @@ export interface VerseLayoutMetrics {
   verseRect: VerseLayoutRect | null
   /** Auto-fitted verse font size (scaled px). Absent when there is no verse. */
   fittedVerseFontSize?: number
+  /**
+   * The text as it was fitted, and must be drawn: lyrics may have been
+   * flowed into a paragraph instead of keeping their line breaks (see
+   * `fitVerseText`). Absent when there is no verse.
+   */
+  fittedVerse?: VerseRenderData
   /** Free-mode element boxes in canvas px. Only set when layout.mode === "free". */
   referenceBoxRect?: VerseLayoutRect | null
   verseBoxRect?: VerseLayoutRect | null
@@ -635,6 +642,44 @@ function drawSurface(
   ctx.restore()
 }
 
+/**
+ * Draw text with an optional outline around the letters and an optional
+ * shadow. The outline is stroked first at twice its width, then the letters
+ * are filled over it, so `outline.width` is how thick the outline shows
+ * outside the glyphs (stroking on top used to eat into the letters and
+ * barely show). The shadow goes under whichever is drawn first.
+ */
+function fillWithOutline(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  outline: { color: string; width: number } | null | undefined,
+  shadow: { color: string; blur: number; x: number; y: number } | null | undefined
+): void {
+  const withShadow = () => {
+    if (!shadow) return
+    ctx.shadowColor = shadow.color
+    ctx.shadowBlur = shadow.blur
+    ctx.shadowOffsetX = shadow.x
+    ctx.shadowOffsetY = shadow.y
+  }
+  ctx.save()
+  if (outline && outline.width > 0) {
+    withShadow()
+    ctx.strokeStyle = outline.color
+    ctx.lineWidth = outline.width * 2
+    ctx.lineJoin = "round"
+    ctx.miterLimit = 2
+    ctx.strokeText(text, x, y)
+    ctx.shadowColor = "transparent"
+  } else {
+    withShadow()
+  }
+  ctx.fillText(text, x, y)
+  ctx.restore()
+}
+
 function drawReference(
   ctx: CanvasRenderingContext2D,
   theme: BroadcastTheme,
@@ -671,7 +716,7 @@ function drawReference(
   const canvasAlign = refAlign === "justify" ? "left" : refAlign
   ctx.textAlign = canvasAlign
   const x = alignX(canvasAlign, textRectX, textRectWidth)
-  ctx.fillText(transformed, x, y)
+  fillWithOutline(ctx, transformed, x, y, ref.outline, null)
   const drawnWidth = Math.min(
     textRectWidth,
     Math.max(1, ctx.measureText(transformed).width)
@@ -740,27 +785,7 @@ function drawVerseText(
     ctx.font = kind === "verseNum" ? handle.verseNumFont : handle.wordFont
     ctx.fillStyle = kind === "verseNum" ? vn.color : vt.color
 
-    if (vt.shadow) {
-      ctx.save()
-      ctx.shadowColor = vt.shadow.color
-      ctx.shadowBlur = vt.shadow.blur
-      ctx.shadowOffsetX = vt.shadow.x
-      ctx.shadowOffsetY = vt.shadow.y
-      ctx.fillText(text, drawX, drawY)
-      ctx.restore()
-    }
-
-    if (vt.outline) {
-      ctx.save()
-      ctx.strokeStyle = vt.outline.color
-      ctx.lineWidth = vt.outline.width
-      ctx.strokeText(text, drawX, drawY)
-      ctx.restore()
-    }
-
-    if (!vt.shadow) {
-      ctx.fillText(text, drawX, drawY)
-    }
+    fillWithOutline(ctx, text, drawX, drawY, vt.outline, vt.shadow)
   }
 
   let currentY = startY
@@ -866,6 +891,9 @@ function buildScaledTheme(
     },
     reference: {
       ...theme.reference,
+      outline: theme.reference.outline
+        ? { ...theme.reference.outline, width: theme.reference.outline.width * scale }
+        : null,
       fontSize: theme.reference.fontSize * scale,
       letterSpacing: theme.reference.letterSpacing * scale,
       surface: scaleSurface(theme.reference.surface, scale),
@@ -911,6 +939,9 @@ function calculateMaxAvailableVerseHeight(
     // 0.5 x fontSize scales naturally with different themes
     theme.layout.referenceGap ?? theme.reference.fontSize * 0.5
   )
+
+  // No reference text: the verse may use the whole height.
+  if (referenceHeight === 0) return textRect.height
 
   switch (theme.reference.position) {
     case "above":
@@ -966,6 +997,90 @@ function calculateScaledFontSize(
   }
 
   return bestFit
+}
+
+/**
+ * How much bigger flowing a lyric screen's lines into one paragraph must
+ * make the text before its line breaks are given up. Keeping each sung line
+ * on its own line reads better, so a marginal gain isn't worth it.
+ */
+const FLOW_MIN_GAIN = 1.1
+
+/**
+ * Fit text into a box, returning the font size and the text as it should be
+ * drawn. Scripture flows as one paragraph across the full width. Lyrics
+ * start a new line per sung line, which in a short, wide box stacks short
+ * lines and shrinks the text while most of the width sits empty; when
+ * flowing the words like scripture lets the text be clearly bigger, the
+ * lyrics flow instead.
+ */
+export function fitVerseText(
+  ctx: CanvasRenderingContext2D,
+  theme: BroadcastTheme,
+  verse: VerseRenderData,
+  width: number,
+  maxHeight: number
+): { fontSize: number; verse: VerseRenderData } {
+  const asWritten = calculateScaledFontSize(ctx, theme, verse, width, maxHeight)
+  if (!verse.segments.some((segment) => segment.lineBreak)) {
+    return { fontSize: asWritten, verse }
+  }
+  const flowed: VerseRenderData = {
+    ...verse,
+    segments: verse.segments.map((segment) => ({ ...segment, lineBreak: false })),
+  }
+  const flowedSize = calculateScaledFontSize(ctx, theme, flowed, width, maxHeight)
+  return flowedSize >= asWritten * FLOW_MIN_GAIN
+    ? { fontSize: flowedSize, verse: flowed }
+    : { fontSize: asWritten, verse }
+}
+
+/**
+ * Fit at the theme's own resolution, then scale the result to the canvas.
+ * Fitting at each canvas's size made small canvases (the Preview and Live
+ * panels) disagree with the full-size output: font sizes are searched in
+ * whole pixels with an 8 px floor, so at a fifth of the size a fit that
+ * needs 7 px stopped at 8 and the text overflowed, and rounding could wrap
+ * lines differently. Now every canvas shows the output's layout, scaled.
+ * `width` and `maxHeight` are in canvas (scaled) pixels.
+ */
+function fitAtThemeSize(
+  ctx: CanvasRenderingContext2D,
+  theme: BroadcastTheme,
+  scale: number,
+  verse: VerseRenderData,
+  width: number,
+  maxHeight: number
+): { fontSize: number; verse: VerseRenderData } {
+  const fit =
+    theme.verseText.shrinkToFit === false
+      ? fixedSizeLayout(ctx, theme, verse, width / scale, maxHeight / scale)
+      : fitVerseText(ctx, theme, verse, width / scale, maxHeight / scale)
+  return { fontSize: fit.fontSize * scale, verse: fit.verse }
+}
+
+/**
+ * With shrink-to-fit off the size is the theme's, always. Lyrics keep their
+ * line breaks if that fits the box, otherwise flow like scripture when that
+ * takes less height.
+ */
+function fixedSizeLayout(
+  ctx: CanvasRenderingContext2D,
+  theme: BroadcastTheme,
+  verse: VerseRenderData,
+  width: number,
+  maxHeight: number
+): { fontSize: number; verse: VerseRenderData } {
+  const fontSize = theme.verseText.fontSize
+  if (!verse.segments.some((segment) => segment.lineBreak)) return { fontSize, verse }
+  const asWritten = measureVerseHeight(ctx, theme, verse, width, fontSize).height
+  if (asWritten <= maxHeight) return { fontSize, verse }
+  const flowed: VerseRenderData = {
+    ...verse,
+    segments: verse.segments.map((segment) => ({ ...segment, lineBreak: false })),
+  }
+  const flowedHeight = measureVerseHeight(ctx, theme, flowed, width, fontSize).height
+  return { fontSize, verse: flowedHeight < asWritten ? flowed : verse }
 }
 
 // The ctx parameter is kept for call-site symmetry with the draw path, but
@@ -1041,7 +1156,47 @@ function rectForAlignedText(
   }
 }
 
+/** The anchored background region of an already-scaled theme. */
+function regionFor(scaledTheme: BroadcastTheme, offsetX: number, offsetY: number): VerseLayoutRect {
+  const { layout, resolution } = scaledTheme
+  const width = (layout.backgroundWidth / 100) * resolution.width
+  const height = (layout.backgroundHeight / 100) * resolution.height
+  const { x, y } = anchorPosition(
+    layout.anchor,
+    width,
+    height,
+    resolution.width,
+    resolution.height,
+    offsetX + layout.offsetX,
+    offsetY + layout.offsetY
+  )
+  return { x, y, width, height }
+}
+
+/**
+ * Where the theme's background is drawn, at `scale`: the area a background
+ * video covers. Depends only on the theme, so a <video> placed behind the
+ * canvas can be sized without laying out any text.
+ */
+export function backgroundRegion(theme: BroadcastTheme, scale = 1): VerseLayoutRect {
+  return regionFor(buildScaledTheme(theme, scale), 0, 0)
+}
+
 export function computeVerseLayoutMetrics(
+  ctx: CanvasRenderingContext2D,
+  theme: BroadcastTheme,
+  verse: VerseRenderData | null,
+  options?: RenderOptions
+): VerseLayoutMetrics {
+  const metrics = layoutVerse(ctx, theme, verse, options)
+  // No reference text: no reference, and no empty plate where it would be.
+  if (verse && !verse.reference.trim()) {
+    return { ...metrics, referenceRect: null, referenceSurfaceRect: null }
+  }
+  return metrics
+}
+
+function layoutVerse(
   ctx: CanvasRenderingContext2D,
   theme: BroadcastTheme,
   verse: VerseRenderData | null,
@@ -1054,27 +1209,12 @@ export function computeVerseLayoutMetrics(
   const canvasH = scaledTheme.resolution.height
   const layout = scaledTheme.layout
 
-  const bgW = (layout.backgroundWidth / 100) * canvasW
-  const bgH = (layout.backgroundHeight / 100) * canvasH
+  const backgroundRect = regionFor(scaledTheme, options?.offsetX ?? 0, options?.offsetY ?? 0)
+  const bgPos = { x: backgroundRect.x, y: backgroundRect.y }
+  const bgW = backgroundRect.width
+  const bgH = backgroundRect.height
   const textAreaW = (layout.textAreaWidth / 100) * bgW
   const textAreaH = (layout.textAreaHeight / 100) * bgH
-  const globalOffsetX = (options?.offsetX ?? 0) + layout.offsetX
-  const globalOffsetY = (options?.offsetY ?? 0) + layout.offsetY
-  const bgPos = anchorPosition(
-    layout.anchor,
-    bgW,
-    bgH,
-    canvasW,
-    canvasH,
-    globalOffsetX,
-    globalOffsetY
-  )
-  const backgroundRect: VerseLayoutRect = {
-    x: bgPos.x,
-    y: bgPos.y,
-    width: bgW,
-    height: bgH,
-  }
   // Text area is anchored within the background region (offsets are already
   // applied to the region itself). At 100% × 100% this matches anchoring to
   // the canvas directly.
@@ -1129,7 +1269,10 @@ export function computeVerseLayoutMetrics(
     }
   }
 
-  const referenceHeight = scaledTheme.reference.fontSize * 1.5
+  // Content without a reference (lyrics credit themselves in a corner
+  // instead) gives its space to the text.
+  const hasReference = verse.reference.trim() !== ""
+  const referenceHeight = hasReference ? scaledTheme.reference.fontSize * 1.5 : 0
   const verseAlign = resolveHorizontalAlign(
     scaledTheme.verseText.horizontalAlign,
     scaledTheme.layout.textAlign,
@@ -1170,9 +1313,10 @@ export function computeVerseLayoutMetrics(
       : verseBoxRect
 
   if (freeMode && referenceBoxRect && verseBoxRect) {
-    const fittedVerseFontSize = calculateScaledFontSize(
+    const { fontSize: fittedVerseFontSize, verse: fittedVerse } = fitAtThemeSize(
       ctx,
-      scaledTheme,
+      theme,
+      scale,
       verse,
       verseContentRect!.width,
       verseContentRect!.height
@@ -1180,7 +1324,7 @@ export function computeVerseLayoutMetrics(
     const verseMetrics = measureVerseHeight(
       ctx,
       scaledTheme,
-      verse,
+      fittedVerse,
       verseContentRect!.width,
       fittedVerseFontSize
     )
@@ -1232,6 +1376,7 @@ export function computeVerseLayoutMetrics(
       referenceRect,
       verseRect,
       fittedVerseFontSize,
+      fittedVerse,
       referenceBoxRect,
       verseBoxRect,
       // In free mode each element owns a box, so its plate fills that box.
@@ -1255,13 +1400,13 @@ export function computeVerseLayoutMetrics(
       : (scaledTheme.verseText.verticalAlign ??
           scaledTheme.reference.verticalAlign)
   )
-  const referenceGap = Math.max(
-    0,
-    scaledTheme.layout.referenceGap ?? scaledTheme.reference.fontSize * 0.5
-  )
-  const fittedVerseFontSize = calculateScaledFontSize(
+  const referenceGap = hasReference
+    ? Math.max(0, scaledTheme.layout.referenceGap ?? scaledTheme.reference.fontSize * 0.5)
+    : 0
+  const { fontSize: fittedVerseFontSize, verse: fittedVerse } = fitAtThemeSize(
     ctx,
-    scaledTheme,
+    theme,
+    scale,
     verse,
     textRectW,
     calculateMaxAvailableVerseHeight(scaledTheme, textRect, referenceHeight)
@@ -1269,7 +1414,7 @@ export function computeVerseLayoutMetrics(
   const verseMetrics = measureVerseHeight(
     ctx,
     scaledTheme,
-    verse,
+    fittedVerse,
     textRectW,
     fittedVerseFontSize
   )
@@ -1369,6 +1514,7 @@ export function computeVerseLayoutMetrics(
     referenceRect,
     verseRect,
     fittedVerseFontSize,
+    fittedVerse,
     referenceBoxRect: null,
     verseBoxRect: null,
     // Stacked mode has no per-element boxes, so each plate hugs its own text.
@@ -1387,13 +1533,14 @@ export function computeVerseLayoutMetrics(
 
 /**
  * Fit a picture to the whole frame on black, keeping its aspect ratio — how a
- * presentation slide is shown. The theme plays no part: a 4:3 deck on a 16:9
- * output gets black bars, never a stretch or a crop. Black while it loads.
+ * presentation slide or a video is shown. The theme plays no part: a 4:3
+ * deck on a 16:9 output gets black bars, never a stretch or a crop. Black
+ * while it loads.
  */
-function drawFullFrameImage(
+function drawFullFrame(
   ctx: CanvasRenderingContext2D,
   theme: BroadcastTheme,
-  url: string,
+  picture: { source: CanvasImageSource; width: number; height: number } | null,
   options?: RenderOptions
 ): void {
   const scale = options?.scale ?? 1
@@ -1405,15 +1552,100 @@ function drawFullFrameImage(
   ctx.fillStyle = "#000"
   ctx.fillRect(0, 0, frameW, frameH)
 
-  const img = options?.imageCache?.get(url)
-  if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+  if (picture && picture.width > 0 && picture.height > 0) {
     // The default "low" smoothing turns a downscaled slide soft and jagged.
     ctx.imageSmoothingQuality = "high"
-    const fit = Math.min(frameW / img.naturalWidth, frameH / img.naturalHeight)
-    const drawW = img.naturalWidth * fit
-    const drawH = img.naturalHeight * fit
-    ctx.drawImage(img, (frameW - drawW) / 2, (frameH - drawH) / 2, drawW, drawH)
+    const fit = Math.min(frameW / picture.width, frameH / picture.height)
+    const drawW = picture.width * fit
+    const drawH = picture.height * fit
+    ctx.drawImage(picture.source, (frameW - drawW) / 2, (frameH - drawH) / 2, drawW, drawH)
   }
+  ctx.restore()
+}
+
+function cachedPicture(url: string | undefined, options?: RenderOptions) {
+  const img = url ? options?.imageCache?.get(url) : undefined
+  return img ? { source: img, width: img.naturalWidth, height: img.naturalHeight } : null
+}
+
+/**
+ * A video's current frame from the window's own copy (`el`), once it has
+ * one; before that (and in windows without a copy) its poster.
+ */
+function videoPicture(
+  video: VideoPlayback,
+  el: HTMLVideoElement | null | undefined,
+  options?: RenderOptions
+) {
+  if (el && el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && el.videoWidth > 0) {
+    return { source: el, width: el.videoWidth, height: el.videoHeight }
+  }
+  return cachedPicture(video.poster, options)
+}
+
+/**
+ * A background video in place of the theme's background: it covers the
+ * background region (cropping, never letterboxing, as motion backgrounds
+ * are meant to be), black until its first frame or poster is ready.
+ */
+function drawVideoBackground(
+  ctx: CanvasRenderingContext2D,
+  background: VideoPlayback,
+  rect: VerseLayoutRect,
+  options?: RenderOptions
+): void {
+  const picture = videoPicture(background, options?.backgroundVideo, options)
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(rect.x, rect.y, rect.width, rect.height)
+  ctx.clip()
+  ctx.fillStyle = "#000"
+  ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+  if (picture && picture.width > 0 && picture.height > 0) {
+    ctx.imageSmoothingQuality = "high"
+    const cover = Math.max(rect.width / picture.width, rect.height / picture.height)
+    const drawW = picture.width * cover
+    const drawH = picture.height * cover
+    ctx.drawImage(
+      picture.source,
+      rect.x + (rect.width - drawW) / 2,
+      rect.y + (rect.height - drawH) / 2,
+      drawW,
+      drawH
+    )
+  }
+  ctx.restore()
+}
+
+/** Credit line size and corner inset, as fractions of the frame height. */
+const CREDIT_SIZE = 0.024
+const CREDIT_INSET = 0.03
+
+/**
+ * A small credit (e.g. "Way Maker · Sinach") in the bottom-right corner of
+ * the background region, in the theme's reference font and colour. A soft
+ * shadow keeps it legible over a busy motion background.
+ */
+function drawCredit(
+  ctx: CanvasRenderingContext2D,
+  scaledTheme: BroadcastTheme,
+  credit: string,
+  region: VerseLayoutRect
+): void {
+  const ref = scaledTheme.reference
+  const frameH = scaledTheme.resolution.height
+  const size = Math.max(8, frameH * CREDIT_SIZE)
+  const inset = frameH * CREDIT_INSET
+  ctx.save()
+  ctx.font = `${ref.fontWeight} ${size}px "${ref.fontFamily}", sans-serif`
+  ctx.fillStyle = ref.color
+  ctx.textAlign = "right"
+  ctx.textBaseline = "alphabetic"
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)"
+  ctx.shadowBlur = size * 0.4
+  ctx.shadowOffsetY = size * 0.06
+  const maxWidth = Math.max(1, region.width - inset * 2)
+  ctx.fillText(credit, region.x + region.width - inset, region.y + region.height - inset, maxWidth)
   ctx.restore()
 }
 
@@ -1437,8 +1669,11 @@ function renderVerseImpl(
   verse: VerseRenderData | null,
   options?: RenderOptions
 ): VerseLayoutMetrics {
-  if (verse?.image) {
-    drawFullFrameImage(ctx, theme, verse.image.url, options)
+  if (verse?.image || verse?.video) {
+    const picture = verse.video
+      ? videoPicture(verse.video, options?.video, options)
+      : cachedPicture(verse.image?.url, options)
+    drawFullFrame(ctx, theme, picture, options)
     return computeVerseLayoutMetrics(ctx, theme, null, options)
   }
 
@@ -1452,8 +1687,15 @@ function renderVerseImpl(
     ctx.globalAlpha = options.opacity
   }
 
-  // Draw background
-  drawBackground(ctx, scaledTheme, metrics.backgroundRect, options?.imageCache)
+  // Draw background: the theme's own, or a motion background in its place.
+  if (verse?.background && options?.backgroundBehind) {
+    const r = metrics.backgroundRect
+    ctx.clearRect(r.x, r.y, r.width, r.height)
+  } else if (verse?.background) {
+    drawVideoBackground(ctx, verse.background, metrics.backgroundRect, options)
+  } else {
+    drawBackground(ctx, scaledTheme, metrics.backgroundRect, options?.imageCache)
+  }
 
   // The container behind the reference + verse block, then each element's own
   // plate on top of it.
@@ -1498,7 +1740,7 @@ function renderVerseImpl(
     drawVerseText(
       ctx,
       scaledTheme,
-      verse,
+      metrics.fittedVerse ?? verse,
       verseArea.x,
       verseArea.width,
       verseRect.y,
@@ -1514,6 +1756,9 @@ function renderVerseImpl(
       referenceArea.width,
       referenceRect.y
     )
+  }
+  if (verse.credit?.trim()) {
+    drawCredit(ctx, scaledTheme, verse.credit.trim(), metrics.backgroundRect)
   }
 
   ctx.restore()

@@ -1,7 +1,11 @@
 import { useEffect } from "react"
+import { toast } from "sonner"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
+import { SyncedVideo } from "@/components/ui/synced-video"
 import { Switch } from "@/components/ui/switch"
+import { LiveVideoTransport } from "@/components/controls/video-transport"
+import { useVideosStore } from "@/stores/videos-store"
 import { cn } from "@/lib/utils"
 import { useBroadcastStore, useBibleStore } from "@/stores"
 import { presentVerse, toVerseRenderData } from "@/hooks/use-broadcast"
@@ -14,6 +18,8 @@ export function LiveOutputPanel() {
   const themes = useBroadcastStore((s) => s.themes)
   const activeThemeId = useBroadcastStore((s) => s.activeThemeId)
   const activeTranslationId = useBibleStore((s) => s.activeTranslationId)
+  const volume = useVideosStore((s) => s.volume)
+  const muted = useVideosStore((s) => s.muted)
 
   const activeTheme = themes.find((t) => t.id === activeThemeId) ?? themes[0]
 
@@ -110,6 +116,19 @@ export function LiveOutputPanel() {
           )}
         >
           <CanvasVerse theme={activeTheme} verse={verseData} />
+          {verseData?.video && (
+            // The one copy of a live video that makes sound: outputs play
+            // muted, so the audio never doubles up.
+            <SyncedVideo
+              playback={verseData.video}
+              muted={muted}
+              volume={volume}
+              onPlayBlocked={(error) =>
+                toast.warning("The video's sound couldn't start", { description: String(error) })
+              }
+              className="absolute inset-1.5 size-[calc(100%-0.75rem)] rounded-md bg-black object-contain"
+            />
+          )}
           {!isLive && (
             <div className="absolute inset-1.5 flex items-center justify-center rounded-md bg-black/55">
               <span className="rounded-full bg-black/50 px-2.5 py-1 text-[0.6875rem] font-medium tracking-wide text-white/70">
@@ -119,6 +138,7 @@ export function LiveOutputPanel() {
           )}
         </div>
       </div>
+      {liveVerse?.video && <LiveVideoTransport playback={liveVerse.video} title={liveVerse.reference} />}
     </div>
   )
 }

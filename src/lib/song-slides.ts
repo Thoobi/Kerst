@@ -56,19 +56,16 @@ export function songSlides(song: Song, maxLines = MAX_LINES_PER_SLIDE): SongSlid
   })
 }
 
-/** The credit line shown where scripture shows its reference. */
-export function songFooter(song: Pick<Song, "author" | "copyright" | "ccli_number">): string {
-  return [
-    song.author,
-    song.copyright && `© ${song.copyright.replace(/^©\s*/, "")}`,
-    song.ccli_number && `CCLI Song #${song.ccli_number}`,
-  ]
-    .filter(Boolean)
-    .join(" · ")
+/**
+ * The small corner credit on a lyric screen, e.g. "Amazing Grace · John
+ * Newton". The lyrics alone stay big on screen.
+ */
+export function songCredit(song: Pick<Song, "title" | "author">): string {
+  return [song.title.trim(), song.author?.trim()].filter(Boolean).join(" · ")
 }
 
 export function toLyricSlide(song: Song, slide: SongSlide): LyricSlide {
-  const footer = songFooter(song)
+  const credit = songCredit(song)
   return {
     kind: "lyrics",
     songId: song.id,
@@ -76,6 +73,6 @@ export function toLyricSlide(song: Song, slide: SongSlide): LyricSlide {
     sectionLabel:
       slide.pages > 1 ? `${slide.section.label} (${slide.page + 1}/${slide.pages})` : slide.section.label,
     lines: slide.lines,
-    footer: footer || undefined,
+    credit: credit || undefined,
   }
 }

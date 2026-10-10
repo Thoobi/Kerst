@@ -66,11 +66,13 @@ rhema-detection = { path = "crates/detection", features = ["onnx", "vector-searc
 rhema-api = { path = "crates/api" }
 crossbeam-channel = "0.5"
 dotenvy = "0.15"
-base64 = "0.22"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 fontdb = "0.24.0"
+axum = "0.8"
+tower-http = { version = "0.6", features = ["fs", "cors"] }
+uuid = { version = "1.24", features = ["v4"] }
 
 [features]
 default = ["whisper"]

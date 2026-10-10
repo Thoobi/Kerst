@@ -149,15 +149,22 @@ export function preloadThemeImages(
 
 /**
  * Load every image one rendered frame needs: the theme's, plus the
- * full-frame picture when the content is an image slide.
+ * full-frame picture when the content is an image slide, or the poster
+ * of a video or of a background video.
  */
 export function preloadFrameImages(
   theme: Parameters<typeof themeImageUrls>[0],
-  content: { image?: { url: string } } | null,
+  content: {
+    image?: { url: string }
+    video?: { poster?: string }
+    background?: { poster?: string }
+  } | null,
   onReady?: () => void
 ): void {
   const urls = themeImageUrls(theme)
   if (content?.image?.url) urls.push(content.image.url)
+  if (content?.video?.poster) urls.push(content.video.poster)
+  if (content?.background?.poster) urls.push(content.background.poster)
   preloadImages(urls, onReady)
 }
 

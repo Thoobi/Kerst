@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback, memo } from "react"
-import { onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
+import { backgroundRegion, onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
+import { LoopingVideo } from "@/components/ui/looping-video"
 import type { BroadcastTheme, VerseRenderData } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -53,6 +54,7 @@ export const CanvasVerse = memo(function CanvasVerse({
     renderVerse(ctx, theme, verse, {
       scale,
       imageCache: themeImageCache(),
+      backgroundBehind: true,
     })
   }, [theme, verse, containerWidth])
 
@@ -71,9 +73,30 @@ export const CanvasVerse = memo(function CanvasVerse({
   // font metrics are corrected.
   useEffect(() => onThemeFontsLoaded(() => draw()), [draw])
 
+  // A motion background plays in a <video> behind the canvas, over the
+  // theme's background region, which the canvas leaves transparent.
+  const backgroundBox =
+    verse?.background && containerWidth > 0
+      ? backgroundRegion(theme, containerWidth / theme.resolution.width)
+      : null
+
   return (
-    <div ref={containerRef} className={cn("w-full", className)}>
-      <canvas ref={canvasRef} className="w-full rounded-md" />
+    <div ref={containerRef} className={cn("relative w-full overflow-hidden rounded-md", className)}>
+      {verse?.background && backgroundBox && (
+        <LoopingVideo
+          url={verse.background.url}
+          poster={verse.background.poster}
+          playing={verse.background.playing}
+          className="absolute"
+          style={{
+            left: backgroundBox.x,
+            top: backgroundBox.y,
+            width: backgroundBox.width,
+            height: backgroundBox.height,
+          }}
+        />
+      )}
+      <canvas ref={canvasRef} className="relative w-full rounded-md" />
     </div>
   )
 })

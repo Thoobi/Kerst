@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { lyricPages } from "@/lib/song-slides"
-import { parseArrangement, parseSongText, sectionCodes, songToText } from "@/lib/song-text"
+import { keepSectionIds, parseArrangement, parseSongText, sectionCodes, songToText } from "@/lib/song-text"
 import { cn } from "@/lib/utils"
 import { useSongsStore } from "@/stores"
 import type { Song, SongInput } from "@/types"
@@ -76,16 +76,14 @@ function SongEditorForm({ song, onOpenChange, onSaved }: Omit<SongEditorDialogPr
 
   const save = async () => {
     if (problem) return
-    // Keep section ids when a section keeps its name, so anything pointing
-    // at a section survives an edit.
-    const idByLabel = new Map(song?.sections.map((s) => [s.label.toLowerCase(), s.id]))
+    const ids = keepSectionIds(song?.sections ?? [], parsed.sections)
     const input: SongInput = {
       id: song?.id,
       title: title.trim(),
       author: author.trim() || null,
       copyright: copyright.trim() || null,
       ccli_number: ccli.trim() || null,
-      sections: parsed.sections.map((s) => ({ ...s, id: idByLabel.get(s.label.toLowerCase()) })),
+      sections: parsed.sections.map((s, i) => ({ ...s, id: ids[i] })),
       arrangement: order.order,
       source: song?.source ?? "manual",
     }

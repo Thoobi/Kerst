@@ -7,10 +7,15 @@ const api = {
   getSong: vi.fn<(id: string) => Promise<Song>>(),
   saveSong: vi.fn<(song: SongInput) => Promise<Song>>(),
   deleteSong: vi.fn<(id: string) => Promise<void>>(),
+  setSongBackground: vi.fn<(id: string, videoId: string | null) => Promise<Song>>(),
 }
 
 vi.mock("@tauri-apps/api/event", () => ({ emitTo: vi.fn().mockResolvedValue(undefined) }))
-vi.mock("@/lib/library-api", () => ({ libraryApi: api }))
+vi.mock("@/lib/library-api", () => ({
+  libraryApi: api,
+  libraryFileUrl: (path: string) => `asset://localhost${path}`,
+  videoFileUrl: (base: string, video: { id: string }) => `${base}/${video.id}/video.mp4`,
+}))
 
 const song: Song = {
   id: "s1",
@@ -25,6 +30,7 @@ const song: Song = {
   ],
   arrangement: ["v1", "c", "v2", "c"],
   source: "manual",
+  background_video_id: null,
   created_at: 0,
   updated_at: 0,
 }
@@ -88,8 +94,53 @@ describe("songs store", () => {
     songs.getState().presentSlide(2)
     const live = broadcast.getState().liveVerse
     expect(live?.segments).toEqual([{ text: "My chains are gone", lineBreak: false }])
-    expect(live?.reference).toBe("John Newton")
+    expect(live?.reference).toBe("")
+    expect(live?.credit).toBe("Amazing Grace · John Newton")
     expect(preview.getState().content).toBe(live)
+  })
+
+  it("loops the song's background behind its lyrics without restarting it between screens", async () => {
+    const { songs, broadcast } = await stores()
+    const { useVideosStore } = await import("./videos-store")
+    useVideosStore.setState({
+      mediaBase: "http://127.0.0.1:1/t/videos",
+      videos: [
+        {
+          id: "clouds",
+          title: "Clouds",
+          source_name: null,
+          path: "/videos/clouds/video.mp4",
+          poster_path: null,
+          duration_ms: 20_000,
+          width: 1920,
+          height: 1080,
+          loop: false,
+          created_at: 0,
+          updated_at: 0,
+        },
+      ],
+    })
+    api.getSong.mockResolvedValue({ ...song, background_video_id: "clouds" })
+    await songs.getState().openSong("s1")
+
+    songs.getState().presentSlide(0)
+    const first = broadcast.getState().liveVerse?.background
+    expect(first).toMatchObject({
+      id: "clouds",
+      url: "http://127.0.0.1:1/t/videos/clouds/video.mp4",
+      loop: true,
+      playing: true,
+    })
+    songs.getState().step(1)
+    expect(broadcast.getState().liveVerse?.background).toBe(first)
+
+    // Choosing "theme background" while on air takes it off at once.
+    api.setSongBackground.mockResolvedValue({ ...song, background_video_id: null })
+    broadcast.getState().setLive(true)
+    await songs.getState().setBackground(null)
+    expect(api.setSongBackground).toHaveBeenCalledWith("s1", null)
+    expect(broadcast.getState().liveVerse?.background).toBeUndefined()
+    expect(broadcast.getState().liveVerse?.segments.length).toBeGreaterThan(0)
   })
 
   it("steps through and stops at the ends", async () => {

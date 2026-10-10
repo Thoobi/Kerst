@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { lyricPages, songFooter, songSlides, toLyricSlide } from "./song-slides"
+import { lyricPages, songCredit, songSlides, toLyricSlide } from "./song-slides"
 import { toRenderData } from "./slides"
 import type { Song } from "@/types"
 
@@ -16,6 +16,7 @@ const song: Song = {
   ],
   arrangement: ["v1", "c", "v2", "c"],
   source: "manual",
+  background_video_id: null,
   created_at: 0,
   updated_at: 0,
 }
@@ -63,23 +64,20 @@ describe("songSlides", () => {
   })
 })
 
-describe("songFooter", () => {
-  it("credits author, copyright and CCLI number", () => {
-    expect(songFooter(song)).toBe("John Newton · © Public Domain · CCLI Song #22025")
-  })
-
-  it("does not double the copyright sign and skips what is missing", () => {
-    expect(songFooter({ author: null, copyright: "© 2020 Hillsong", ccli_number: null })).toBe("© 2020 Hillsong")
-    expect(songFooter({ author: null, copyright: null, ccli_number: null })).toBe("")
+describe("songCredit", () => {
+  it("credits title and author, skipping a missing author", () => {
+    expect(songCredit(song)).toBe("Amazing Grace · John Newton")
+    expect(songCredit({ title: "Way Maker", author: null })).toBe("Way Maker")
   })
 })
 
 describe("toLyricSlide", () => {
-  it("renders each sung line on its own line with the credit in the reference slot", () => {
+  it("renders only the sung lines big, with title and author as a corner credit", () => {
     const slide = toLyricSlide(song, songSlides(song)[1])
     expect(slide.sectionLabel).toBe("Verse 1 (2/2)")
     expect(toRenderData(slide)).toEqual({
-      reference: "John Newton · © Public Domain · CCLI Song #22025",
+      reference: "",
+      credit: "Amazing Grace · John Newton",
       segments: [
         { text: "That saved a wretch", lineBreak: false },
         { text: "Like me", lineBreak: true },

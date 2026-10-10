@@ -5,6 +5,7 @@ import { toRenderData } from "@/lib/slides"
 import { decodeSongFile, parseSongFile } from "@/lib/song-formats"
 import { useBroadcastStore } from "./broadcast-store"
 import { usePreviewStore } from "./preview-store"
+import { backgroundPlayback } from "./videos-store"
 import type { Song, SongInput, SongSummary, VerseRenderData } from "@/types"
 
 export interface SongImportOutcome {
@@ -43,6 +44,8 @@ interface SongsState {
   /** Read song files (OpenLyrics, SongSelect, ChordPro, text) into the library. */
   importFiles: (files: File[]) => Promise<SongImportOutcome>
   deleteSong: (id: string) => Promise<void>
+  /** Loop a library video behind the open song's lyrics, or go back to the theme's background. */
+  setBackground: (videoId: string | null) => Promise<void>
 }
 
 // Searches resolve out of order when typing fast; only the newest may land.
@@ -79,7 +82,10 @@ export const useSongsStore = create<SongsState>((set, get) => ({
     const { activeSong, slides } = get()
     const slide = slides[index]
     if (!activeSong || !slide) return
-    const content = toRenderData(toLyricSlide(activeSong, slide))
+    const content = toRenderData({
+      ...toLyricSlide(activeSong, slide),
+      background: backgroundPlayback(activeSong.background_video_id),
+    })
     // Like a manual Bible pick, a lyric goes live and the preview follows.
     set({ cursor: index, presented: content })
     usePreviewStore.getState().show(content)
@@ -146,6 +152,19 @@ export const useSongsStore = create<SongsState>((set, get) => ({
     const first = outcome.imported[0]
     if (outcome.imported.length === 1 && first) await get().openSong(first.id)
     return outcome
+  },
+
+  setBackground: async (videoId) => {
+    const song = get().activeSong
+    if (!song) return
+    const updated = await libraryApi.setSongBackground(song.id, videoId)
+    if (get().activeSong?.id !== updated.id) return
+    set({ activeSong: updated })
+    // If this song is on air, swap the background there too.
+    const { presented, cursor } = get()
+    if (cursor !== null && presented !== null && useBroadcastStore.getState().liveVerse === presented) {
+      get().presentSlide(cursor)
+    }
   },
 
   deleteSong: async (id) => {

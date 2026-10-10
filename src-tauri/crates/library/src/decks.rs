@@ -18,6 +18,7 @@ use rusqlite::{params, OptionalExtension};
 
 use crate::db::{clean_opt, new_id, now_millis, LibraryDb};
 use crate::error::LibraryError;
+use crate::folders::{remove_dir_if_exists, remove_orphan_dirs};
 use crate::models::{Deck, DeckSlide, DeckSummary};
 
 const IMPORTING: &str = "importing";
@@ -47,22 +48,19 @@ impl DeckStore {
     }
 
     fn remove_deck_dir(&self, deck_id: &str) -> Result<(), LibraryError> {
-        match std::fs::remove_dir_all(self.deck_dir(deck_id)) {
-            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
-            _ => Ok(()),
-        }
+        remove_dir_if_exists(&self.deck_dir(deck_id))
     }
 }
 
-/// Image formats a slide may be stored as.
+/// Image formats a slide (or a video's poster) may be stored as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ImageFormat {
+pub(crate) enum ImageFormat {
     Png,
     Jpeg,
 }
 
 impl ImageFormat {
-    fn extension(self) -> &'static str {
+    pub(crate) fn extension(self) -> &'static str {
         match self {
             Self::Png => "png",
             Self::Jpeg => "jpg",
@@ -72,7 +70,7 @@ impl ImageFormat {
 
 /// Identify a PNG or JPEG and read its pixel size from the header, without
 /// decoding it. Anything else is refused.
-fn sniff_image(bytes: &[u8]) -> Result<(ImageFormat, u32, u32), LibraryError> {
+pub(crate) fn sniff_image(bytes: &[u8]) -> Result<(ImageFormat, u32, u32), LibraryError> {
     const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
     let be32 = |at: usize| -> Option<u32> {
         Some(u32::from_be_bytes(bytes.get(at..at + 4)?.try_into().ok()?))
@@ -294,23 +292,7 @@ impl LibraryDb {
             let ids = stmt.query_map([], |r| r.get(0))?.collect::<Result<_, _>>()?;
             ids
         };
-        let mut orphans = 0;
-        let entries = match std::fs::read_dir(store.root()) {
-            Ok(entries) => entries,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok((unfinished.len(), 0)),
-            Err(e) => return Err(e.into()),
-        };
-        for entry in entries {
-            let entry = entry?;
-            if !entry.file_type()?.is_dir() {
-                continue;
-            }
-            let name = entry.file_name().to_string_lossy().into_owned();
-            if !known.contains(&name) {
-                std::fs::remove_dir_all(entry.path())?;
-                orphans += 1;
-            }
-        }
+        let orphans = remove_orphan_dirs(store.root(), &known)?;
         Ok((unfinished.len(), orphans))
     }
 

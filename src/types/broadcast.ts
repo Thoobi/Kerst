@@ -17,6 +17,43 @@ export interface VerseRenderData {
    * `reference` and `segments` are not drawn (`reference` stays the label).
    */
   image?: { url: string }
+  /**
+   * A video playing full frame, like `image`. Every window plays its own
+   * copy and keeps it in step with this shared clock; until a window's copy
+   * can show a frame, the poster is drawn instead.
+   */
+  video?: VideoPlayback
+  /**
+   * A small credit line in the bottom-right corner, e.g. a song's title and
+   * author, kept off the main text so only the words are big on screen.
+   */
+  credit?: string
+  /**
+   * A looping video drawn in place of the theme's background, behind the
+   * text, e.g. a motion background behind lyrics. Silent; every window
+   * follows its clock like `video`.
+   */
+  background?: VideoPlayback
+}
+
+/**
+ * Where a video is, as a clock every window can read: at `anchor`
+ * (`Date.now()`) it was at `position` seconds, and if `playing` it has moved
+ * on in real time since. Windows on one machine share the wall clock, so
+ * they agree without talking to each other.
+ */
+export interface VideoPlayback {
+  /** Library id, so the Videos tab can mark what is live. */
+  id: string
+  url: string
+  poster?: string
+  /** Seconds. */
+  duration: number
+  loop: boolean
+  playing: boolean
+  /** Seconds into the video at `anchor`. */
+  position: number
+  anchor: number
 }
 
 export interface RenderOptions {
@@ -25,6 +62,18 @@ export interface RenderOptions {
   offsetY?: number
   scale?: number               // Scale factor for rendering at display size (e.g., 0.42 for 400px panel)
   imageCache?: Map<string, HTMLImageElement>
+  /** A window's own copy of the live video, drawn in place of its poster once it has a frame. */
+  video?: HTMLVideoElement | null
+  /** A window's own copy of the background video, likewise. */
+  backgroundVideo?: HTMLVideoElement | null
+  /**
+   * A <video> element shows the background video behind this canvas, so
+   * leave the background region transparent instead of copying frames in:
+   * copying a 1080p frame onto a canvas costs WebKitGTK ~22 ms, too slow to
+   * keep up with the video. Canvases that must hold the pixels (NDI) leave
+   * this off.
+   */
+  backgroundBehind?: boolean
 }
 
 /** A freely positioned element region, all values in % of canvas size (0-100), x/y = top-left. */
@@ -102,6 +151,12 @@ export interface BroadcastTheme {
     outline: { color: string; width: number } | null
     /** Optional plate behind the verse text alone. Absent means none. */
     surface?: SurfaceFill
+    /**
+     * Shrink the text below `fontSize` when it doesn't fit its box (the
+     * default when absent). Off, `fontSize` is exactly the size on screen
+     * and long text may run past the box.
+     */
+    shrinkToFit?: boolean
   }
   verseNumbers: {
     visible: boolean
@@ -121,6 +176,8 @@ export interface BroadcastTheme {
     uppercase: boolean
     letterSpacing: number
     position: "above" | "below" | "inline"
+    /** An outline around the letters. Absent or null means none. */
+    outline?: { color: string; width: number } | null
     /** Optional chip behind the reference alone. Absent means none. */
     surface?: SurfaceFill
   }

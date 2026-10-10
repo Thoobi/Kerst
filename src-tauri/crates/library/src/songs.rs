@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use rusqlite::{params, OptionalExtension, Row, Transaction};
 
 use crate::db::{clean_opt, new_id, now_millis, LibraryDb};
@@ -32,11 +34,29 @@ impl LibraryDb {
             .optional()?
             .unwrap_or(now);
 
-        let section_ids: Vec<String> = input
-            .sections
-            .iter()
-            .map(|s| clean_opt(s.id.as_deref()).unwrap_or_else(new_id))
-            .collect();
+        // Section ids are kept across edits, but never trusted blindly: an
+        // id repeated within this save, or one that belongs to another song,
+        // gets a fresh one instead of failing the whole save.
+        let mut seen = HashSet::new();
+        let mut section_ids: Vec<String> = Vec::with_capacity(input.sections.len());
+        for section in &input.sections {
+            let kept = clean_opt(section.id.as_deref()).filter(|candidate| {
+                !seen.contains(candidate)
+                    && tx
+                        .query_row(
+                            "SELECT song_id FROM song_sections WHERE id = ?1",
+                            [candidate],
+                            |r| r.get::<_, String>(0),
+                        )
+                        .optional()
+                        .ok()
+                        .flatten()
+                        .is_none_or(|owner| owner == id)
+            });
+            let section_id = kept.unwrap_or_else(new_id);
+            seen.insert(section_id.clone());
+            section_ids.push(section_id);
+        }
         let arrangement: Vec<&String> =
             input.arrangement.iter().map(|&i| &section_ids[i]).collect();
 
@@ -86,11 +106,33 @@ impl LibraryDb {
         self.get_song(&id)
     }
 
+    /// Loop a library video behind this song's lyrics, or go back to the
+    /// theme's background with `None`.
+    pub fn set_song_background(&self, id: &str, video_id: Option<&str>) -> Result<Song, LibraryError> {
+        let changed = self
+            .conn()
+            .execute(
+                "UPDATE songs SET background_video_id = ?2, updated_at = ?3 WHERE id = ?1",
+                params![id, video_id, now_millis()],
+            )
+            .map_err(|e| match e {
+                rusqlite::Error::SqliteFailure(f, _) if f.code == rusqlite::ErrorCode::ConstraintViolation => {
+                    LibraryError::NotFound(format!("video {}", video_id.unwrap_or_default()))
+                }
+                e => e.into(),
+            })?;
+        if changed == 0 {
+            return Err(LibraryError::NotFound(format!("song {id}")));
+        }
+        self.get_song(id)
+    }
+
     pub fn get_song(&self, id: &str) -> Result<Song, LibraryError> {
         let conn = self.conn();
         let mut song = conn
             .query_row(
-                "SELECT id, title, author, copyright, ccli_number, arrangement, source, created_at, updated_at
+                "SELECT id, title, author, copyright, ccli_number, arrangement, source, created_at, updated_at,
+                        background_video_id
                  FROM songs WHERE id = ?1",
                 [id],
                 |r| {
@@ -104,6 +146,7 @@ impl LibraryDb {
                             sections: Vec::new(),
                             arrangement: Vec::new(),
                             source: r.get(6)?,
+                            background_video_id: r.get(9)?,
                             created_at: r.get(7)?,
                             updated_at: r.get(8)?,
                         },
@@ -264,6 +307,65 @@ mod tests {
             arrangement: vec![0, 1, 2, 1],
             source: "manual".into(),
         }
+    }
+
+    #[test]
+    fn repeated_or_foreign_section_ids_get_fresh_ones_instead_of_failing() {
+        let db = LibraryDb::open_in_memory().unwrap();
+        let other = db.save_song(&amazing_grace()).unwrap();
+        let mut input = SongInput { title: "Hosanna".into(), ..amazing_grace() };
+        let song = db.save_song(&input).unwrap();
+
+        // Every section claims the same id (three "Chorus" sections matched
+        // by name), and one claims a section of another song.
+        let shared = song.sections[0].id.clone();
+        for section in &mut input.sections {
+            section.id = Some(shared.clone());
+        }
+        input.sections[2].id = Some(other.sections[0].id.clone());
+        input.id = Some(song.id.clone());
+        let saved = db.save_song(&input).unwrap();
+
+        let ids: HashSet<_> = saved.sections.iter().map(|s| s.id.clone()).collect();
+        assert_eq!(ids.len(), 3);
+        assert_eq!(saved.sections[0].id, shared);
+        assert!(!ids.contains(&other.sections[0].id));
+        // The other song is untouched, and the arrangement still resolves.
+        assert_eq!(db.get_song(&other.id).unwrap(), other);
+        assert_eq!(saved.arrangement.len(), 4);
+        assert!(saved.arrangement.iter().all(|a| ids.contains(a)));
+    }
+
+    #[test]
+    fn a_background_video_survives_edits_and_goes_when_the_video_does() {
+        let db = LibraryDb::open_in_memory().unwrap();
+        db.conn()
+            .execute(
+                "INSERT INTO videos (id, title, file, status, created_at, updated_at)
+                 VALUES ('loop', 'Clouds', 'video.mp4', 'ready', 0, 0)",
+                [],
+            )
+            .unwrap();
+        let song = db.save_song(&amazing_grace()).unwrap();
+        assert_eq!(song.background_video_id, None);
+
+        let song = db.set_song_background(&song.id, Some("loop")).unwrap();
+        assert_eq!(song.background_video_id.as_deref(), Some("loop"));
+        // Editing the words keeps it.
+        let edited = db
+            .save_song(&SongInput { id: Some(song.id.clone()), title: "Amazing Grace (My Chains)".into(), ..amazing_grace() })
+            .unwrap();
+        assert_eq!(edited.background_video_id.as_deref(), Some("loop"));
+
+        assert!(matches!(db.set_song_background(&song.id, Some("no-such-video")), Err(LibraryError::NotFound(_))));
+        assert!(matches!(db.set_song_background("no-such-song", None), Err(LibraryError::NotFound(_))));
+
+        let store = crate::videos::VideoStore::new(std::env::temp_dir().join(format!("rhema-songbg-{}", new_id())));
+        db.delete_video(&store, "loop").unwrap();
+        assert_eq!(db.get_song(&song.id).unwrap().background_video_id, None);
+
+        let cleared = db.set_song_background(&song.id, None).unwrap();
+        assert_eq!(cleared.background_video_id, None);
     }
 
     #[test]

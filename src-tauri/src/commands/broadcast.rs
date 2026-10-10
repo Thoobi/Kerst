@@ -2,8 +2,8 @@
 
 use std::sync::Mutex;
 
-use base64::Engine;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+use tauri::ipc::{InvokeBody, Request};
 use tauri::State;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use rhema_broadcast::ndi::{NdiRuntime, NdiSessionInfo, NdiStartRequest};
@@ -34,15 +34,6 @@ pub struct MonitorInfo {
     pub name: String,
     pub width: u32,
     pub height: u32,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NdiFrameRequest {
-    pub output_id: String,
-    pub width: u32,
-    pub height: u32,
-    pub rgba_base64: String,
 }
 
 #[tauri::command]
@@ -271,17 +262,30 @@ pub fn get_ndi_status(
     }
 }
 
+/// Send one frame to an output's NDI sender. The body is the raw RGBA pixels
+/// (sent as an `ArrayBuffer`, not JSON: a playing video pushes a full frame
+/// many times a second), described by the `x-output-id`, `x-frame-width`
+/// and `x-frame-height` headers.
 #[tauri::command]
-pub fn push_ndi_frame(
-    runtime: State<'_, Mutex<NdiRuntime>>,
-    request: NdiFrameRequest,
-) -> Result<(), String> {
-    let rgba_data = base64::engine::general_purpose::STANDARD
-        .decode(&request.rgba_base64)
-        .map_err(|e| format!("base64 decode error: {e}"))?;
+pub fn push_ndi_frame(runtime: State<'_, Mutex<NdiRuntime>>, request: Request<'_>) -> Result<(), String> {
+    let InvokeBody::Raw(rgba_data) = request.body() else {
+        return Err("push_ndi_frame expects the pixels as raw bytes".into());
+    };
+    let header = |name: &str| {
+        request
+            .headers()
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(|| format!("push_ndi_frame needs an {name} header"))
+    };
+    let dimension = |name: &str| -> Result<u32, String> {
+        header(name)?.parse().map_err(|_| format!("push_ndi_frame: {name} is not a number"))
+    };
+    let output_id = header("x-output-id")?;
+    let (width, height) = (dimension("x-frame-width")?, dimension("x-frame-height")?);
     let mut runtime = runtime.lock().map_err(|e| e.to_string())?;
     runtime
-        .send_frame_rgba(&request.output_id, request.width, request.height, &rgba_data)
+        .send_frame_rgba(output_id, width, height, rgba_data)
         .map_err(|e| e.to_string())
 }
 
