@@ -3,7 +3,7 @@ import { SITE } from "./_lib/site";
 
 export const dynamic = "force-static";
 
-// We explicitly allow every documented AI/search crawler. Rhema is open-source
+// We explicitly allow every documented AI/search crawler. Light is open-source
 // software for churches — getting cited by AI engines (ChatGPT, Perplexity,
 // Claude, Gemini, Copilot) is *the* discovery mechanism, so we welcome them.
 //

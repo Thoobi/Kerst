@@ -1,17 +1,17 @@
 export const SITE = {
-  name: "Rhema",
+  name: "Light",
   legalName: "openbezal",
-  tagline: "Your Pastor speaks. Rhema finds the verse.",
+  tagline: "Everything your church puts on screen, in one free app.",
   shortDescription:
-    "Real-time AI Bible verse detection for live sermons. Free, open-source, broadcast-ready via NDI.",
+    "Free, open-source church presentation software: songs, scripture, slides, videos and announcements on every screen and over NDI, with AI that finds the verse as it's preached.",
   description:
-    "Rhema listens to a live sermon audio feed, transcribes speech in real time, detects Bible verse references (both explicit citations and quoted passages), and renders them as broadcast-ready overlays via NDI for live production.",
+    "Light runs everything a church puts on screen: song lyrics with motion backgrounds, Bible passages, slides, videos and announcements, planned in a service order and shown on every display and over NDI. While the pastor preaches, it listens and puts each verse on screen the moment it's read.",
   url: "https://openrhema.com",
   locale: "en_US",
   twitterHandle: "@openbezal",
   founded: "2025",
   category: "ChurchSoftware",
-  operatingSystems: ["Windows", "macOS"],
+  operatingSystems: ["Windows", "macOS", "Linux"],
   repo: {
     owner: "openbezal",
     name: "rhema",
@@ -23,7 +23,8 @@ export const SITE = {
     // release workflow ships a copy of each installer under these exact stable
     // filenames (Tauri's own bundle names carry the version); keep them in sync
     // with the `aliases` list in .github/workflows/build-release.yml or these
-    // links 404.
+    // links 404. Still Rhema-* from before the rename to Light: change both
+    // together.
     downloadWindows:
       "https://github.com/openbezal/rhema/releases/latest/download/Rhema-windows-x64-setup.exe",
     // Apple Silicon only — the build matrix has no x86_64-apple-darwin target.

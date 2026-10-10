@@ -4,23 +4,23 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { IconBrandGithub, IconMenu2, IconX } from "@tabler/icons-react";
 import { Button } from "../ui/button";
-import { RhemaLogo } from "../ui/rhema-logo";
+import { LightLogo } from "../ui/light-logo";
 import { SITE, downloadHref } from "../../_lib/site";
 import { usePlatform } from "../../_lib/use-platform";
 import { cn } from "../../_lib/utils";
 
 type NavLink = { href: string; label: string; external?: boolean };
 
+// Absolute (/#…) so the links work from any page that shares this header.
 const LINKS: ReadonlyArray<NavLink> = [
-  { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/#features", label: "Features" },
+  { href: "/#sunday", label: "On a Sunday" },
   { href: "/docs", label: "Docs" },
-  { href: "#download", label: "Download" },
-  { href: "#faq", label: "FAQs" },
+  { href: "/#download", label: "Download" },
 ];
 
-export function SiteNav({ stars }: { stars: number }) {
+/** The header every marketing page shares: logo, sections, GitHub and Download. */
+export function SiteHeader({ stars }: { stars: number }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const platform = usePlatform();
@@ -49,8 +49,8 @@ export function SiteNav({ stars }: { stars: number }) {
       )}
     >
       <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between gap-4 px-5 sm:px-8 lg:px-12 xl:px-[140px]">
-        <Link href="/" aria-label="Rhema home" className="shrink-0">
-          <RhemaLogo />
+        <Link href="/" aria-label="Light home" className="shrink-0">
+          <LightLogo />
         </Link>
 
         <nav
@@ -75,7 +75,7 @@ export function SiteNav({ stars }: { stars: number }) {
             href={SITE.repo.url}
             variant="secondary"
             size="md"
-            aria-label={`Rhema on GitHub, ${stars} stars`}
+            aria-label={`Light on GitHub, ${stars} stars`}
           >
             <IconBrandGithub size={16} aria-hidden stroke={2} />
             <span>

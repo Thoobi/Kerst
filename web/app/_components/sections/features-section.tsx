@@ -1,78 +1,88 @@
 import {
-  IconAdjustmentsHorizontal,
-  IconLayoutBoard,
-  IconMicrophone,
-  IconPlug,
-  IconScreenShare,
-  IconSearch,
+  IconBroadcast,
+  IconBook2,
+  IconListNumbers,
+  IconMessageCircle,
+  IconMicrophone2,
+  IconMovie,
+  IconMusic,
+  IconPalette,
+  IconPresentation,
 } from "@tabler/icons-react";
 import { Container } from "../ui/container";
 import { FeatureCard } from "../ui/feature-card";
 import { Reveal } from "../ui/reveal";
 import { SectionHeading } from "./section-heading";
 
-import type { Icon as TablerIcon } from "@tabler/icons-react";
-
-type Feature = {
-  icon: TablerIcon;
-  title: string;
-  body: string;
-};
-
-const FEATURES: Feature[] = [
+const FEATURES = [
   {
-    icon: IconMicrophone,
-    title: "Listens to Your Sermon Live",
-    body: "Rhema listens as the pastor speaks and turns the message into text instantly. No setup or typing needed. Just press start and let it run.",
+    icon: IconMusic,
+    title: "Songs",
+    body: "Bring your library from OpenLyrics, SongSelect or ChordPro. Lyrics fill the screen, credits sit quietly in the corner, motion backgrounds loop behind.",
   },
   {
-    icon: IconSearch,
-    title: "Finds Bible Verses Automatically",
-    body: "Detects Bible verses from both direct references and spoken quotes. It understands imperfect speech and partial phrasing.",
+    icon: IconMicrophone2,
+    title: "Scripture as it's preached",
+    body: "Light listens to the sermon and puts each verse on screen the moment it's read, quoted or cited. Or look one up yourself in a keystroke.",
+    accent: true,
   },
   {
-    icon: IconScreenShare,
-    title: "Shows Verses On Screen Instantly",
-    body: "As soon as a verse is detected, it appears on screen right away. No delays. Your audience sees the scripture at the right moment.",
+    icon: IconListNumbers,
+    title: "A running order",
+    body: "Line up songs, readings, slides, videos and announcements for the service. Drag to rearrange, click to bring anything up ready to go.",
   },
   {
-    icon: IconPlug,
-    title: "Works With Your Live Setup",
-    body: "Rhema connects easily to tools like OBS Studio and vMix. You don’t need to change how you already run your service. Just add it to your setup.",
+    icon: IconPresentation,
+    title: "Slides",
+    body: "Import a deck as PDF or images and step through it with the arrow keys or a presentation clicker.",
   },
   {
-    icon: IconLayoutBoard,
-    title: "Ready-to-Use Verse Designs",
-    body: "Choose from clean, pre-made styles for your verse overlays. Everything is already designed for you. Pick one and go live.",
+    icon: IconMovie,
+    title: "Video",
+    body: "Play videos on every screen at once, in step, with the sound coming from the operator's computer and nowhere else.",
   },
   {
-    icon: IconAdjustmentsHorizontal,
-    title: "Simple Control During Service",
-    body: "See all detected verses in one place. Reorder, skip, or show any verse with a click. Stay in control without stress or switching between apps.",
+    icon: IconMessageCircle,
+    title: "Announcements",
+    body: "Write notices, welcomes and anything else straight into Light, and put them up like lyrics.",
   },
-];
+  {
+    icon: IconPalette,
+    title: "Themes",
+    body: "Design how words look on screen, then tweak song size and spacing right beside the lyrics without leaving the service.",
+  },
+  {
+    icon: IconBroadcast,
+    title: "Every screen and the stream",
+    body: "Drive projectors and confidence monitors, and send clean, keyable graphics to OBS or vMix over NDI.",
+  },
+  {
+    icon: IconBook2,
+    title: "Free, open, yours",
+    body: "No subscription and no account. Your songs and media stay on your computer, and the code is open for anyone to improve.",
+  },
+] as const;
 
 export function FeaturesSection() {
   return (
-    <section
-      id="features"
-      aria-labelledby="features-heading"
-      className="py-20 lg:py-[120px]"
-    >
-      <Container className="flex flex-col gap-10 md:gap-14">
+    <section id="features" aria-labelledby="features-heading" className="py-20 lg:py-28">
+      <Container className="flex flex-col gap-12 lg:gap-16">
         <Reveal>
-          <SectionHeading id="features-heading">
-            Everything your media team needs
+          <SectionHeading
+            id="features-heading"
+            subtitle="One app for the whole service, from the first song to the last announcement, built for the volunteers who run it."
+          >
+            Everything on screen, <span className="text-accent">handled.</span>
           </SectionHeading>
         </Reveal>
-        <div className="grid grid-cols-1 md:grid-cols-2 md:[&>*]:-ml-px md:[&>*]:-mt-px lg:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
             <Reveal key={f.title} delay={(i % 3) * 80} className="flex">
               <FeatureCard
                 icon={f.icon}
                 title={f.title}
                 body={f.body}
-                iconTone="accent"
+                iconTone={"accent" in f && f.accent ? "accent" : "default"}
               />
             </Reveal>
           ))}

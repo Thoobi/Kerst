@@ -70,7 +70,7 @@ export default async function Image() {
               color: "#FFFFFF",
             }}
           >
-            Your Pastor speaks.
+            Everything on screen.
           </div>
           <div
             style={{
@@ -81,7 +81,7 @@ export default async function Image() {
               color: "#0099FF",
             }}
           >
-            Rhema finds the verse.
+            In one free app.
           </div>
           <div
             style={{
@@ -92,8 +92,8 @@ export default async function Image() {
               marginTop: 12,
             }}
           >
-            Real-time AI Bible verse detection for live sermons. Scripture
-            on screen the instant it&apos;s spoken — broadcast-ready via NDI.
+            Songs, scripture, slides, videos and announcements on every
+            screen and over NDI, with verses up as they&apos;re preached.
           </div>
         </div>
 

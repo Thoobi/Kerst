@@ -1,10 +1,8 @@
 import { SITE } from "../../_lib/site";
-import { FAQS } from "../sections/faq-section.data";
 
 const ORG_ID = `${SITE.url}/#organization`;
 const SITE_ID = `${SITE.url}/#website`;
 const APP_ID = `${SITE.url}/#software`;
-const FAQ_ID = `${SITE.url}/#faq`;
 
 export function StructuredData() {
   const graph = {
@@ -59,27 +57,16 @@ export function StructuredData() {
         },
         publisher: { "@id": ORG_ID },
         featureList: [
-          "Real-time speech transcription from live sermon audio",
-          "Automatic Bible verse detection from explicit citations and quoted passages",
-          "Broadcast-ready scripture overlays via NDI",
-          "Multi-translation support: KJV, ESV, NIV, NKJV, NLT",
-          "Direct integration with OBS Studio and vMix",
+          "Song lyrics with motion backgrounds; imports OpenLyrics, SongSelect and ChordPro",
+          "Bible verses detected from live sermon audio and shown as they are read",
+          "Service order planning for songs, scripture, slides, videos and announcements",
+          "PDF and image slide decks",
+          "Video playback in step across every screen",
+          "Multiple displays and NDI output for OBS Studio and vMix",
           "Free and open source",
         ],
         keywords:
-          "Bible verse detection, sermon transcription, NDI overlay, church broadcast, live scripture",
-      },
-      {
-        "@type": "FAQPage",
-        "@id": FAQ_ID,
-        mainEntity: FAQS.map((f) => ({
-          "@type": "Question",
-          name: f.question,
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: f.answer,
-          },
-        })),
+          "church presentation software, worship lyrics, song projection, Bible verse detection, NDI, free church software",
       },
     ],
   };
