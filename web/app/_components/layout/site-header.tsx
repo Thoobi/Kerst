@@ -32,23 +32,19 @@ const PRODUCT: ReadonlyArray<Feature> = [
 const LINKS = [
   { href: "/#uses", label: "Use cases" },
   { href: "/#how", label: "How it works" },
-  { href: "/docs", label: "Docs" },
 ] as const;
 
 /** The header every marketing page shares. */
 export function SiteHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const progressRef = useRef<HTMLDivElement>(null);
   const platform = usePlatform();
 
   useEffect(() => {
     let frame = 0;
     const update = () => {
       frame = 0;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
       setScrolled(window.scrollY > 8);
-      progressRef.current?.style.setProperty("--progress", String(max > 0 ? window.scrollY / max : 0));
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
@@ -82,13 +78,6 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 w-full px-3 pt-3 sm:px-5">
-      {/* How far down the page you are: a thin beam along the very top. */}
-      <div
-        ref={progressRef}
-        aria-hidden
-        className="pointer-events-none fixed inset-x-0 top-0 h-[2px] origin-left bg-gradient-to-r from-accent-deep via-accent to-[#f1fcd6] shadow-[0_0_12px_var(--accent)]"
-        style={{ transform: "scaleX(var(--progress, 0))" }}
-      />
 
       <div className="mx-auto flex w-full max-w-[1240px] items-center justify-between gap-3">
         {/* Left: the name and the way round the site. */}
@@ -298,7 +287,6 @@ const MOBILE_LINKS = [
   { href: "/#uses", label: "Use cases" },
   { href: "/#features", label: "Features" },
   { href: "/#how", label: "How it works" },
-  { href: "/docs", label: "Docs" },
 ] as const;
 
 /** Phones: the whole screen becomes the menu, numbered like channels. */

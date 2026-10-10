@@ -20,13 +20,6 @@ const GROUPS = [
       { label: "Download", href: "/#download" },
     ],
   },
-  {
-    heading: "Resources",
-    links: [
-      { label: "Documentation", href: "/docs" },
-      { label: "Getting started", href: "/docs/getting-started/installation" },
-    ],
-  },
 ];
 
 /** The footer every marketing page shares. */
@@ -34,7 +27,7 @@ export function SiteFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-border pt-20 lg:pt-[100px]">
       <Container>
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))] md:gap-8">
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:gap-8">
           <div className="flex flex-col gap-3">
             <LitdeckLogo />
             <p className="max-w-[300px] text-lg leading-6 tracking-[-0.01em] text-muted-foreground">

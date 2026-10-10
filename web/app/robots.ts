@@ -64,8 +64,9 @@ export default function robots(): MetadataRoute.Robots {
 
   return {
     rules: [
-      { userAgent: "*", allow: "/" },
-      ...allowed.map((userAgent) => ({ userAgent, allow: "/" })),
+      // The docs stay online but out of search results.
+      { userAgent: "*", allow: "/", disallow: "/docs/" },
+      ...allowed.map((userAgent) => ({ userAgent, allow: "/", disallow: "/docs/" })),
     ],
     sitemap: `${SITE.url}/sitemap.xml`,
     host: SITE.url,
