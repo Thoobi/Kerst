@@ -105,7 +105,7 @@
         <text x="22" y="136">› feeds the verse queue</text>
         <text x="22" y="160">› drives the live preview</text>
       </g>
-      <text x="22" y="200" font-size="12" fill="#0099ff" letter-spacing="1">→ rhema-detection ▸ merger.rs</text>
+      <text x="22" y="200" font-size="12" fill="#0099ff" letter-spacing="1">→ litdeck-detection ▸ merger.rs</text>
     </g>
 
     <!-- Connectors: strategies → merger -->

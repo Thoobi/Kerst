@@ -1,23 +1,22 @@
 import Link from "next/link";
 import {
   IconBrandApple,
-  IconBrandGithub,
-  IconBrandLinkedin,
   IconBrandUbuntu,
   IconBrandWindows,
-  IconBrandX,
-  IconMail,
 } from "@tabler/icons-react";
 import { Container } from "../ui/container";
-import { LightLogo } from "../ui/light-logo";
+import { LitdeckLogo } from "../ui/litdeck-logo";
 import { SITE } from "../../_lib/site";
+import { FooterGlow } from "./footer-glow";
 
 const GROUPS = [
   {
     heading: "Product",
     links: [
+      { label: "The app", href: "/#product" },
+      { label: "Use cases", href: "/#uses" },
       { label: "Features", href: "/#features" },
-      { label: "On a Sunday", href: "/#sunday" },
+      { label: "How it works", href: "/#how" },
       { label: "Download", href: "/#download" },
     ],
   },
@@ -26,17 +25,6 @@ const GROUPS = [
     links: [
       { label: "Documentation", href: "/docs" },
       { label: "Getting started", href: "/docs/getting-started/installation" },
-      { label: "Help and discussion", href: SITE.repo.discussions, external: true },
-      { label: "Source code", href: SITE.repo.url, external: true },
-    ],
-  },
-  {
-    heading: "Socials",
-    links: [
-      { label: "GitHub", href: SITE.socials.github, external: true },
-      { label: "Email", href: SITE.socials.email },
-      { label: "X (Twitter)", href: SITE.socials.twitter, external: true },
-      { label: "LinkedIn", href: SITE.socials.linkedin, external: true },
     ],
   },
 ];
@@ -44,25 +32,25 @@ const GROUPS = [
 /** The footer every marketing page shares. */
 export function SiteFooter() {
   return (
-    <footer className="border-t border-border py-20 lg:py-[100px]">
+    <footer className="relative overflow-hidden border-t border-border pt-20 lg:pt-[100px]">
       <Container>
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))] md:gap-8">
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))] md:gap-8">
           <div className="flex flex-col gap-3">
-            <LightLogo />
+            <LitdeckLogo />
             <p className="max-w-[300px] text-lg leading-6 tracking-[-0.01em] text-muted-foreground">
-              Free, open-source presentation software for churches. Songs,
-              scripture, slides and video, on every screen.
+              Presentation software for any live event.
+              Lyrics, slides, video and scripture, on every screen.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-border-strong px-[14px] py-[6px] text-[15px] text-foreground">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border-strong px-3 py-1 text-[13px] text-muted-foreground">
                 <IconBrandWindows size={16} aria-hidden stroke={2} />
                 Windows
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border-strong px-[14px] py-[6px] text-[15px] text-foreground">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border-strong px-3 py-1 text-[13px] text-muted-foreground">
                 <IconBrandApple size={16} aria-hidden stroke={2} />
                 macOS
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border-strong px-[14px] py-[6px] text-[15px] text-foreground">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border-strong px-3 py-1 text-[13px] text-muted-foreground">
                 <IconBrandUbuntu size={16} aria-hidden stroke={2} />
                 Linux
               </span>
@@ -80,10 +68,7 @@ export function SiteFooter() {
               <ul className="flex flex-col gap-[10px]">
                 {g.links.map((l) => (
                   <li key={l.label}>
-                    <FooterLink
-                      href={l.href}
-                      external={"external" in l ? l.external : false}
-                    >
+                    <FooterLink href={l.href}>
                       {l.label}
                     </FooterLink>
                   </li>
@@ -93,72 +78,17 @@ export function SiteFooter() {
           ))}
         </div>
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-border pt-8 text-[13px] leading-5 text-subtle-foreground md:flex-row md:items-center">
-          <p>© {new Date().getFullYear()} {SITE.legalName}. Light is free and open source under the MIT licence.</p>
-          <div className="flex items-center gap-4">
-            <a
-              href={SITE.socials.github}
-              aria-label="GitHub"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <IconBrandGithub size={18} stroke={2} />
-            </a>
-            <a
-              href={SITE.socials.twitter}
-              aria-label="X (Twitter)"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <IconBrandX size={18} stroke={2} />
-            </a>
-            <a
-              href={SITE.socials.linkedin}
-              aria-label="LinkedIn"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <IconBrandLinkedin size={18} stroke={2} />
-            </a>
-            <a
-              href={SITE.socials.email}
-              aria-label="Email"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <IconMail size={18} stroke={2} />
-            </a>
-          </div>
+          <p>© {new Date().getFullYear()} {SITE.legalName}.</p>
         </div>
       </Container>
+      <FooterGlow />
     </footer>
   );
 }
 
-function FooterLink({
-  href,
-  external,
-  children,
-}: {
-  href: string;
-  external?: boolean;
-  children: React.ReactNode;
-}) {
+function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
   const className =
     "text-[15px] leading-6 text-muted-foreground transition-colors hover:text-foreground";
-  if (external || /^https?:|^mailto:/.test(href)) {
-    return (
-      <a
-        href={href}
-        target={external ? "_blank" : undefined}
-        rel={external ? "noopener noreferrer" : undefined}
-        className={className}
-      >
-        {children}
-      </a>
-    );
-  }
   return (
     <Link href={href} className={className}>
       {children}

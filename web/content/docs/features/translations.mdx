@@ -6,8 +6,8 @@ icon: BookOpen
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-Rhema ships with ten Bible translations spanning English, Spanish, French,
-and Portuguese. They're stored in a single SQLite database (`data/rhema.db`)
+Litdeck ships with ten Bible translations spanning English, Spanish, French,
+and Portuguese. They're stored in a single SQLite database (`data/litdeck.db`)
 with FTS5 virtual tables for fast text search.
 
 ## Bundled translations
@@ -39,7 +39,7 @@ The cross-reference dataset is fetched in the same phase from
 
 ## Cross-references
 
-Rhema imports **340k+ cross-references** (the bundled file currently has
+Litdeck imports **340k+ cross-references** (the bundled file currently has
 344,800 entries) from [openbible.info](https://openbible.info) so every
 verse links to thematically related passages. The cross-reference panel
 shows them ranked by relevance, and you can click through to queue any
@@ -47,9 +47,9 @@ of them for broadcast.
 
 ## Switching translations during a sermon
 
-![Translation picker in the transport bar with all ten translations listed](/docs/screenshots/transport-translation-picker.png)
+![Translation picker in the Bible panel listing the bundled translations, with KJV selected](/docs/screenshots/transport-translation-picker.png)
 
-*The transport-bar translation picker lists every bundled translation. The active translation is the one rendered on the live overlay; switching here is the same surface that voice commands and remote control hit under the hood. **Click to expand.***
+*The translation picker in the Bible panel lists every bundled translation. The active translation is the one rendered on Preview and Live; voice commands and remote control switch the same setting. **Click to expand.***
 
 
 The active translation is the one rendered on the broadcast overlay. You

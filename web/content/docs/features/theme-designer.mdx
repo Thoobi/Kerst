@@ -10,9 +10,9 @@ The theme designer lets you build verse overlays the same way a graphic
 designer would — by composing on a canvas — and then sends the result to
 NDI exactly as designed.
 
-![Theme designer canvas with a sample verse overlay, sidebar controls for typography and backgrounds](/docs/screenshots/theme-designer-canvas.png)
+![Theme designer with the theme library on the left, the 1920×1080 canvas in the centre with the verse text selected, and its text properties on the right](/docs/screenshots/theme-designer-canvas.png)
 
-*The theme designer canvas with the inspector panel on the right. Each token (reference, verse text, translation tag, verse number) is its own selectable element with its own typography, fill, shadow, and outline controls. **Click to expand.***
+*The theme designer. Pick a theme on the left, click an element on the canvas (here the verse text) and edit its font, size, spacing, alignment and colour on the right; the Background and Layout tabs cover the rest of the slide. **Click to expand.***
 
 ## What you can compose
 
@@ -36,7 +36,7 @@ NDI exactly as designed.
 
 ## Built-in starters
 
-Rhema ships with four opinionated starter themes (`src/lib/builtin-themes.ts`)
+Litdeck ships with four opinionated starter themes (`src/lib/builtin-themes.ts`)
 that you can clone and modify:
 
 - **Classic Dark** — a high-contrast dark overlay tuned for typical
@@ -54,15 +54,15 @@ re-export.
 
 ## Switching themes live
 
-![Theme picker in the transport bar showing the three built-in starters](/docs/screenshots/transport-theme-picker.png)
+![Broadcast settings for an output with its Theme menu open, listing the four built-in themes](/docs/screenshots/transport-theme-picker.png)
 
-*The theme picker lives next to the on-air toggle in the transport bar. Hovering an entry shows a thumbnail of how the active verse will look in that theme, so operators can preview before committing. **Click to expand.***
+*Each output has its own theme. Open Broadcast outputs from the top bar, edit an output and pick a theme from the four built-ins (Classic Dark, Modern Light, Lower Thirds, Banner Split) or any you have made. **Click to expand.***
 
 
 Themes can be activated from:
 
 - The theme picker in the transport bar.
-- A Stream Deck or other OSC controller (`/rhema/theme`).
+- A Stream Deck or other OSC controller (`/litdeck/theme`).
 - The HTTP control endpoint (`POST /api/v1/command` with `{ "command": "theme", "value": "Classic Dark" }`).
 
 The currently active theme is reflected in the **preview** panel before
@@ -71,7 +71,7 @@ it goes on-air, and committed to NDI when you toggle the on-air switch.
 <Callout title="Resolution and color space" type="info">
 NDI output is composited at the exact pixel dimensions of the canvas. If
 your downstream switcher (vMix, OBS, Resolume) expects 1920×1080 with
-straight alpha, set the canvas to that and Rhema sends straight alpha
+straight alpha, set the canvas to that and Litdeck sends straight alpha
 NDI frames natively.
 </Callout>
 

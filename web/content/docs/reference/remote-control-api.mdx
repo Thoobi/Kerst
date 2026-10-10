@@ -1,6 +1,6 @@
 ---
 title: Remote Control API
-description: Wire-level reference for the OSC addresses and HTTP endpoints that drive Rhema from external controllers.
+description: Wire-level reference for the OSC addresses and HTTP endpoints that drive Litdeck from external controllers.
 icon: Webhook
 ---
 
@@ -51,25 +51,25 @@ output.
 ## OSC
 
 OSC runs over UDP on port `8000` (configurable). Address pattern is
-`/rhema/<command>`. Type coercion is permissive — `int`, `float`, and
+`/litdeck/<command>`. Type coercion is permissive — `int`, `float`, and
 `bool` argument types are coerced to the target command variant
 without error, so any controller's idea of how to send a number
 works.
 
 | Address | Argument | Example |
 | --- | --- | --- |
-| `/rhema/next` | none | `oscsend localhost 8000 /rhema/next` |
-| `/rhema/prev` | none | `oscsend localhost 8000 /rhema/prev` |
-| `/rhema/bible_next` | none | `oscsend localhost 8000 /rhema/bible_next` |
-| `/rhema/bible_prev` | none | `oscsend localhost 8000 /rhema/bible_prev` |
-| `/rhema/send_to_live` | none | `oscsend localhost 8000 /rhema/send_to_live` |
-| `/rhema/add_to_queue` | none | `oscsend localhost 8000 /rhema/add_to_queue` |
-| `/rhema/show` | none | `oscsend localhost 8000 /rhema/show` |
-| `/rhema/hide` | none | `oscsend localhost 8000 /rhema/hide` |
-| `/rhema/theme` | string | `oscsend localhost 8000 /rhema/theme s "Classic Dark"` |
-| `/rhema/opacity` | float | `oscsend localhost 8000 /rhema/opacity f 0.75` |
-| `/rhema/confidence` | float | `oscsend localhost 8000 /rhema/confidence f 0.8` |
-| `/rhema/on_air` | bool | `oscsend localhost 8000 /rhema/on_air T` |
+| `/litdeck/next` | none | `oscsend localhost 8000 /litdeck/next` |
+| `/litdeck/prev` | none | `oscsend localhost 8000 /litdeck/prev` |
+| `/litdeck/bible_next` | none | `oscsend localhost 8000 /litdeck/bible_next` |
+| `/litdeck/bible_prev` | none | `oscsend localhost 8000 /litdeck/bible_prev` |
+| `/litdeck/send_to_live` | none | `oscsend localhost 8000 /litdeck/send_to_live` |
+| `/litdeck/add_to_queue` | none | `oscsend localhost 8000 /litdeck/add_to_queue` |
+| `/litdeck/show` | none | `oscsend localhost 8000 /litdeck/show` |
+| `/litdeck/hide` | none | `oscsend localhost 8000 /litdeck/hide` |
+| `/litdeck/theme` | string | `oscsend localhost 8000 /litdeck/theme s "Classic Dark"` |
+| `/litdeck/opacity` | float | `oscsend localhost 8000 /litdeck/opacity f 0.75` |
+| `/litdeck/confidence` | float | `oscsend localhost 8000 /litdeck/confidence f 0.8` |
+| `/litdeck/on_air` | bool | `oscsend localhost 8000 /litdeck/on_air T` |
 
 ## HTTP API
 
@@ -86,7 +86,7 @@ curl http://localhost:8080/api/v1/health
 ```
 
 ```json
-{ "status": "ok", "service": "rhema", "version": "..." }
+{ "status": "ok", "service": "litdeck", "version": "..." }
 ```
 
 ### `GET /api/v1/status`
@@ -145,7 +145,7 @@ proxy when you expose it.
 ## Persistence and shutdown semantics
 
 Both listeners can be started and stopped at runtime without
-restarting Rhema. Port-bind failures surface as visible errors in
+restarting Litdeck. Port-bind failures surface as visible errors in
 the Settings panel rather than silent listener crashes. Both
 listeners shut down cleanly on app exit — no zombie threads, no
 orphaned ports.
@@ -156,8 +156,9 @@ By default both protocols are unauthenticated and bind to `0.0.0.0`.
 For multi-machine deployments, route them through your network's
 existing auth (a reverse proxy with mTLS, a Tailscale ACL, etc.) —
 the API is intentionally simple and protocol-only so it composes
-with whatever you already trust. For local-only access, bind to
-`127.0.0.1` in Settings → Remote.
+with whatever you already trust. The bind host isn't configurable in
+Settings yet, so for local-only use block the ports at your firewall
+or stop the listeners in Settings → Remote Control when you're done.
 
 ## Status field reference
 

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Rhema stack layers: React frontend over Tauri IPC, the Rust workspace below, with NDI, STT, and SQLite as external surfaces">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-label="Litdeck stack layers: React frontend over Tauri IPC, the Rust workspace below, with NDI, STT, and SQLite as external surfaces">
   <defs>
     <pattern id="sl-dots" patternUnits="userSpaceOnUse" width="24" height="24">
       <rect width="24" height="24" fill="#070709"/>
@@ -31,7 +31,7 @@
 
   <g font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <!-- Title -->
-    <text x="100" y="120" font-size="34" font-weight="600" letter-spacing="-0.5" fill="#ffffff">Rhema stack</text>
+    <text x="100" y="120" font-size="34" font-weight="600" letter-spacing="-0.5" fill="#ffffff">Litdeck stack</text>
     <text x="100" y="156" font-size="18" fill="#9aa4b2">Frontend, IPC, Rust workspace, and the external surfaces it talks to.</text>
 
     <!-- Layer 1: Frontend -->
@@ -76,31 +76,31 @@
       <g font-size="13" fill="#fed7aa" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">
         <g transform="translate(32 96)">
           <rect width="158" height="32" rx="6" fill="#1f130c" stroke="#3d2a22"/>
-          <text x="79" y="22" text-anchor="middle">rhema-api</text>
+          <text x="79" y="22" text-anchor="middle">litdeck-api</text>
         </g>
         <g transform="translate(206 96)">
           <rect width="158" height="32" rx="6" fill="#1f130c" stroke="#3d2a22"/>
-          <text x="79" y="22" text-anchor="middle">rhema-audio</text>
+          <text x="79" y="22" text-anchor="middle">litdeck-audio</text>
         </g>
         <g transform="translate(380 96)">
           <rect width="158" height="32" rx="6" fill="#1f130c" stroke="#3d2a22"/>
-          <text x="79" y="22" text-anchor="middle">rhema-stt</text>
+          <text x="79" y="22" text-anchor="middle">litdeck-stt</text>
         </g>
         <g transform="translate(554 96)">
           <rect width="158" height="32" rx="6" fill="#1f130c" stroke="#3d2a22"/>
-          <text x="79" y="22" text-anchor="middle">rhema-bible</text>
+          <text x="79" y="22" text-anchor="middle">litdeck-bible</text>
         </g>
         <g transform="translate(728 96)">
           <rect width="180" height="32" rx="6" fill="#1f130c" stroke="#3d2a22"/>
-          <text x="90" y="22" text-anchor="middle">rhema-detection</text>
+          <text x="90" y="22" text-anchor="middle">litdeck-detection</text>
         </g>
         <g transform="translate(924 96)">
           <rect width="180" height="32" rx="6" fill="#1f130c" stroke="#3d2a22"/>
-          <text x="90" y="22" text-anchor="middle">rhema-broadcast</text>
+          <text x="90" y="22" text-anchor="middle">litdeck-broadcast</text>
         </g>
         <g transform="translate(1120 96)">
           <rect width="158" height="32" rx="6" fill="#1f130c" stroke="#3d2a22"/>
-          <text x="79" y="22" text-anchor="middle">rhema-notes</text>
+          <text x="79" y="22" text-anchor="middle">litdeck-notes</text>
         </g>
       </g>
 
@@ -112,7 +112,7 @@
       <rect width="1400" height="160" rx="14" fill="url(#sl-external)" stroke="#1d2733" stroke-width="1.5"/>
       <rect x="0" y="0" width="6" height="160" rx="3" fill="#a78bfa"/>
       <text x="32" y="38" font-size="13" fill="#c4b5fd" letter-spacing="2" font-weight="600">EXTERNAL SURFACES</text>
-      <text x="32" y="68" font-size="18" font-weight="600" fill="#ffffff">Where Rhema reaches outside the process</text>
+      <text x="32" y="68" font-size="18" font-weight="600" fill="#ffffff">Where Litdeck reaches outside the process</text>
 
       <!-- Three columns -->
       <g transform="translate(32 88)">
@@ -128,7 +128,7 @@
       <g transform="translate(940 88)">
         <rect width="428" height="56" rx="10" fill="#0f1521" stroke="#1f2734"/>
         <text x="20" y="24" font-size="14" font-weight="600" fill="#ffffff">SQLite + ONNX models</text>
-        <text x="20" y="44" font-size="12" fill="#9aa4b2">data/rhema.db (FTS5) · Qwen3-Embedding-0.6B INT8 ONNX</text>
+        <text x="20" y="44" font-size="12" fill="#9aa4b2">data/litdeck.db (FTS5) · Qwen3-Embedding-0.6B INT8 ONNX</text>
       </g>
     </g>
 

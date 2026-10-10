@@ -7,7 +7,7 @@ icon: Mic
 import { Callout } from "fumadocs-ui/components/callout";
 import { Card, Cards } from "fumadocs-ui/components/card";
 
-Rhema supports two STT engines, and you can swap between them at runtime
+Litdeck supports two STT engines, and you can swap between them at runtime
 from the settings dialog. They map cleanly to two different operating
 modes: zero-marginal-cost local inference, or offload-to-the-cloud
 streaming.
@@ -27,7 +27,7 @@ streaming.
 
 The Whisper integration uses [`whisper.cpp`](https://github.com/ggerganov/whisper.cpp)
 through the `whisper-rs = "0.16"` Rust crate (gated behind the
-`whisper` feature on `rhema-stt`). The first `cargo build` compiles
+`whisper` feature on `litdeck-stt`). The first `cargo build` compiles
 the C++ source via `bindgen`.
 
 The model file (`ggml-large-v3-turbo-q8_0.bin`) is downloaded once
@@ -50,7 +50,7 @@ exact commands.
 ## Option 2: Deepgram
 
 Deepgram is a cloud speech-to-text service that streams audio over a
-WebSocket. Rhema also has a REST fallback that re-uploads short windows if
+WebSocket. Litdeck also has a REST fallback that re-uploads short windows if
 the WebSocket disconnects.
 
 ### 1. Get an API key
@@ -69,13 +69,12 @@ Restart `bun run tauri dev` so the new key is picked up.
 
 ### 3. Switch to Deepgram in the app
 
-Open Settings → STT and choose **Deepgram**. The status indicator shows
-WebSocket health in real time; if it falls back to REST, you'll see that
-labeled too.
+Open Settings → Speech Recognition, choose **Cloud (Deepgram)** and
+paste your key into the Deepgram API key field.
 
-![Settings dialog with the STT engine picker showing Whisper and Deepgram options](/docs/screenshots/settings-stt-picker.png)
+![Settings → Speech Recognition with the Cloud (Deepgram) and Local (Whisper) providers and the Deepgram API key field](/docs/screenshots/settings-stt-picker.png)
 
-*Settings → STT lets you flip between local Whisper and cloud Deepgram at runtime. The connection status indicator under the picker turns green when Deepgram's WebSocket is healthy and amber when it falls back to REST. **Click to expand.***
+*Settings → Speech Recognition switches between cloud Deepgram and local Whisper. Deepgram needs an API key, entered right below the picker; Whisper runs fully offline. **Click to expand.***
 
 ## Switching engines at runtime
 

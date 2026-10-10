@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Clone, install dependencies, and run the seven-phase data setup so Rhema is ready for development.
+description: Clone, install dependencies, and run the seven-phase data setup so Litdeck is ready for development.
 icon: Download
 ---
 
@@ -10,9 +10,9 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 
 ## Prebuilt installer (Windows)
 
-If you just want to run Rhema and don't need to change it,
-[**download the latest Windows installer**](https://github.com/openbezal/rhema/releases/download/nightly/Rhema-windows-x64-setup.exe).
-It's rebuilt from `main` on every merge, and it needs no toolchain — no Bun, no
+If you just want to run Litdeck and don't need to change it,
+[**download the latest Windows installer**](/#download).
+It needs no toolchain — no Bun, no
 Rust, no Python.
 
 <Callout title="What the installer leaves out" type="warn">
@@ -46,8 +46,8 @@ The Windows bootstrap installs LLVM and CMake via `winget` and persists
 ### Clone the repository
 
 ```bash
-git clone https://github.com/openbezal/rhema.git
-cd rhema
+git clone https://github.com/Thoobi/Kerst.git
+cd Kerst
 ```
 
   </Step>
@@ -83,7 +83,7 @@ runs seven phases in this exact order:
    contains all ten translations (KJV, NIV, ESV, NASB, NKJV, NLT,
    AMP, SpaRV, FreJND, PorBLivre) plus the cross-reference dataset
    from openbible.info.
-3. **SQLite database** — assembles `data/rhema.db` with FTS5
+3. **SQLite database** — assembles `data/litdeck.db` with FTS5
    virtual tables and cross-reference tables.
 4. **ONNX model** — downloads `Qwen3/Qwen3-Embedding-0.6B`, exports
    it via `optimum-cli export onnx`, and quantizes to INT8 for
@@ -108,9 +108,9 @@ bun run tauri dev
 The Tauri shell opens with hot-reload for the React frontend at port 3000
 and live-reloads the Rust backend on file changes.
 
-![Terminal showing setup:all running through its seven phases](/docs/screenshots/terminal-setup-all.png)
+![Terminal showing setup:all running through its seven phases and finishing with Setup complete](/docs/screenshots/terminal-setup-all.png)
 
-*Terminal output during `bun run setup:all` — each of the seven phases prints its own progress block, and `⏭ Skip` lines appear when an artifact is already present from a previous run. **Click to expand.***
+*A first run of `bun run setup:all`. Each of the seven phases prints its own block: `⏭ Skip` lines appear when an artifact is already there, and the embedding phases stay skipped unless you pass `--with-embedding`. Here the Whisper model was the only thing left to download. **Click to expand.***
 
   </Step>
 </Steps>
@@ -136,7 +136,7 @@ bun run download:ndi-sdk
 ```
 
 This drops the platform-specific NDI 6 headers and shared libraries under
-`sdk/ndi/`, where the `rhema-broadcast` crate finds them via dynamic
+`sdk/ndi/`, where the `litdeck-broadcast` crate finds them via dynamic
 loading.
 
 ## Running individual phases

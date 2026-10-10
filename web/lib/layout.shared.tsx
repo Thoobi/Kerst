@@ -1,14 +1,12 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
-import { SITE } from "@/app/_lib/site";
-import { LightLogo } from "@/app/_components/ui/light-logo";
+import { LitdeckLogo } from "@/app/_components/ui/litdeck-logo";
 
 export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
-      title: <LightLogo size="sm" />,
+      title: <LitdeckLogo size="sm" />,
       url: "/",
     },
-    githubUrl: SITE.repo.url,
     links: [
       {
         text: "Home",
@@ -21,9 +19,8 @@ export function baseOptions(): BaseLayoutProps {
         active: "nested-url",
       },
       {
-        text: "Releases",
-        url: SITE.repo.releases,
-        external: true,
+        text: "Download",
+        url: "/#download",
       },
     ],
   };

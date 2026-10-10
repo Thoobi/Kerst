@@ -2,7 +2,7 @@ import * as React from "react";
 import Link from "next/link";
 import { cn } from "../../_lib/utils";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "light";
 type Size = "md" | "lg";
 
 type Common = {
@@ -29,7 +29,7 @@ const base =
 
 const sizes: Record<Size, string> = {
   md: "px-[14px] py-[6px] text-[15px] leading-6",
-  lg: "px-4 py-[6px] text-[18px] leading-6",
+  lg: "px-5 py-[10px] text-[17px] leading-6",
 };
 
 const variants: Record<Variant, string> = {
@@ -38,6 +38,9 @@ const variants: Record<Variant, string> = {
     "bg-surface-strong text-foreground hover:bg-white/25",
   ghost:
     "border border-border-strong bg-transparent text-foreground hover:bg-white/5",
+  // Lit from within: the main call to action.
+  light:
+    "bg-[linear-gradient(180deg,#e4fb9a_0%,var(--accent)_55%,var(--accent-deep)_130%)] text-[#0f1402] shadow-[0_0_0_1px_rgba(214,248,120,0.5),0_8px_30px_-6px_rgba(150,230,60,0.55),inset_0_1px_0_rgba(255,255,255,0.6)] hover:shadow-[0_0_0_1px_rgba(214,248,120,0.7),0_10px_40px_-6px_rgba(150,230,60,0.75),inset_0_1px_0_rgba(255,255,255,0.6)]",
 };
 
 export function Button({

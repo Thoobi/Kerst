@@ -6,7 +6,7 @@ icon: FileText
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-Rhema keeps a rolling log of what it does — audio devices, transcripts,
+Litdeck keeps a rolling log of what it does — audio devices, transcripts,
 verse detections, broadcast output changes and errors. When something goes
 wrong during a service, that log is usually the difference between a bug we
 can fix and one we can only guess at.
@@ -18,7 +18,7 @@ can fix and one we can only guess at.
    is usually right; use **Everything** if you are not sure.
 3. Click **Save logs…** and choose where to put the file.
 4. Attach the saved `.log` file to your
-   [GitHub issue](https://github.com/openbezal/rhema/issues/new/choose).
+   [GitHub issue](https://github.com/Thoobi/Kerst/issues/new/choose).
 
 The same screen shows your app version and the folder the logs live in.
 
@@ -46,24 +46,24 @@ files.
 
 | Platform | Location |
 | --- | --- |
-| macOS | `~/Library/Logs/com.openbezal.rhema/` |
-| Windows | `%LOCALAPPDATA%\com.openbezal.rhema\logs\` |
-| Linux | `~/.local/share/com.openbezal.rhema/logs/` |
+| macOS | `~/Library/Logs/space.litdeck.app/` |
+| Windows | `%LOCALAPPDATA%\space.litdeck.app\logs\` |
+| Linux | `~/.local/share/space.litdeck.app/logs/` |
 
-The active log is `rhema.log`. Older logs are rotated alongside it as
-`rhema_<date>.log`, and the oldest are dropped once the folder reaches its
+The active log is `litdeck.log`. Older logs are rotated alongside it as
+`litdeck_<date>.log`, and the oldest are dropped once the folder reaches its
 size limit — so export while the problem is fresh rather than days later.
 
 ## Reading a log line
 
 ```
-[2026-08-19][17:16:51.068][rhema_lib::commands::stt][INFO] [LAT] partial "Let's open our Bibles to Psalms chapter 1"
+[2026-08-19][17:16:51.068][litdeck_lib::commands::stt][INFO] [LAT] partial "Let's open our Bibles to Psalms chapter 1"
 ```
 
 | Part | Meaning |
 | --- | --- |
 | `[2026-08-19][17:16:51.068]` | UTC date and time, to the millisecond |
-| `rhema_lib::commands::stt` | which part of the app wrote it |
+| `litdeck_lib::commands::stt` | which part of the app wrote it |
 | `INFO` | severity |
 
 Tags worth knowing when reporting a detection problem:

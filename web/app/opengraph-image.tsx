@@ -21,7 +21,7 @@ export default async function Image() {
           width: "100%",
           height: "100%",
           background:
-            "radial-gradient(60% 50% at 50% 0%, rgba(0,153,255,0.28) 0%, rgba(0,153,255,0.06) 40%, transparent 70%), #000000",
+            "radial-gradient(55% 70% at 50% 0%, rgba(214,248,120,0.45) 0%, rgba(198,244,50,0.12) 40%, transparent 72%), #07080a",
           color: "#FFFFFF",
           display: "flex",
           flexDirection: "column",
@@ -50,7 +50,7 @@ export default async function Image() {
           />
           <span style={{ color: "#FFFFFF", fontWeight: 600 }}>{SITE.name}</span>
           <span>·</span>
-          <span>openrhema.com</span>
+          <span>litdeck.space</span>
         </div>
 
         <div
@@ -70,7 +70,7 @@ export default async function Image() {
               color: "#FFFFFF",
             }}
           >
-            Everything on screen.
+            Run the show.
           </div>
           <div
             style={{
@@ -78,10 +78,11 @@ export default async function Image() {
               lineHeight: 1.02,
               letterSpacing: "-0.05em",
               fontWeight: 600,
-              color: "#0099FF",
+              color: "#c6f432",
+              fontStyle: "italic",
             }}
           >
-            In one free app.
+            Light every screen.
           </div>
           <div
             style={{
@@ -92,8 +93,8 @@ export default async function Image() {
               marginTop: 12,
             }}
           >
-            Songs, scripture, slides, videos and announcements on every
-            screen and over NDI, with verses up as they&apos;re preached.
+            Lyrics, slides, videos, scripture and announcements on every
+            screen and over NDI.
           </div>
         </div>
 
@@ -113,7 +114,7 @@ export default async function Image() {
               border: "1px solid rgba(255,255,255,0.18)",
             }}
           >
-            Free · Open source
+            Windows · macOS · Linux
           </span>
           <span
             style={{
@@ -122,7 +123,7 @@ export default async function Image() {
               border: "1px solid rgba(255,255,255,0.18)",
             }}
           >
-            Windows · macOS
+            Windows · macOS · Linux
           </span>
           <span
             style={{

@@ -6,13 +6,13 @@ icon: Mic2
 
 import { Callout } from "fumadocs-ui/components/callout";
 
-Rhema listens for a small set of voice commands so you don't have to
+Litdeck listens for a small set of voice commands so you don't have to
 break flow at the lectern. Commands are recognized inline with the
 sermon transcript — there's no wake word and no separate listening mode.
 
-![Transcript panel with a recognized voice command highlighted and the active translation badge updated to NIV](/docs/screenshots/transcript-voice-command.png)
+![Dashboard after the voice command "read that again in the New International Version": the transcript shows the phrase and the Bible panel, Preview and translation picker have switched to NIV](/docs/screenshots/transcript-voice-command.png)
 
-*When the detector matches a voice command (here "read in NIV"), the phrase is highlighted in the transcript and the active-translation badge in the header flips to the new value. **Click to expand.***
+*When the pastor asks for another translation (here "the New International Version"), Litdeck switches the active translation: the Bible panel, Preview and the translation picker all move to NIV without touching the queue. **Click to expand.***
 
 ## Translation switching
 
@@ -37,7 +37,7 @@ lives in `src-tauri/crates/detection/src/direct/detector.rs`.
 ## Chapter navigation in reading mode
 
 When the pastor announces a passage to read through ("Let's turn to
-**Romans 8**"), Rhema enters reading mode and the queue locks to that
+**Romans 8**"), Litdeck enters reading mode and the queue locks to that
 chapter. Voice commands then advance through the text — these are the
 exact patterns the detector matches in
 `src-tauri/crates/detection/src/reading_mode.rs`:

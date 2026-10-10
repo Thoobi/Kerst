@@ -1,10 +1,10 @@
 import { cn } from "../../_lib/utils";
 
 /**
- * Light's mark: a beam of light falling on a screen. Drawn in currentColor
+ * Litdeck's mark: a beam of light falling on a screen. Drawn in currentColor
  * with the beam in the accent, so it sits on any background.
  */
-export function LightMark({ className }: { className?: string }) {
+export function LitdeckMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden>
       <path d="M16 3 L25 20 H7 Z" fill="var(--accent)" opacity="0.9" />
@@ -15,7 +15,7 @@ export function LightMark({ className }: { className?: string }) {
   );
 }
 
-export function LightLogo({
+export function LitdeckLogo({
   className,
   wordmarkClassName,
   size = "md",
@@ -34,8 +34,8 @@ export function LightLogo({
 
   return (
     <span className={cn("inline-flex items-center gap-2 text-foreground", className)}>
-      <LightMark className={iconSize} />
-      <span className={cn("font-medium", textSize, wordmarkClassName)}>Light</span>
+      <LitdeckMark className={iconSize} />
+      <span className={cn("font-display font-bold tracking-[-0.04em]", textSize, wordmarkClassName)}>Litdeck</span>
     </span>
   );
 }

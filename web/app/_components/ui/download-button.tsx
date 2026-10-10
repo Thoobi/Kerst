@@ -26,9 +26,11 @@ const COPY: Record<
 
 export function DownloadButton({
   size = "md",
+  variant = "light",
   className,
 }: {
   size?: "md" | "lg";
+  variant?: "primary" | "light";
   className?: string;
 }) {
   const platform = usePlatform();
@@ -38,7 +40,7 @@ export function DownloadButton({
   return (
     <Button
       href={downloadHref(platform)}
-      variant="primary"
+      variant={variant}
       size={size}
       className={className}
     >
