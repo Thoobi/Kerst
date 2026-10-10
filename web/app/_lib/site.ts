@@ -1,3 +1,10 @@
+/**
+ * Where the installers are served from. Set NEXT_PUBLIC_DOWNLOADS_URL at build
+ * time to use another address, e.g. the bucket's r2.dev URL before
+ * downloads.litdeck.space is connected (documentation/downloads.md).
+ */
+const DOWNLOADS_BASE = (process.env.NEXT_PUBLIC_DOWNLOADS_URL || "https://downloads.litdeck.space").replace(/\/+$/, "");
+
 export const SITE = {
   name: "Litdeck",
   legalName: "Litdeck",
@@ -17,13 +24,13 @@ export const SITE = {
     // three files below to /latest/ under these exact names
     // (.github/workflows/build-release.yml and release-download-guard.yml,
     // set up as in documentation/downloads.md). Rename all three together.
-    base: "https://downloads.litdeck.space",
-    windows: "https://downloads.litdeck.space/latest/Litdeck-windows-x64-setup.exe",
+    base: DOWNLOADS_BASE,
+    windows: `${DOWNLOADS_BASE}/latest/Litdeck-windows-x64-setup.exe`,
     // Apple Silicon only — the build matrix has no x86_64-apple-darwin target.
-    mac: "https://downloads.litdeck.space/latest/Litdeck-macos-arm64.dmg",
+    mac: `${DOWNLOADS_BASE}/latest/Litdeck-macos-arm64.dmg`,
     // AppImage runs on any distro without a package manager step, so it is the
     // one-click choice.
-    linux: "https://downloads.litdeck.space/latest/Litdeck-linux-x86_64.AppImage",
+    linux: `${DOWNLOADS_BASE}/latest/Litdeck-linux-x86_64.AppImage`,
   },
   stats: {
     languages: "2+",

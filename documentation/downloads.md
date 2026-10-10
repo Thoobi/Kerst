@@ -58,6 +58,27 @@ what the site offers; only a published, complete release does.
    | `DOWNLOADS_S3_SECRET_ACCESS_KEY` | the token's Secret Access Key |
    | `DOWNLOADS_S3_REGION` | leave unset (`auto` is used) |
 
+## Before the custom domain is connected
+
+R2 can only serve a custom domain whose DNS is on Cloudflare. Until
+`litdeck.space` is there, serve the bucket from its development URL:
+
+1. Bucket → Settings → Public Development URL → Enable. Copy the URL
+   (`https://pub-<id>.r2.dev`).
+2. GitHub → repo → Settings → Secrets and variables → Actions → **Variables**
+   → New repository variable: `DOWNLOADS_URL` = that URL.
+3. Re-run *Deploy web to GitHub Pages* (or push anything under `web/`).
+
+The site's buttons then link to `https://pub-<id>.r2.dev/latest/…`. The
+`r2.dev` URL is rate-limited and Cloudflare doesn't recommend it for
+production, so treat it as temporary. Once the custom domain is connected,
+delete the `DOWNLOADS_URL` variable (the site falls back to
+`https://downloads.litdeck.space`), redeploy, and turn the development URL
+off. The bucket and the release workflows don't change.
+
+If the site is built somewhere else (e.g. Vercel), set
+`NEXT_PUBLIC_DOWNLOADS_URL` in that project's environment instead.
+
 ## Using AWS S3 instead
 
 Create a bucket, put CloudFront (or the bucket's website endpoint) in front of

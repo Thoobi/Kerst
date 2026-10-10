@@ -46,6 +46,9 @@ jobs:
       - run: bun run build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional repository variable; unset means downloads.litdeck.space.
+          # See documentation/downloads.md.
+          NEXT_PUBLIC_DOWNLOADS_URL: ${{ vars.DOWNLOADS_URL }}
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
