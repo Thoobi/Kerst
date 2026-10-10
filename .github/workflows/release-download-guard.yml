@@ -68,6 +68,9 @@ jobs:
             Litdeck-linux-x86_64.AppImage
           )
 
+          # Keep only scheme://host: R2's dashboard shows the S3 API URL with
+          # "/<bucket>" on the end, and a path here gets prepended to every key.
+          ENDPOINT=$(sed -E 's#^(https?://[^/]+).*#\1#' <<< "$ENDPOINT")
           endpoint=()
           [[ -n "$ENDPOINT" ]] && endpoint=(--endpoint-url "$ENDPOINT")
 
@@ -113,6 +116,9 @@ jobs:
       - name: Copy to /latest/
         shell: bash
         run: |
+          # Keep only scheme://host: R2's dashboard shows the S3 API URL with
+          # "/<bucket>" on the end, and a path here gets prepended to every key.
+          ENDPOINT=$(sed -E 's#^(https?://[^/]+).*#\1#' <<< "$ENDPOINT")
           endpoint=()
           [[ -n "$ENDPOINT" ]] && endpoint=(--endpoint-url "$ENDPOINT")
 

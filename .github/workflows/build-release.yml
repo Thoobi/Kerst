@@ -481,6 +481,9 @@ jobs:
             exit 0
           fi
 
+          # Keep only scheme://host: R2's dashboard shows the S3 API URL with
+          # "/<bucket>" on the end, and a path here gets prepended to every key.
+          ENDPOINT=$(sed -E 's#^(https?://[^/]+).*#\1#' <<< "$ENDPOINT")
           endpoint=()
           [[ -n "$ENDPOINT" ]] && endpoint=(--endpoint-url "$ENDPOINT")
           prefix="v${{ steps.version.outputs.version }}"
