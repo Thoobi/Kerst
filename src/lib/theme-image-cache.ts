@@ -28,6 +28,10 @@ export function loadThemeImage(url: string): Promise<HTMLImageElement | null> {
 
   const request = new Promise<HTMLImageElement | null>((resolve) => {
     const img = new Image()
+    // Deck slides come from Tauri's asset protocol, a different origin that
+    // answers with CORS headers. Without asking for CORS the image would
+    // taint the canvas, and NDI's getImageData readback would throw.
+    if (!url.startsWith("data:") && !url.startsWith("blob:")) img.crossOrigin = "anonymous"
     img.onload = () => {
       cache.set(url, img)
       inFlight.delete(url)
@@ -140,7 +144,32 @@ export function preloadThemeImages(
   theme: Parameters<typeof themeImageUrls>[0],
   onReady?: () => void
 ): void {
-  const missing = themeImageUrls(theme).filter((url) => !cache.has(url))
+  preloadImages(themeImageUrls(theme), onReady)
+}
+
+/**
+ * Load every image one rendered frame needs: the theme's, plus the
+ * full-frame picture when the content is an image slide, or the poster
+ * of a video or of a background video.
+ */
+export function preloadFrameImages(
+  theme: Parameters<typeof themeImageUrls>[0],
+  content: {
+    image?: { url: string }
+    video?: { poster?: string }
+    background?: { poster?: string }
+  } | null,
+  onReady?: () => void
+): void {
+  const urls = themeImageUrls(theme)
+  if (content?.image?.url) urls.push(content.image.url)
+  if (content?.video?.poster) urls.push(content.video.poster)
+  if (content?.background?.poster) urls.push(content.background.poster)
+  preloadImages(urls, onReady)
+}
+
+function preloadImages(urls: string[], onReady?: () => void): void {
+  const missing = urls.filter((url) => !cache.has(url))
   if (missing.length === 0) return
   void Promise.all(missing.map(loadThemeImage)).then(() => onReady?.())
 }

@@ -1,5 +1,6 @@
 mod commands;
 mod events;
+mod media_server;
 mod memstats;
 mod state;
 
@@ -127,6 +128,29 @@ pub fn run() {
             commands::broadcast::get_ndi_status,
             commands::broadcast::push_ndi_frame,
             commands::fonts::list_system_fonts,
+            commands::library::list_songs,
+            commands::library::search_songs,
+            commands::library::get_song,
+            commands::library::save_song,
+            commands::library::delete_song,
+            commands::library::set_song_background,
+            commands::library::list_schedules,
+            commands::library::get_schedule,
+            commands::library::save_schedule,
+            commands::library::delete_schedule,
+            commands::library::list_decks,
+            commands::library::get_deck,
+            commands::library::begin_deck_import,
+            commands::library::add_deck_slide,
+            commands::library::finish_deck_import,
+            commands::library::delete_deck,
+            commands::library::list_videos,
+            commands::library::begin_video_import,
+            commands::library::set_video_poster,
+            commands::library::finish_video_import,
+            commands::library::update_video,
+            commands::library::delete_video,
+            media_server::media_base_url,
             commands::remote::start_osc,
             commands::remote::stop_osc,
             commands::remote::get_osc_status,
@@ -172,6 +196,22 @@ pub fn run() {
             } else {
                 log::warn!("Bible database not found at {}", db_path.display());
             }
+
+            // The user's songs, schedules, decks and videos live beside their settings, not
+            // in the bundled resources: they must be writable and survive
+            // app updates.
+            let (library, media) = match app.path().app_data_dir() {
+                Ok(dir) => (
+                    commands::library::LibraryState::open(&dir),
+                    media_server::MediaServerState::start(dir.join("videos")),
+                ),
+                Err(e) => (
+                    commands::library::LibraryState::unavailable(e.to_string()),
+                    media_server::MediaServerState::unavailable(e.to_string()),
+                ),
+            };
+            app.manage(library);
+            app.manage(media);
 
             // Try to load ONNX embedding model and pre-computed verse index
             // Prefer INT8 quantized model (~571MB) over FP32 (~2.4GB)

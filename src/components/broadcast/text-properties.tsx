@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react"
-import { ChevronsUpDownIcon, CheckIcon } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { BoldIcon, ChevronsUpDownIcon, CheckIcon } from "lucide-react"
 import { useBroadcastStore } from "@/stores/broadcast-store"
 import { SurfaceControls } from "@/components/broadcast/surface-properties"
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
+import { computeVerseLayoutMetrics } from "@/lib/verse-renderer"
+import { SAMPLE_VERSE } from "@/lib/theme-migrations"
+import type { BroadcastTheme } from "@/types"
 import { parseColorOpacity, buildColorWithOpacity } from "@/lib/color-utils"
 import { listAllFonts } from "@/lib/fonts"
 import {
@@ -27,6 +32,100 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+
+/** A canvas context only for measuring text; never drawn to screen. */
+let measureCtx: CanvasRenderingContext2D | null = null
+
+/**
+ * The verse text's actual on-screen size for the editor's sample verse, at
+ * the theme's resolution. Below the set size means it was shrunk to fit.
+ */
+function useShownVerseSize(theme: BroadcastTheme): number | null {
+  return useMemo(() => {
+    measureCtx ??= document.createElement("canvas").getContext("2d")
+    if (!measureCtx) return null
+    const fitted = computeVerseLayoutMetrics(measureCtx, theme, SAMPLE_VERSE).fittedVerseFontSize
+    return fitted === undefined ? null : Math.round(fitted)
+  }, [theme])
+}
+
+/**
+ * What size the text really shows at, and the switch for shrinking it to
+ * fit. Without this the size control seemed broken: past what fits the
+ * box, raising it changed nothing on screen.
+ */
+function ShrinkToFitControl({ theme, onChange }: { theme: BroadcastTheme; onChange: (on: boolean) => void }) {
+  const shown = useShownVerseSize(theme)
+  const shrinking = theme.verseText.shrinkToFit !== false
+  const shrunk = shrinking && shown !== null && shown < theme.verseText.fontSize
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Shrink to fit box</span>
+        <Switch checked={shrinking} onCheckedChange={onChange} />
+      </label>
+      {shrunk ? (
+        <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400">
+          Showing at {shown}px: shrunk to fit the text box. Make the box bigger, or turn this off to
+          always use {theme.verseText.fontSize}px.
+        </p>
+      ) : (
+        <p className="text-[0.6875rem] text-muted-foreground">
+          {shrinking
+            ? "Text this size fits. Longer passages and songs shrink to stay inside the box."
+            : "Always this size. Long passages may run past the box."}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * An outline around the letters: on/off, thickness and colour. Sits with
+ * the font settings so it's found where you'd look for it.
+ */
+function OutlineControl({
+  outline,
+  onChange,
+}: {
+  outline: { color: string; width: number } | null
+  onChange: (outline: { color: string; width: number } | null) => void
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Outline</span>
+        <Switch
+          checked={outline !== null}
+          onCheckedChange={(on) => onChange(on ? { color: "#000000", width: 3 } : null)}
+        />
+      </label>
+      {outline && (
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={parseColorOpacity(outline.color).hex}
+            onChange={(e) => onChange({ ...outline, color: e.target.value })}
+            className="h-7 w-8 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+            aria-label="Outline colour"
+          />
+          <Slider
+            min={0.5}
+            max={20}
+            step={0.5}
+            value={[outline.width]}
+            onValueChange={([width]) => onChange({ ...outline, width })}
+            className="flex-1"
+            aria-label="Outline thickness"
+          />
+          <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+            {outline.width}px
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
 
 function FontFamilyPicker({
   value,
@@ -176,25 +275,46 @@ function FontControls({ prefix }: { prefix: "verseText" | "reference" }) {
         />
       </div>
 
-      {/* Font Weight */}
+      {/* Font Weight, with a one-click Bold beside it */}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-muted-foreground">Font Weight</label>
-        <Select
-          value={String(data.fontWeight)}
-          onValueChange={(v) => update(`${prefix}.fontWeight`, Number(v))}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {FONT_WEIGHTS.map((w) => (
-              <SelectItem key={w.value} value={w.value}>
-                {w.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-pressed={data.fontWeight >= 600}
+            title={data.fontWeight >= 600 ? "Bold (click for regular)" : "Bold"}
+            onClick={() => update(`${prefix}.fontWeight`, data.fontWeight >= 600 ? 400 : 700)}
+            className={cn(
+              "shrink-0",
+              data.fontWeight >= 600 && "border-primary bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary"
+            )}
+          >
+            <BoldIcon />
+          </Button>
+          <Select
+            value={String(data.fontWeight)}
+            onValueChange={(v) => update(`${prefix}.fontWeight`, Number(v))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FONT_WEIGHTS.map((w) => (
+                <SelectItem key={w.value} value={w.value}>
+                  {w.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      <OutlineControl
+        outline={data.outline ?? null}
+        onChange={(outline) => update(`${prefix}.outline`, outline)}
+      />
 
       {/* Font Size */}
       <div className="flex flex-col gap-1.5">
@@ -224,6 +344,13 @@ function FontControls({ prefix }: { prefix: "verseText" | "reference" }) {
           />
         </div>
       </div>
+
+      {prefix === "verseText" && (
+        <ShrinkToFitControl
+          theme={draftTheme}
+          onChange={(on) => update("verseText.shrinkToFit", on)}
+        />
+      )}
 
       {/* Line Height — only for verse text, reference type doesn't have lineHeight */}
       {prefix === "verseText" && (
@@ -438,10 +565,8 @@ function VerseProperties() {
   if (!draftTheme) return null
 
   const shadow = draftTheme.verseText.shadow
-  const outline = draftTheme.verseText.outline
 
   const shadowColor = shadow ? parseColorOpacity(shadow.color) : { hex: "#000000", opacity: 100 }
-  const outlineColor = outline ? parseColorOpacity(outline.color) : { hex: "#000000", opacity: 100 }
 
   const verseNumbers = draftTheme.verseNumbers
   const verseNumberColor = parseColorOpacity(verseNumbers.color)
@@ -656,67 +781,6 @@ function VerseProperties() {
                   )
                 }
               />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Text Outline */}
-      <div className="flex flex-col gap-3 border-t pt-3">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold">Text Outline</label>
-          <input
-            type="checkbox"
-            checked={outline !== null}
-            onChange={(e) => {
-              if (e.target.checked) {
-                update("verseText.outline", { color: "#000000", width: 1 })
-              } else {
-                update("verseText.outline", null)
-              }
-            }}
-            className="h-4 w-4 rounded border-input accent-primary"
-          />
-        </div>
-
-        {outline && (
-          <div className="flex flex-col gap-3">
-            {/* Width */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-muted-foreground">Width</label>
-                <span className="text-xs tabular-nums text-muted-foreground">{outline.width}px</span>
-              </div>
-              <Slider
-                min={0}
-                max={20}
-                step={0.5}
-                value={[outline.width]}
-                onValueChange={([v]) => update("verseText.outline.width", v)}
-              />
-            </div>
-
-            {/* Outline Color */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Outline Color</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={outlineColor.hex}
-                  onChange={(e) => update("verseText.outline.color", e.target.value)}
-                  className="h-7 w-8 cursor-pointer rounded border border-input bg-transparent p-0.5"
-                />
-                <Input
-                  value={outlineColor.hex}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-                      update("verseText.outline.color", v)
-                    }
-                  }}
-                  className="w-20 font-mono"
-                />
-              </div>
             </div>
           </div>
         )}

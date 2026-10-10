@@ -1,28 +1,31 @@
 import { createRoot } from "react-dom/client"
-import { useRef, useEffect, useCallback } from "react"
+import { useRef, useEffect, useCallback, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import { onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
-import { preloadThemeImages, themeImageCache } from "@/lib/theme-image-cache"
+import { backgroundRegion, onThemeFontsLoaded, renderVerse } from "@/lib/verse-renderer"
+import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { normalizeTheme } from "@/lib/theme-migrations"
+import { fitFrame, renderScale } from "@/lib/output-frame"
+import { SyncedVideo } from "@/components/ui/synced-video"
+import { LoopingVideo } from "@/components/ui/looping-video"
+import { forwardConsoleToLog } from "@/lib/console-to-log"
 import "./broadcast-fonts.css"
-import type { BroadcastTheme, VerseRenderData } from "@/types/broadcast"
-import type { NdiConfigEventPayload, NdiFrameRequest } from "@/types"
+import type { BroadcastTheme, VerseRenderData, VideoPlayback } from "@/types/broadcast"
+import type { NdiConfigEventPayload } from "@/types"
 
-/** Convert Uint8Array/Uint8ClampedArray to base64 using Function.apply (avoids spread stack overflow) */
-function uint8ToBase64(bytes: Uint8Array | Uint8ClampedArray): string {
-  const CHUNK = 0x8000 // 32KB — safe for Function.apply
-  const parts: string[] = []
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    parts.push(
-      String.fromCharCode.apply(
-        null,
-        bytes.subarray(i, i + CHUNK) as unknown as number[],
-      ),
-    )
-  }
-  return btoa(parts.join(""))
+interface BackgroundBox {
+  left: number
+  top: number
+  width: number
+  height: number
 }
+
+const sameBox = (a: BackgroundBox, b: BackgroundBox) =>
+  a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height
+
+// The output windows are where the audience's picture comes from; their
+// warnings and errors belong in the log as much as the main window's.
+forwardConsoleToLog()
 
 /** Read output ID from URL query param (?output=main or ?output=alt). Defaults to "main". */
 const OUTPUT_ID = new URLSearchParams(window.location.search).get("output") ?? "main"
@@ -45,6 +48,17 @@ function BroadcastCanvas() {
   const lastPushRef = useRef(0)
   const pushingRef = useRef(false)
   const pushNdiBurstRef = useRef<(() => void) | null>(null)
+  // A playing video is shown by a <video> over the canvas (the browser
+  // paints it far more cheaply than redrawing the canvas every frame); NDI
+  // copies frames from that same element.
+  const [video, setVideo] = useState<VideoPlayback | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  // A motion background plays in a <video> behind the canvas, over the
+  // theme's background region, which the canvas leaves transparent. NDI
+  // copies its frames.
+  const [background, setBackground] = useState<VideoPlayback | null>(null)
+  const backgroundRef = useRef<HTMLVideoElement | null>(null)
+  const [backgroundBox, setBackgroundBox] = useState<BackgroundBox | null>(null)
 
   const logDebug = useCallback((message: string, meta?: unknown) => {
     if (!import.meta.env.DEV) return
@@ -69,13 +83,39 @@ function BroadcastCanvas() {
       return
     }
 
+    // Draw at the screen's real pixels. Drawing at the theme's resolution and
+    // letting CSS rescale the finished picture blurs text and images.
     const { theme, verse } = data
-    canvas.width = theme.resolution.width
-    canvas.height = theme.resolution.height
-    const result = renderVerse(ctx, theme, verse, {
-      scale: 1,
-      imageCache: themeImageCache(),
+    const dpr = window.devicePixelRatio || 1
+    const frame = fitFrame(theme.resolution, {
+      width: window.innerWidth * dpr,
+      height: window.innerHeight * dpr,
     })
+    // Resizing reallocates the canvas; with a background video this runs
+    // every frame, so only do it when the size changed, and clear otherwise.
+    if (canvas.width !== frame.width || canvas.height !== frame.height) {
+      canvas.width = frame.width
+      canvas.height = frame.height
+      canvas.style.width = `${frame.width / dpr}px`
+      canvas.style.height = `${frame.height / dpr}px`
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+    }
+    const scale = renderScale(theme.resolution, frame)
+    const result = renderVerse(ctx, theme, verse, {
+      scale,
+      imageCache: themeImageCache(),
+      video: videoRef.current,
+      backgroundBehind: true,
+    })
+    const region = backgroundRegion(theme, scale)
+    const box = {
+      left: region.x / dpr,
+      top: region.y / dpr,
+      width: region.width / dpr,
+      height: region.height / dpr,
+    }
+    setBackgroundBox((prev) => (prev && sameBox(prev, box) ? prev : box))
     if (!result) {
       ctx.fillStyle = "#000"
       ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -83,11 +123,12 @@ function BroadcastCanvas() {
     }
   }, [logDebug])
 
-  // Redraw once a theme's images land. The burst matters: without it NDI
-  // receivers keep the flat fallback frame until the 2s keepalive fires.
-  const preloadThemeAssets = useCallback((theme: BroadcastTheme) => {
-    preloadThemeImages(theme, () => {
-      logDebug("Theme images loaded")
+  // Redraw once a frame's images (theme art, or a full-frame slide) land. The
+  // burst matters: without it NDI receivers keep the flat fallback frame
+  // until the 2s keepalive fires.
+  const preloadFrameAssets = useCallback((payload: BroadcastPayload) => {
+    preloadFrameImages(payload.theme, payload.verse, () => {
+      logDebug("Frame images loaded")
       draw()
       pushNdiBurstRef.current?.()
     })
@@ -99,42 +140,40 @@ function BroadcastCanvas() {
     pushingRef.current = true
 
     try {
-      const canvas = canvasRef.current
-      if (!canvas) return
-      const ctx = canvas.getContext("2d")
-      if (!ctx) return
+      const sourceWidth = ndiConfigRef.current.width
+      const sourceHeight = ndiConfigRef.current.height
 
-      const targetWidth = ndiConfigRef.current.width
-      const targetHeight = ndiConfigRef.current.height
-
-      let sourceCtx = ctx
-      let sourceWidth = canvas.width
-      let sourceHeight = canvas.height
-
-      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-        const ndiCanvas = ndiCanvasRef.current ?? document.createElement("canvas")
-        ndiCanvas.width = targetWidth
-        ndiCanvas.height = targetHeight
-        const ndiCtx = ndiCanvas.getContext("2d")
-        if (!ndiCtx) return
-        ndiCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight)
-        ndiCanvasRef.current = ndiCanvas
-        sourceCtx = ndiCtx
-        sourceWidth = targetWidth
-        sourceHeight = targetHeight
+      // Render NDI frames at NDI's own resolution rather than rescaling the
+      // window's canvas: a 4K sender gets real 4K text, not a stretched 1080p.
+      const ndiCanvas = ndiCanvasRef.current ?? document.createElement("canvas")
+      ndiCanvasRef.current = ndiCanvas
+      ndiCanvas.width = sourceWidth
+      ndiCanvas.height = sourceHeight
+      const sourceCtx = ndiCanvas.getContext("2d", { willReadFrequently: true })
+      if (!sourceCtx) return
+      const data = latestData.current
+      const rendered =
+        data &&
+        renderVerse(sourceCtx, data.theme, data.verse, {
+          scale: renderScale(data.theme.resolution, { width: sourceWidth, height: sourceHeight }),
+          imageCache: themeImageCache(),
+          video: videoRef.current,
+          backgroundVideo: backgroundRef.current,
+        })
+      if (!rendered) {
+        sourceCtx.fillStyle = "#000"
+        sourceCtx.fillRect(0, 0, sourceWidth, sourceHeight)
       }
 
+      // Raw bytes, not JSON: a playing video sends a full frame many times a second.
       const imageData = sourceCtx.getImageData(0, 0, sourceWidth, sourceHeight)
-      const rgbaBase64 = uint8ToBase64(imageData.data)
-
-      const request: NdiFrameRequest = {
-        outputId: OUTPUT_ID,
-        width: sourceWidth,
-        height: sourceHeight,
-        rgbaBase64,
-      }
-
-      await invoke("push_ndi_frame", { request })
+      await invoke("push_ndi_frame", new Uint8Array(imageData.data.buffer), {
+        headers: {
+          "x-output-id": OUTPUT_ID,
+          "x-frame-width": String(sourceWidth),
+          "x-frame-height": String(sourceHeight),
+        },
+      })
       lastPushRef.current = Date.now()
     } catch (error) {
       console.warn("[broadcast-output] push_ndi_frame failed", error)
@@ -158,15 +197,13 @@ function BroadcastCanvas() {
   }, [pushNdiBurst])
 
   useEffect(() => {
-    // Set initial canvas size
+    // Black until the first frame arrives; the page background is black too.
     const canvas = canvasRef.current
     if (canvas) {
-      canvas.width = 1920
-      canvas.height = 1080
       const ctx = canvas.getContext("2d")
       if (ctx) {
         ctx.fillStyle = "#000"
-        ctx.fillRect(0, 0, 1920, 1080)
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
       }
     }
 
@@ -177,7 +214,9 @@ function BroadcastCanvas() {
         ...event.payload,
         theme: normalizeTheme(event.payload.theme),
       }
-      preloadThemeAssets(event.payload.theme)
+      setVideo(event.payload.verse?.video ?? null)
+      setBackground(event.payload.verse?.background ?? null)
+      preloadFrameAssets(event.payload)
       logDebug("Received broadcast:verse-update", {
         hasVerse: Boolean(event.payload.verse),
         themeId: event.payload.theme.id,
@@ -229,7 +268,25 @@ function BroadcastCanvas() {
       unlisten.then((fn) => fn())
       unlistenNdiConfig.then((fn) => fn())
     }
-  }, [draw, logDebug, preloadThemeAssets, pushNdiFrame, pushNdiBurst])
+  }, [draw, logDebug, preloadFrameAssets, pushNdiFrame, pushNdiBurst])
+
+  // Going fullscreen, moving to another monitor or a DPI change all resize
+  // the window: redraw at the new pixel size.
+  useEffect(() => {
+    window.addEventListener("resize", draw)
+    return () => window.removeEventListener("resize", draw)
+  }, [draw])
+
+  // While a video plays (or a background moves behind the text), NDI needs
+  // every frame, not just one per change. Pushes that can't keep up are
+  // skipped by pushNdiFrame's back-pressure.
+  const videoPlaying = (video?.playing ?? false) || (background?.playing ?? false)
+  useEffect(() => {
+    if (!videoPlaying) return
+    const fps = ndiConfigRef.current.fps || 30
+    const timer = setInterval(() => void pushNdiFrame(), 1000 / fps)
+    return () => clearInterval(timer)
+  }, [videoPlaying, pushNdiFrame])
 
   // Slow keepalive: push one frame every 2s if idle (prevents NDI receivers from dropping the source)
   useEffect(() => {
@@ -242,15 +299,47 @@ function BroadcastCanvas() {
   }, [pushNdiFrame])
 
   return (
-    <canvas
-      ref={canvasRef}
+    <div
       style={{
         width: "100vw",
         height: "100vh",
-        display: "block",
-        objectFit: "contain",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
-    />
+    >
+      <div style={{ position: "relative" }}>
+        {background && backgroundBox && (
+          <LoopingVideo
+            url={background.url}
+            poster={background.poster}
+            playing={background.playing}
+            elementRef={backgroundRef}
+            style={{ position: "absolute", ...backgroundBox }}
+          />
+        )}
+        <canvas ref={canvasRef} style={{ display: "block", position: "relative" }} />
+        {video && (
+          <SyncedVideo
+            playback={video}
+            // Sound comes from the operator's window only, never doubled up.
+            muted
+            elementRef={videoRef}
+            // A paused or seeked video changes picture without a new frame
+            // from the main window: send it on.
+            onFrame={() => void pushNdiFrame()}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              background: "#000",
+            }}
+          />
+        )}
+      </div>
+    </div>
   )
 }
 

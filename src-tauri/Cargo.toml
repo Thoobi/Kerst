@@ -8,6 +8,7 @@ members = [
     "crates/broadcast",
     "crates/api",
     "crates/notes",
+    "crates/library",
 ]
 resolver = "2"
 
@@ -53,22 +54,25 @@ serde_json.workspace = true
 serde.workspace = true
 log.workspace = true
 tokio.workspace = true
-tauri = { version = "2.10.3", features = [] }
+tauri = { version = "2.10.3", features = ["protocol-asset"] }
 tauri-plugin-log = "2"
 tauri-plugin-store = "2"
 rhema-audio = { path = "crates/audio" }
 rhema-bible = { path = "crates/bible" }
+rhema-library = { path = "crates/library" }
 rhema-stt = { path = "crates/stt" }
 rhema-broadcast = { path = "crates/broadcast" }
 rhema-detection = { path = "crates/detection", features = ["onnx", "vector-search"] }
 rhema-api = { path = "crates/api" }
 crossbeam-channel = "0.5"
 dotenvy = "0.15"
-base64 = "0.22"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 fontdb = "0.24.0"
+axum = "0.8"
+tower-http = { version = "0.6", features = ["fs", "cors"] }
+uuid = { version = "1.24", features = ["v4"] }
 
 [features]
 default = ["whisper"]

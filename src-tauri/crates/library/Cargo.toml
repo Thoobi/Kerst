@@ -1,0 +1,15 @@
+[package]
+name = "rhema-library"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+thiserror.workspace = true
+rusqlite = { version = "0.34", features = ["bundled"] }
+uuid = { version = "1.24", features = ["v4"] }
