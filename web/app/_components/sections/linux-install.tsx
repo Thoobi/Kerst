@@ -18,19 +18,19 @@ type Distro = {
 const DISTROS: ReadonlyArray<Distro> = [
   {
     id: "debian",
-    label: "Ubuntu, Debian, Mint, Pop!_OS",
+    label: "Ubuntu 24.04+, Debian 13+, Mint 22+",
     command: `wget -O /tmp/litdeck.deb ${SITE.downloads.deb} && sudo apt install -y /tmp/litdeck.deb`,
     note: "Installs the .deb with apt, which pulls in everything Litdeck needs. Open it from your app menu.",
   },
   {
     id: "fedora",
-    label: "Fedora",
+    label: "Fedora 39+",
     command: `sudo dnf install -y ${SITE.downloads.rpm}`,
     note: "dnf downloads the .rpm and installs its dependencies. Open Litdeck from your app menu.",
   },
   {
     id: "opensuse",
-    label: "openSUSE",
+    label: "openSUSE Tumbleweed",
     command: `sudo zypper install -y --allow-unsigned-rpm ${SITE.downloads.rpm}`,
     note: "The package isn't signed yet, so zypper needs --allow-unsigned-rpm to accept it.",
   },
@@ -127,6 +127,10 @@ export function LinuxInstall({ className }: { className?: string }) {
       </div>
       <p className="mt-3 text-[13px] leading-5 text-muted-foreground" aria-live="polite">
         {copied ? "Copied. Paste it into a terminal." : distro.note}
+      </p>
+      <p className="mt-1.5 text-[12px] leading-5 text-subtle-foreground">
+        Litdeck needs a 64-bit distro from 2024 or later (glibc 2.38+). Ubuntu 22.04, Debian 12, Mint 21 and
+        openSUSE Leap aren&apos;t supported yet.
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/[0.06] pt-4 text-[13px] text-subtle-foreground">

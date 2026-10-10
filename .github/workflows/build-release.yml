@@ -130,6 +130,49 @@ jobs:
         with:
           args: --target ${{ matrix.target }}
 
+      # Tauri's AppImage bundles Ubuntu's libwayland-*. On current desktops
+      # those clash with the system's own Mesa/EGL, and WebKit aborts at
+      # startup with "Could not create default EGL display:
+      # EGL_BAD_PARAMETER". libwayland is on every Wayland system and is
+      # backward compatible, so take it out and let the system's copy load.
+      - name: Use the system's Wayland libraries in the AppImage
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          # The runner has no FUSE; AppImages can run by extracting instead.
+          APPIMAGE_EXTRACT_AND_RUN: 1
+          ARCH: x86_64
+        run: |
+          set -euo pipefail
+          tool="$RUNNER_TEMP/appimagetool"
+          curl -fsSL -o "$tool" \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.0/appimagetool-x86_64.AppImage
+          chmod +x "$tool"
+
+          shopt -s nullglob
+          images=(src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage)
+          if [[ ${#images[@]} -eq 0 ]]; then
+            echo "::error::No AppImage was built."
+            exit 1
+          fi
+
+          for image in "${images[@]}"; do
+            image=$(realpath "$image")
+            work=$(mktemp -d)
+            (cd "$work" && "$image" --appimage-extract > /dev/null)
+
+            removed=$(find "$work/squashfs-root" -name 'libwayland-*.so*' -print -delete)
+            if [[ -z "$removed" ]]; then
+              echo "No bundled libwayland in $(basename "$image"); leaving it as built."
+              continue
+            fi
+            echo "Removed from $(basename "$image"):"
+            sed "s#^$work/squashfs-root/#  #" <<< "$removed"
+
+            "$tool" --no-appstream "$work/squashfs-root" "$image"
+            rm -rf "$work"
+          done
+
       # ---------------------------------------------------------------
       # Collect the distributable files produced by Tauri.
       # ---------------------------------------------------------------
