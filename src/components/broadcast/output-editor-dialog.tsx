@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { MonitorIcon, RadioIcon, RefreshCwIcon } from "lucide-react"
+import { CastIcon, MonitorIcon, RadioIcon, RefreshCwIcon } from "lucide-react"
 import type { Monitor } from "@tauri-apps/api/window"
 import {
   Dialog,
@@ -24,7 +24,9 @@ import {
   NDI_FRAME_RATE_OPTIONS,
   NDI_RESOLUTION_OPTIONS,
 } from "@/lib/broadcast-output-control"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useBroadcastStore } from "@/stores"
+import { StreamSettings } from "./stream-settings"
 import type {
   BroadcastOutput,
   BroadcastOutputType,
@@ -65,7 +67,19 @@ const TYPE_OPTIONS: Array<{
       "Network video source for OBS, vMix or TriCaster — supports alpha.",
     icon: RadioIcon,
   },
+  {
+    value: "stream",
+    label: "Livestream",
+    description: "Go live on YouTube, Facebook or any RTMP server, with or without a camera.",
+    icon: CastIcon,
+  },
 ]
+
+const SECTION_TITLES: Record<BroadcastOutputType, string> = {
+  display: "Display settings",
+  ndi: "NDI settings",
+  stream: "Livestream settings",
+}
 
 export function OutputEditorDialog({
   open,
@@ -101,6 +115,8 @@ export function OutputEditorDialog({
     setForm((f) => ({ ...f, ...updates }))
   const patchNdi = (updates: Partial<BroadcastOutput["ndi"]>) =>
     setForm((f) => ({ ...f, ndi: { ...f.ndi, ...updates } }))
+  const patchStream = (updates: Partial<BroadcastOutput["stream"]>) =>
+    setForm((f) => ({ ...f, stream: { ...f.stream, ...updates } }))
 
   const handleSubmit = () => {
     const name = form.name.trim()
@@ -125,6 +141,15 @@ export function OutputEditorDialog({
         return
       }
     }
+    if (form.type === "stream") {
+      const custom = form.stream.destinations.find(
+        (d) => d.platform === "custom" && d.enabled && !/^rtmps?:\/\//.test(d.url.trim())
+      )
+      if (custom) {
+        setError("Custom destinations need a server URL starting with rtmp:// or rtmps://.")
+        return
+      }
+    }
     onSubmit({
       ...form,
       name,
@@ -135,7 +160,7 @@ export function OutputEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className={cn(form.type === "stream" ? "sm:max-w-[600px]" : "sm:max-w-[560px]")}>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Broadcast settings" : "Add broadcast"}
@@ -147,253 +172,257 @@ export function OutputEditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="output-name"
-              className="text-xs text-muted-foreground"
-            >
-              Name
-            </label>
-            <Input
-              id="output-name"
-              value={form.name}
-              onChange={(e) => patch({ name: e.target.value })}
-              placeholder="Stage Confidence Monitor"
-            />
-          </div>
+        <ScrollArea className="-mr-3 max-h-[70vh] pr-3">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="output-name"
+                className="text-xs text-muted-foreground"
+              >
+                Name
+              </label>
+              <Input
+                id="output-name"
+                value={form.name}
+                onChange={(e) => patch({ name: e.target.value })}
+                placeholder="Stage Confidence Monitor"
+              />
+            </div>
 
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs text-muted-foreground">
-              Broadcast type
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              {TYPE_OPTIONS.map(({ value, label, description, icon: Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={form.type === value}
-                  onClick={() => patch({ type: value })}
-                  className={cn(
-                    "flex flex-col gap-2 rounded-lg border p-3 text-left transition-colors",
-                    form.type === value
-                      ? "border-lime-500/50 bg-lime-500/10"
-                      : "border-border bg-card hover:border-foreground/20"
-                  )}
-                >
-                  <span
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-muted-foreground">
+                Broadcast type
+              </span>
+              <div className="grid grid-cols-3 gap-2">
+                {TYPE_OPTIONS.map(({ value, label, description, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={form.type === value}
+                    onClick={() => patch({ type: value })}
                     className={cn(
-                      "flex size-7 items-center justify-center rounded-md border",
+                      "flex flex-col gap-2 rounded-lg border p-3 text-left transition-colors",
                       form.type === value
-                        ? "border-lime-500/50 bg-lime-500/15 text-lime-400"
-                        : "border-border bg-background text-muted-foreground"
+                        ? "border-lime-500/50 bg-lime-500/10"
+                        : "border-border bg-card hover:border-foreground/20"
                     )}
                   >
-                    <Icon className="size-3.5" />
-                  </span>
-                  <span className="text-sm font-semibold">{label}</span>
-                  <span className="text-xs leading-snug text-muted-foreground">
-                    {description}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 border-t border-border pt-4">
-            <span className="text-[0.625rem] font-semibold tracking-wider text-muted-foreground uppercase">
-              {form.type === "display" ? "Display settings" : "NDI settings"}
-            </span>
-
-            {form.type === "display" ? (
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <span
-                    id="monitor-label"
-                    className="text-xs text-muted-foreground"
-                  >
-                    Monitor
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    disabled={monitorsRefreshing}
-                    onClick={onRefreshMonitors}
-                    className="h-5 gap-1 px-1.5 text-[0.625rem] text-muted-foreground"
-                  >
-                    <RefreshCwIcon
+                    <span
                       className={cn(
-                        "size-3",
-                        monitorsRefreshing && "animate-spin"
+                        "flex size-7 items-center justify-center rounded-md border",
+                        form.type === value
+                          ? "border-lime-500/50 bg-lime-500/15 text-lime-400"
+                          : "border-border bg-background text-muted-foreground"
                       )}
-                    />
-                    Refresh
-                  </Button>
-                </div>
-                <Select
-                  value={String(form.monitorIndex)}
-                  onValueChange={(value) =>
-                    patch({ monitorIndex: Number(value) })
-                  }
-                  disabled={monitors.length === 0}
-                >
-                  <SelectTrigger
-                    aria-labelledby="monitor-label"
-                    className="w-full"
+                    >
+                      <Icon className="size-3.5" />
+                    </span>
+                    <span className="text-sm font-semibold">{label}</span>
+                    <span className="text-xs leading-snug text-muted-foreground">
+                      {description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-border pt-4">
+              <span className="text-[0.625rem] font-semibold tracking-wider text-muted-foreground uppercase">
+                {SECTION_TITLES[form.type]}
+              </span>
+
+              {form.type === "stream" ? (
+                <StreamSettings value={form.stream} onChange={patchStream} />
+              ) : form.type === "display" ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <span
+                      id="monitor-label"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Monitor
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      disabled={monitorsRefreshing}
+                      onClick={onRefreshMonitors}
+                      className="h-5 gap-1 px-1.5 text-[0.625rem] text-muted-foreground"
+                    >
+                      <RefreshCwIcon
+                        className={cn(
+                          "size-3",
+                          monitorsRefreshing && "animate-spin"
+                        )}
+                      />
+                      Refresh
+                    </Button>
+                  </div>
+                  <Select
+                    value={String(form.monitorIndex)}
+                    onValueChange={(value) =>
+                      patch({ monitorIndex: Number(value) })
+                    }
                     disabled={monitors.length === 0}
                   >
-                    <SelectValue
-                      placeholder={
-                        monitors.length === 0
-                          ? "No monitors detected"
-                          : "Select monitor"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {monitors.map((m, i) => (
-                      <SelectItem key={m.name ?? i} value={String(i)}>
-                        {m.name} ({m.size.width}&times;{m.size.height})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="ndi-source"
-                    className="text-xs text-muted-foreground"
-                  >
-                    Source name
-                  </label>
-                  <Input
-                    id="ndi-source"
-                    value={form.ndi.sourceName}
-                    onChange={(e) => patchNdi({ sourceName: e.target.value })}
-                    placeholder="Litdeck Output"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <span
-                      id="ndi-resolution-label"
-                      className="text-xs text-muted-foreground"
-                    >
-                      Resolution
-                    </span>
-                    <Select
-                      value={form.ndi.resolution}
-                      onValueChange={(v) =>
-                        patchNdi({ resolution: v as NdiResolution })
-                      }
-                    >
-                      <SelectTrigger
-                        aria-labelledby="ndi-resolution-label"
-                        className="w-full"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {NDI_RESOLUTION_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <span
-                      id="ndi-framerate-label"
-                      className="text-xs text-muted-foreground"
-                    >
-                      Frame rate
-                    </span>
-                    <Select
-                      value={form.ndi.frameRate}
-                      onValueChange={(v) =>
-                        patchNdi({ frameRate: v as NdiFrameRate })
-                      }
-                    >
-                      <SelectTrigger
-                        aria-labelledby="ndi-framerate-label"
-                        className="w-full"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {NDI_FRAME_RATE_OPTIONS.map((o) => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span
-                    id="ndi-alpha-label"
-                    className="text-xs text-muted-foreground"
-                  >
-                    Alpha channel
-                  </span>
-                  <Select
-                    value={form.ndi.alphaMode}
-                    onValueChange={(v) =>
-                      patchNdi({ alphaMode: v as NdiAlphaMode })
-                    }
-                  >
                     <SelectTrigger
-                      aria-labelledby="ndi-alpha-label"
+                      aria-labelledby="monitor-label"
                       className="w-full"
+                      disabled={monitors.length === 0}
                     >
-                      <SelectValue />
+                      <SelectValue
+                        placeholder={
+                          monitors.length === 0
+                            ? "No monitors detected"
+                            : "Select monitor"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {NDI_ALPHA_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
+                      {monitors.map((m, i) => (
+                        <SelectItem key={m.name ?? i} value={String(i)}>
+                          {m.name} ({m.size.width}&times;{m.size.height})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </>
-            )}
+              ) : (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="ndi-source"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Source name
+                    </label>
+                    <Input
+                      id="ndi-source"
+                      value={form.ndi.sourceName}
+                      onChange={(e) => patchNdi({ sourceName: e.target.value })}
+                      placeholder="Litdeck Output"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <span
+                        id="ndi-resolution-label"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Resolution
+                      </span>
+                      <Select
+                        value={form.ndi.resolution}
+                        onValueChange={(v) =>
+                          patchNdi({ resolution: v as NdiResolution })
+                        }
+                      >
+                        <SelectTrigger
+                          aria-labelledby="ndi-resolution-label"
+                          className="w-full"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {NDI_RESOLUTION_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>
+                              {o.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span
+                        id="ndi-framerate-label"
+                        className="text-xs text-muted-foreground"
+                      >
+                        Frame rate
+                      </span>
+                      <Select
+                        value={form.ndi.frameRate}
+                        onValueChange={(v) =>
+                          patchNdi({ frameRate: v as NdiFrameRate })
+                        }
+                      >
+                        <SelectTrigger
+                          aria-labelledby="ndi-framerate-label"
+                          className="w-full"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {NDI_FRAME_RATE_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>
+                              {o.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <span
+                      id="ndi-alpha-label"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Alpha channel
+                    </span>
+                    <Select
+                      value={form.ndi.alphaMode}
+                      onValueChange={(v) =>
+                        patchNdi({ alphaMode: v as NdiAlphaMode })
+                      }
+                    >
+                      <SelectTrigger
+                        aria-labelledby="ndi-alpha-label"
+                        className="w-full"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {NDI_ALPHA_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
 
-            <div className="flex flex-col gap-1.5">
-              <span
-                id="output-theme-label"
-                className="text-xs text-muted-foreground"
-              >
-                Theme
-              </span>
-              <Select
-                value={form.themeId}
-                onValueChange={(themeId) => patch({ themeId })}
-              >
-                <SelectTrigger
-                  aria-labelledby="output-theme-label"
-                  className="w-full"
+              <div className="flex flex-col gap-1.5">
+                <span
+                  id="output-theme-label"
+                  className="text-xs text-muted-foreground"
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {themes.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  Theme
+                </span>
+                <Select
+                  value={form.themeId}
+                  onValueChange={(themeId) => patch({ themeId })}
+                >
+                  <SelectTrigger
+                    aria-labelledby="output-theme-label"
+                    className="w-full"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {themes.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
+        </ScrollArea>
 
         <DialogFooter showCloseButton={false}>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

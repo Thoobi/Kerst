@@ -1,7 +1,7 @@
 /**
  * Downloads the Whisper large-v3-turbo Q8_0 GGML model for local speech-to-text.
  *
- * Model: ggml-large-v3-turbo-q8_0.bin (~394MB)
+ * Model: ggml-large-v3-turbo-q8_0.bin (~870MB)
  * Source: https://huggingface.co/ggerganov/whisper.cpp
  *
  * Run: bun run download:whisper

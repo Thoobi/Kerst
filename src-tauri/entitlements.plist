@@ -15,6 +15,12 @@
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
 
+	<!-- Camera, for a livestream's camera feed. The bundled ffmpeg opens it,
+	     but TCC attributes a sidecar's access to the app, so the app needs
+	     the entitlement. -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
+
 	<!-- NDI. libndi.dylib is signed by NDI's team (W8U66ET244); library
 	     validation refuses to map a dylib whose Team ID differs from the
 	     process's, and dlopen fails with "different Team IDs". Ad-hoc

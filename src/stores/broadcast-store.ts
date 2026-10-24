@@ -6,10 +6,11 @@ import type {
   BroadcastOutputStatus,
   BroadcastTheme,
   LyricsStyle,
+  StreamStatus,
   Verse,
   VerseRenderData,
 } from "@/types"
-import { MAIN_OUTPUT_ID, defaultNdiSettings, outputWindowLabel } from "@/types"
+import { MAIN_OUTPUT_ID, defaultNdiSettings, defaultStreamSettings, normalizeOutput, outputWindowLabel } from "@/types"
 import { BUILTIN_THEMES, LOWER_THIRDS, CLASSIC_DARK } from "@/lib/builtin-themes"
 import { normalizeTheme } from "@/lib/theme-migrations"
 
@@ -25,6 +26,8 @@ interface BroadcastState {
   outputs: BroadcastOutput[]
   /** Runtime on-air state per output id. Not persisted. */
   outputStatus: Record<string, BroadcastOutputStatus>
+  /** Live stream health per output id, pushed by the backend each second. Not persisted. */
+  streamStatus: Record<string, StreamStatus>
   isLive: boolean
   liveVerse: VerseRenderData | null
   // The Verse the live output was presented from, kept so it can be
@@ -71,6 +74,7 @@ interface BroadcastState {
   renameOutput: (id: string, name: string) => void
   setOutputTheme: (id: string, themeId: string) => void
   setOutputStatus: (id: string, status: BroadcastOutputStatus) => void
+  setStreamStatuses: (statuses: StreamStatus[]) => void
 
   // Designer actions
   setDesignerOpen: (open: boolean) => void
@@ -134,6 +138,7 @@ function defaultMainOutput(ndiSourceName = "Litdeck Output"): BroadcastOutput {
     themeId: BUILTIN_THEMES[0].id,
     monitorIndex: 0,
     ndi: defaultNdiSettings(ndiSourceName),
+    stream: defaultStreamSettings(),
   }
 }
 
@@ -160,6 +165,7 @@ export function migrateLegacyOutputs(
       themeId: altActiveThemeId,
       monitorIndex: 0,
       ndi: defaultNdiSettings("Rhema Alt"), // only ever a pre-multi-output install
+      stream: defaultStreamSettings(),
     })
   }
   return outputs
@@ -170,6 +176,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   activeThemeId: BUILTIN_THEMES[0].id,
   outputs: [defaultMainOutput()],
   outputStatus: {},
+  streamStatus: {},
   isLive: false,
   liveVerse: null,
   liveSourceVerse: null,
@@ -338,6 +345,11 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
       id: crypto.randomUUID(),
       name,
       ndi: { ...source.ndi, sourceName },
+      // Two streams can't share a key; the copy starts without them.
+      stream: {
+        ...source.stream,
+        destinations: source.stream.destinations.map((d) => ({ ...d, id: crypto.randomUUID(), key: "" })),
+      },
     })
   },
   renameOutput: (id, name) =>
@@ -351,10 +363,17 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     }))
     get().syncBroadcastOutputFor(id)
   },
+  setStreamStatuses: (statuses) =>
+    set({ streamStatus: Object.fromEntries(statuses.map((s) => [s.outputId, s])) }),
   setOutputStatus: (id, status) =>
     set((s) => {
       const prev = s.outputStatus[id]
-      if (prev && prev.previewOpen === status.previewOpen && prev.ndiActive === status.ndiActive) {
+      if (
+        prev &&
+        prev.previewOpen === status.previewOpen &&
+        prev.ndiActive === status.ndiActive &&
+        prev.streamActive === status.streamActive
+      ) {
         return s
       }
       return { outputStatus: { ...s.outputStatus, [id]: status } }
@@ -475,7 +494,7 @@ export function hydrateBroadcastThemes(): Promise<void> {
       }
       patch.outputs =
         outputs && Array.isArray(outputs) && outputs.length > 0
-          ? outputs
+          ? outputs.map(normalizeOutput)
           : migrateLegacyOutputs(activeId, altActiveId)
       const main = patch.outputs.find((o) => o.id === MAIN_OUTPUT_ID)
       if (main) patch.activeThemeId = main.themeId

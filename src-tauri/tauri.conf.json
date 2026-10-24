@@ -1,7 +1,7 @@
 {
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Litdeck",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "identifier": "space.litdeck.app",
   "build": {
     "frontendDist": "../build",
@@ -28,6 +28,13 @@
         "scope": ["$APPDATA/decks/**", "$APPDATA/videos/**"]
       },
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: http://asset.localhost; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; media-src 'self' blob: http://127.0.0.1:*; worker-src 'self'; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEYzNTRCNTY0N0QzMThCODMKUldTRGl6RjlaTFZVODZVQXhMMVFjRTZQVDNqREVHN0Q4K0htNmhLRWIwa2kxRGlmNVNldmRYbGQK",
+      "endpoints": ["https://github.com/Thoobi/Kerst/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
     }
   },
   "bundle": {

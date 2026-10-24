@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { defaultStreamSettings } from "@/types"
 
 const emitToMock = vi.fn()
 
@@ -60,6 +61,7 @@ describe("broadcast store sync", () => {
       themeId: themeB.id,
       monitorIndex: 0,
       ndi: ndiDefaults,
+      stream: defaultStreamSettings(),
     })
     state.addOutput({
       id: "out-c",
@@ -68,6 +70,7 @@ describe("broadcast store sync", () => {
       themeId: themeA.id,
       monitorIndex: 1,
       ndi: ndiDefaults,
+      stream: defaultStreamSettings(),
     })
     useBroadcastStore.setState({ isLive: true, liveVerse: sampleLiveVerse })
 
@@ -102,6 +105,7 @@ describe("broadcast store sync", () => {
       themeId: state.themes[0].id,
       monitorIndex: 0,
       ndi: ndiDefaults,
+      stream: defaultStreamSettings(),
     })
 
     useBroadcastStore.getState().removeOutput("out-b")
@@ -144,6 +148,7 @@ describe("broadcast store sync", () => {
       themeId: themeB.id,
       monitorIndex: 0,
       ndi: ndiDefaults,
+      stream: defaultStreamSettings(),
     })
 
     useBroadcastStore.getState().startEditing(themeB.id)
@@ -169,6 +174,7 @@ describe("broadcast store sync", () => {
       themeId: builtin.id,
       monitorIndex: 0,
       ndi: ndiDefaults,
+      stream: defaultStreamSettings(),
     })
 
     useBroadcastStore.getState().startEditing(builtin.id)
@@ -195,8 +201,9 @@ describe("broadcast store sync", () => {
       themeId: state.themes[0].id,
       monitorIndex: 0,
       ndi: ndiDefaults,
+      stream: defaultStreamSettings(),
     })
-    state.setOutputStatus("out-b", { previewOpen: false, ndiActive: true })
+    state.setOutputStatus("out-b", { previewOpen: false, ndiActive: true, streamActive: false })
     expect(useBroadcastStore.getState().outputStatus["out-b"]).toBeDefined()
 
     useBroadcastStore.getState().removeOutput("out-b")

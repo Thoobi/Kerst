@@ -57,7 +57,7 @@ vi.mock("@chenglou/pretext/rich-inline", () => {
   }
 })
 
-import { computeVerseLayoutMetrics, fitVerseText, measureVerseHeight, renderVerse, themeForContent } from "./verse-renderer"
+import { computeVerseLayoutMetrics, fitVerseText, logoRect, measureVerseHeight, renderVerse, themeForContent } from "./verse-renderer"
 import { BUILTIN_THEMES } from "./builtin-themes"
 
 function stubCtx(): CanvasRenderingContext2D {
@@ -756,5 +756,54 @@ describe("song and text style", () => {
     const middle = metrics.verseRect!.y + metrics.verseRect!.height / 2
     const screenMiddle = stacked.resolution.height / 2
     expect(Math.abs(middle - screenMiddle)).toBeLessThan(stacked.resolution.height * 0.05)
+  })
+})
+
+describe("logoRect", () => {
+  const logoImage = { naturalWidth: 400, naturalHeight: 200 } as HTMLImageElement
+  const cache = new Map([["logo.gif", logoImage]])
+  const withLogo = (logo: Partial<NonNullable<BroadcastTheme["logo"]>> = {}): BroadcastTheme => ({
+    ...BUILTIN_THEMES[0],
+    resolution: { width: 1920, height: 1080 },
+    logo: {
+      url: "logo.gif",
+      corner: "top-right",
+      size: 10,
+      opacity: 100,
+      margin: 5,
+      overMedia: false,
+      ...logo,
+    },
+  })
+
+  it("sizes by frame height and keeps the picture's aspect", () => {
+    const rect = logoRect(withLogo(), null, 1, cache)!
+    expect(rect.height).toBeCloseTo(108)
+    expect(rect.width).toBeCloseTo(216)
+  })
+
+  it("insets each corner by the margin", () => {
+    const margin = 54
+    expect(logoRect(withLogo({ corner: "top-left" }), null, 1, cache)).toMatchObject({ x: margin, y: margin })
+    const bottomRight = logoRect(withLogo({ corner: "bottom-right" }), null, 1, cache)!
+    expect(bottomRight.x + bottomRight.width).toBeCloseTo(1920 - margin)
+    expect(bottomRight.y + bottomRight.height).toBeCloseTo(1080 - margin)
+  })
+
+  it("scales with the render scale", () => {
+    const rect = logoRect(withLogo({ corner: "top-left" }), null, 0.5, cache)!
+    expect(rect).toMatchObject({ x: 27, y: 27 })
+    expect(rect.height).toBeCloseTo(54)
+  })
+
+  it("stays off full-frame slides and videos unless asked", () => {
+    const slide: VerseRenderData = { reference: "Slide 1", segments: [], image: { url: "slide.png" } }
+    expect(logoRect(withLogo(), slide, 1, cache)).toBeNull()
+    expect(logoRect(withLogo({ overMedia: true }), slide, 1, cache)).not.toBeNull()
+  })
+
+  it("is absent with no logo or before its picture loads", () => {
+    expect(logoRect({ ...withLogo(), logo: null }, null, 1, cache)).toBeNull()
+    expect(logoRect(withLogo(), null, 1, new Map())).toBeNull()
   })
 })

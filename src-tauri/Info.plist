@@ -7,5 +7,8 @@
 	     in the permission prompt and in System Settings > Privacy & Security. -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Litdeck listens to the message so it can follow along and put the scripture being read on screen.</string>
+	<!-- A livestream can show a camera under the lyrics and scripture. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Litdeck can put a camera under the lyrics and scripture when you livestream.</string>
 </dict>
 </plist>

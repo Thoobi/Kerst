@@ -1,6 +1,7 @@
 import { useEffect } from "react"
 import { listen } from "@tauri-apps/api/event"
 import { useBroadcastStore } from "@/stores"
+import type { StreamStatus } from "@/types"
 
 interface OutputReadyPayload {
   outputId?: string
@@ -24,8 +25,8 @@ export function useBroadcastOutputs(): void {
 
       for (const output of outputs) {
         store.syncBroadcastOutputFor(output.id)
-        // Deliberately no ndi-config emit here: the output window queries
-        // get_ndi_status itself on mount, which is authoritative. Echoing this
+        // Deliberately no capture-config emit here: the output window queries
+        // get_capture_status itself on mount, which is authoritative. Echoing this
         // side's outputStatus would land later and could stop the frame pump of
         // a sender that is actually live.
         // The window reports ready before its first paint settles.
@@ -37,9 +38,15 @@ export function useBroadcastOutputs(): void {
       }
     })
 
+    // Stream health arrives once a second while any stream is live.
+    const unlistenStatus = listen<StreamStatus[]>("stream:status", (event) => {
+      useBroadcastStore.getState().setStreamStatuses(event.payload)
+    })
+
     return () => {
       for (const id of timeouts) clearTimeout(id)
       void unlistenPromise.then((unlisten) => unlisten())
+      void unlistenStatus.then((unlisten) => unlisten())
     }
   }, [])
 }

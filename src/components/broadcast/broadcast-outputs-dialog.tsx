@@ -18,7 +18,7 @@ import {
 } from "@/lib/broadcast-output-control"
 import { useBroadcastStore } from "@/stores"
 import type { BroadcastOutput } from "@/types"
-import { MAIN_OUTPUT_ID, defaultNdiSettings } from "@/types"
+import { MAIN_OUTPUT_ID, defaultNdiSettings, defaultStreamSettings, isOnAir } from "@/types"
 import { OutputCard } from "./output-card"
 import { OutputEditorDialog } from "./output-editor-dialog"
 
@@ -114,6 +114,7 @@ export function BroadcastOutputsDialog({
       themeId: outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? themes[0]?.id ?? "",
       monitorIndex: firstFreeMonitorIndex(outputs, monitors.length),
       ndi: defaultNdiSettings(name),
+      stream: defaultStreamSettings(),
     }
   }, [draftId, outputs, themes, monitors.length])
 
@@ -149,10 +150,10 @@ export function BroadcastOutputsDialog({
       return
     }
 
-    const status = store.outputStatus[next.id]
-    const wasOnAir = (status?.previewOpen ?? false) || (status?.ndiActive ?? false)
+    const wasOnAir = isOnAir(existing, store.outputStatus[next.id])
     const transportChanged =
       existing.type !== next.type ||
+      JSON.stringify(existing.stream) !== JSON.stringify(next.stream) ||
       existing.monitorIndex !== next.monitorIndex ||
       existing.ndi.sourceName !== next.ndi.sourceName ||
       existing.ndi.resolution !== next.ndi.resolution ||
@@ -167,6 +168,7 @@ export function BroadcastOutputsDialog({
         themeId: next.themeId,
         monitorIndex: next.monitorIndex,
         ndi: next.ndi,
+        stream: next.stream,
       })
       if (wasOnAir && transportChanged) {
         const updated = useBroadcastStore.getState().outputs.find((o) => o.id === next.id)
@@ -182,10 +184,7 @@ export function BroadcastOutputsDialog({
     return `${monitor.name ?? `Display ${output.monitorIndex + 1}`} · ${monitor.size.width}×${monitor.size.height}`
   }
 
-  const onAirCount = outputs.filter((o) => {
-    const status = outputStatus[o.id]
-    return o.type === "display" ? status?.previewOpen : status?.ndiActive
-  }).length
+  const onAirCount = outputs.filter((o) => isOnAir(o, outputStatus[o.id])).length
 
   return (
     <>
@@ -194,8 +193,8 @@ export function BroadcastOutputsDialog({
           <DialogHeader>
             <DialogTitle>Broadcast</DialogTitle>
             <DialogDescription>
-              Manage your outputs — external displays and NDI feeds all show the current live
-              verse, each with its own theme.
+              Manage your outputs — external displays, NDI feeds and livestreams all show the
+              current live verse, each with its own theme.
             </DialogDescription>
           </DialogHeader>
 

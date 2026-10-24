@@ -41,12 +41,32 @@ export type {
   BroadcastOutput,
   BroadcastOutputNdiSettings,
   BroadcastOutputStatus,
+  BroadcastOutputStreamSettings,
   BroadcastOutputType,
+  StreamDestinationSettings,
+  StreamPlatform,
 } from "./broadcast-output"
-export { MAIN_OUTPUT_ID, defaultNdiSettings, outputWindowLabel } from "./broadcast-output"
+export {
+  MAIN_OUTPUT_ID,
+  STREAM_PLATFORM_URLS,
+  defaultNdiSettings,
+  defaultStreamSettings,
+  isOnAir,
+  newStreamDestination,
+  normalizeOutput,
+  outputWindowLabel,
+} from "./broadcast-output"
+export type {
+  CameraInfo,
+  DestinationState,
+  DestinationStatus,
+  FfmpegInfo,
+  StreamStartRequest,
+  StreamStatus,
+} from "./stream"
 export type {
   NdiAlphaMode,
-  NdiConfigEventPayload,
+  CaptureConfigEventPayload,
   NdiFrameRate,
   NdiResolution,
   NdiSessionInfo,

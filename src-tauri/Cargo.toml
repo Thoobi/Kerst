@@ -9,6 +9,7 @@ members = [
     "crates/api",
     "crates/notes",
     "crates/library",
+    "crates/stream",
 ]
 resolver = "2"
 
@@ -30,7 +31,7 @@ missing_panics_doc = "allow"
 
 [package]
 name = "litdeck"
-version = "0.3.3"
+version = "0.4.0"
 description = "Litdeck - Real-Time AI Bible Verse Detection"
 authors = ["Faithful"]
 license = "MIT"
@@ -62,6 +63,7 @@ litdeck-bible = { path = "crates/bible" }
 litdeck-library = { path = "crates/library" }
 litdeck-stt = { path = "crates/stt" }
 litdeck-broadcast = { path = "crates/broadcast" }
+litdeck-stream = { path = "crates/stream" }
 litdeck-detection = { path = "crates/detection", features = ["onnx", "vector-search"] }
 litdeck-api = { path = "crates/api" }
 crossbeam-channel = "0.5"
@@ -83,3 +85,15 @@ workspace = true
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-process = "~2.3"
+tauri-plugin-updater = "~2.12"
+
+# Output windows turn off WebKit's hidden-page timer throttling; see
+# `commands::broadcast::keep_running_when_hidden`.
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0.2"
+libc = "0.2"
+
+# whisper.cpp built at -O0 transcribes ~20x slower than real time; keep it optimized in dev.
+[profile.dev.package.whisper-rs-sys]
+opt-level = 3

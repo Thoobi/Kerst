@@ -58,6 +58,7 @@ speech-to-text stay inactive until you build from source and run
 - **10 bundled translations** — KJV, NIV, ESV, NASB, NKJV, NLT, AMP, plus SpaRV (Spanish), FreJND (French), and PorBLivre (Portuguese)
 - **Cross-reference lookup** (340k+ refs from openbible.info; the bundled file ships with 344,800 entries)
 - **NDI broadcast output** for live production integration — configurable resolution, 24/30/60 fps, and three alpha modes (none, straight, premultiplied)
+- **Livestreaming** to YouTube, Facebook and any RTMP(S) server at once — slides and lyrics alone, or overlaid on a camera, with sound from your desk; each destination reconnects on its own if it drops
 - **Theme designer** — visual canvas editor for verse overlays with backgrounds (solid, gradient, image, transparent), text styling, positioning, shadows, and outlines
 - **Verse queue** with drag-and-drop ordering (`@dnd-kit/react`) and duplicate prevention (flash-highlight on duplicates)
 - **Quick navigation** — keyboard-driven verse entry with autocomplete (e.g., type "J" → Joshua, Tab through book → chapter → verse)
@@ -90,6 +91,7 @@ speech-to-text stay inactive until you build from source and run
 | `litdeck-bible` | SQLite Bible DB, FTS5 search, cross-references |
 | `litdeck-detection` | Verse detection pipeline: direct, semantic, quotation, ensemble merger, sentence buffer, sermon context, reading mode |
 | `litdeck-broadcast` | NDI video frame output via FFI |
+| `litdeck-stream` | Livestreaming: ffmpeg encoder + camera compositing, per-destination RTMP(S) relays |
 | `litdeck-api` | Tauri command API layer |
 | `litdeck-notes` | (placeholder) |
 
@@ -197,6 +199,7 @@ Litdeck supports two speech-to-text engines:
 Whisper runs locally on your machine with no API costs or per-minute billing.
 - Requires CMake + libclang — see [Platform-specific setup](#platform-specific-setup) above
 - The model (`ggml-large-v3-turbo-q8_0.bin`) is fetched as phase 7 of `setup:all`. Run `bun run download:whisper` to grab it on its own.
+- Release builds bundle the model (via `src-tauri/tauri.release.conf.json`), so installed copies transcribe offline with no setup.
 
 **Option 2: Deepgram (Cloud, Paid)**
 Create a `.env` file in the project root:
@@ -214,6 +217,24 @@ For broadcast output via NDI:
 ```bash
 bun run download:ndi-sdk
 ```
+
+### ffmpeg (for livestreaming)
+
+Livestreaming runs ffmpeg. Development builds use the one on your `PATH` (or `LITDECK_FFMPEG=/path/to/ffmpeg`); release builds bundle an LGPL build as a sidecar. `src-tauri/tauri.release.conf.json` adds it and the Whisper model to the bundle, so a local release build needs both first:
+
+```bash
+scripts/fetch-ffmpeg.sh x86_64-unknown-linux-gnu   # or your target triple
+bun run download:whisper
+bun run tauri build --config src-tauri/tauri.release.conf.json
+```
+
+To try streaming without a platform account, run a local RTMP listener and add a *Custom RTMP* destination of `rtmp://127.0.0.1:19350/live` with key `test`:
+
+```bash
+ffmpeg -listen 1 -i rtmp://127.0.0.1:19350/live/test -c copy out.flv
+```
+
+Development builds list a *Test pattern* camera for trying the camera overlay.
 
 ### Running individual setup steps
 
@@ -266,6 +287,7 @@ Kerst/
 │   │   │   ├── direct/           # Aho-Corasick + fuzzy reference parsing
 │   │   │   └── semantic/         # ONNX embeddings, HNSW index, cloud booster, ensemble
 │   │   ├── broadcast/            # NDI output (FFI)
+│   │   ├── stream/               # Livestreaming via ffmpeg (RTMP/RTMPS)
 │   │   ├── api/                  # Tauri command layer
 │   │   └── notes/                # (placeholder)
 │   └── tauri.conf.json
@@ -283,6 +305,7 @@ Kerst/
 ├── models/                       # ML models (gitignored)
 ├── embeddings/                   # Precomputed vectors (gitignored)
 ├── sdk/ndi/                      # NDI SDK files (downloaded)
+├── sdk/ffmpeg/                   # ffmpeg sidecar for release builds (fetched)
 └── build/                        # Vite build output
 ```
 
@@ -323,3 +346,4 @@ Create a `.env` file in the project root (optional):
 | Variable | Required | Description |
 |---|---|---|
 | `DEEPGRAM_API_KEY` | Optional | API key for Deepgram speech-to-text (not needed if using Whisper) |
+| `LITDECK_FFMPEG` | Optional | Path to the ffmpeg used for livestreaming, overriding the bundled or system one |

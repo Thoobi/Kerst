@@ -5,8 +5,10 @@ use std::sync::Mutex;
 use serde::Serialize;
 use tauri::ipc::{InvokeBody, Request};
 use tauri::State;
-use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::utils::config::BackgroundThrottlingPolicy;
+use tauri::{Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use litdeck_broadcast::ndi::{NdiRuntime, NdiSessionInfo, NdiStartRequest};
+use litdeck_stream::StreamRuntime;
 
 /// Map `output_id` to its Tauri window label (`broadcast-{id}`).
 ///
@@ -71,7 +73,7 @@ pub async fn ensure_broadcast_window(
     if app.get_webview_window(&label).is_some() {
         return Ok(());
     }
-    WebviewWindowBuilder::new(
+    let window = WebviewWindowBuilder::new(
         &app,
         &label,
         WebviewUrl::App(window_url(&output_id).into()),
@@ -81,9 +83,86 @@ pub async fn ensure_broadcast_window(
     .visible(false)
     .skip_taskbar(true)
     .focused(false)
+    .background_throttling(BackgroundThrottlingPolicy::Disabled)
     .build()
     .map_err(|e| e.to_string())?;
+    keep_running_when_hidden(&window);
     Ok(())
+}
+
+/// A hidden output window still feeds NDI and the stream, and a playing
+/// video or GIF logo needs it to draw every frame. Browsers slow the timers
+/// of hidden pages to a few a second; turn that off. macOS does it through
+/// `background_throttling`; on Linux, a feature flag of the web view.
+fn keep_running_when_hidden(window: &WebviewWindow) {
+    #[cfg(target_os = "linux")]
+    if let Err(e) = window.with_webview(|webview| webkit_features::disable_hidden_page_throttling(&webview.inner())) {
+        log::warn!("keep_running_when_hidden: {e}");
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = window;
+}
+
+/// The Linux web view's feature flags (webkit2gtk 2.42+), looked up at run time:
+/// the bindings predate them, and linking them directly would stop the app
+/// starting on an older one.
+#[cfg(target_os = "linux")]
+mod webkit_features {
+    use std::ffi::{c_char, c_void, CStr};
+
+    use webkit2gtk::glib::translate::ToGlibPtr;
+    use webkit2gtk::WebViewExt;
+
+    const FLAGS: [&str; 3] = ["HiddenPageDOMTimerThrottling", "DOMTimersThrottling", "PageVisibilityBasedProcessSuppression"];
+
+    type GetAllFeatures = unsafe extern "C" fn() -> *mut c_void;
+    type ListLength = unsafe extern "C" fn(*mut c_void) -> usize;
+    type ListGet = unsafe extern "C" fn(*mut c_void, usize) -> *mut c_void;
+    type ListUnref = unsafe extern "C" fn(*mut c_void);
+    type Identifier = unsafe extern "C" fn(*mut c_void) -> *const c_char;
+    type SetEnabled = unsafe extern "C" fn(*mut c_void, *mut c_void, i32);
+
+    fn symbol<T>(name: &CStr) -> Option<T> {
+        // SAFETY: dlsym only looks the name up; RTLD_DEFAULT searches the
+        // libraries already loaded, which include libwebkit2gtk.
+        let ptr = unsafe { libc::dlsym(libc::RTLD_DEFAULT, name.as_ptr()) };
+        // SAFETY: T is the function pointer type of the symbol's C signature.
+        (!ptr.is_null()).then(|| unsafe { std::mem::transmute_copy::<*mut c_void, T>(&ptr) })
+    }
+
+    pub fn disable_hidden_page_throttling(webview: &webkit2gtk::WebView) {
+        let (Some(get_all), Some(length), Some(get), Some(unref), Some(identifier), Some(set_enabled)) = (
+            symbol::<GetAllFeatures>(c"webkit_settings_get_all_features"),
+            symbol::<ListLength>(c"webkit_feature_list_get_length"),
+            symbol::<ListGet>(c"webkit_feature_list_get"),
+            symbol::<ListUnref>(c"webkit_feature_list_unref"),
+            symbol::<Identifier>(c"webkit_feature_get_identifier"),
+            symbol::<SetEnabled>(c"webkit_settings_set_feature_enabled"),
+        ) else {
+            log::warn!("WebKitGTK is older than 2.42: hidden output windows may drop frames");
+            return;
+        };
+        let Some(settings) = webview.settings() else { return };
+        let settings_ptr: *mut webkit2gtk::ffi::WebKitSettings = settings.to_glib_none().0;
+
+        let mut disabled = 0;
+        // SAFETY: the list is owned here and unref'd once; features borrowed
+        // from it are used before that, and settings outlives the calls.
+        unsafe {
+            let list = get_all();
+            for i in 0..length(list) {
+                let feature = get(list, i);
+                let id = CStr::from_ptr(identifier(feature)).to_string_lossy();
+                if FLAGS.contains(&id.as_ref()) {
+                    set_enabled(settings_ptr.cast(), feature, 0);
+                    disabled += 1;
+                }
+            }
+            unref(list);
+        }
+        webview.set_settings(&settings);
+        log::info!("Hidden page timer throttling off ({disabled}/{} flags)", FLAGS.len());
+    }
 }
 
 /// Async on purpose — see [`ensure_broadcast_window`]: sync window creation
@@ -132,7 +211,7 @@ pub async fn open_broadcast_window(
         window
     } else {
         log::info!("open_broadcast_window: creating window '{label}'");
-        WebviewWindowBuilder::new(
+        let window = WebviewWindowBuilder::new(
             &app,
             &label,
             WebviewUrl::App(window_url(&output_id).into()),
@@ -146,11 +225,14 @@ pub async fn open_broadcast_window(
         .decorations(false)
         .fullscreen(true)
         .minimizable(false)
+        .background_throttling(BackgroundThrottlingPolicy::Disabled)
         .build()
         .map_err(|e| {
             log::error!("open_broadcast_window: window build failed: {e}");
             e.to_string()
-        })?
+        })?;
+        keep_running_when_hidden(&window);
+        window
     };
 
     window
@@ -191,6 +273,7 @@ pub async fn close_broadcast_window(
     app: tauri::AppHandle,
     output_id: String,
     runtime: State<'_, Mutex<NdiRuntime>>,
+    streams: State<'_, Mutex<StreamRuntime>>,
 ) -> Result<(), String> {
     let label = window_label(&output_id)?;
     if let Some(window) = app.get_webview_window(&label) {
@@ -198,8 +281,9 @@ pub async fn close_broadcast_window(
             .lock()
             .map_err(|e| e.to_string())?
             .is_active(&output_id);
-        if ndi_active {
-            log::info!("close_broadcast_window: NDI active for '{output_id}', hiding window instead of closing");
+        let stream_active = streams.lock().map_err(|e| e.to_string())?.is_active(&output_id);
+        if ndi_active || stream_active {
+            log::info!("close_broadcast_window: '{output_id}' is feeding NDI or a stream, hiding window instead of closing");
             window.hide().map_err(|e| {
                 log::error!("close_broadcast_window: hide failed: {e}");
                 e.to_string()
@@ -262,28 +346,60 @@ pub fn get_ndi_status(
     }
 }
 
-/// Send one frame to an output's NDI sender. The body is the raw RGBA pixels
-/// (sent as an `ArrayBuffer`, not JSON: a playing video pushes a full frame
-/// many times a second), described by the `x-output-id`, `x-frame-width`
-/// and `x-frame-height` headers.
+/// What the output window should capture frames at: its NDI sender's
+/// settings, else its stream's, else nothing (`None`).
 #[tauri::command]
-pub fn push_ndi_frame(runtime: State<'_, Mutex<NdiRuntime>>, request: Request<'_>) -> Result<(), String> {
+pub fn get_capture_status(
+    output_id: String,
+    runtime: State<'_, Mutex<NdiRuntime>>,
+    streams: State<'_, Mutex<StreamRuntime>>,
+) -> Result<Option<NdiStatusResponse>, String> {
+    if let Some(ndi) = get_ndi_status(output_id.clone(), runtime)? {
+        return Ok(Some(ndi));
+    }
+    let streams = streams.lock().map_err(|e| e.to_string())?;
+    Ok(streams.status(&output_id).map(|s| NdiStatusResponse {
+        active: true,
+        width: s.width,
+        height: s.height,
+        fps: s.fps,
+    }))
+}
+
+/// Send one frame from an output window to its NDI sender and/or stream.
+/// The body is the raw RGBA pixels (sent as an `ArrayBuffer`, not JSON: a
+/// playing video pushes a full frame many times a second), described by the
+/// `x-output-id`, `x-frame-width` and `x-frame-height` headers.
+#[tauri::command]
+pub fn push_output_frame(
+    runtime: State<'_, Mutex<NdiRuntime>>,
+    streams: State<'_, Mutex<StreamRuntime>>,
+    request: Request<'_>,
+) -> Result<(), String> {
     let InvokeBody::Raw(rgba_data) = request.body() else {
-        return Err("push_ndi_frame expects the pixels as raw bytes".into());
+        return Err("push_output_frame expects the pixels as raw bytes".into());
     };
     let header = |name: &str| {
         request
             .headers()
             .get(name)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| format!("push_ndi_frame needs an {name} header"))
+            .ok_or_else(|| format!("push_output_frame needs an {name} header"))
     };
     let dimension = |name: &str| -> Result<u32, String> {
-        header(name)?.parse().map_err(|_| format!("push_ndi_frame: {name} is not a number"))
+        header(name)?.parse().map_err(|_| format!("push_output_frame: {name} is not a number"))
     };
     let output_id = header("x-output-id")?;
     let (width, height) = (dimension("x-frame-width")?, dimension("x-frame-height")?);
+    let streamed = streams
+        .lock()
+        .map_err(|e| e.to_string())?
+        .push_frame(output_id, width, height, rgba_data)
+        .map_err(|e| e.to_string())?;
     let mut runtime = runtime.lock().map_err(|e| e.to_string())?;
+    if streamed && !runtime.is_active(output_id) {
+        return Ok(());
+    }
     runtime
         .send_frame_rgba(output_id, width, height, rgba_data)
         .map_err(|e| e.to_string())

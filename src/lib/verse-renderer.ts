@@ -8,11 +8,13 @@ import {
   type RichInlineItem,
   type RichInlineLine,
 } from "@chenglou/pretext/rich-inline"
+import { gifFrameAt } from "@/lib/gif-frames"
 import { imageContentBox } from "@/lib/theme-image-cache"
 import type {
   BroadcastTheme,
   SurfaceFill,
   ThemeImageFill,
+  ThemeLogo,
   VerseRenderData,
   VideoPlayback,
   RenderOptions,
@@ -1689,6 +1691,68 @@ function drawCredit(
   ctx.restore()
 }
 
+/**
+ * Where the theme's logo goes, in canvas px at `scale`: its corner of the
+ * whole frame, inset by its margin, at its height with the picture's own
+ * aspect. Null when there is no logo, it isn't shown over this content, or
+ * its picture hasn't loaded.
+ */
+export function logoRect(
+  theme: BroadcastTheme,
+  verse: VerseRenderData | null,
+  scale: number,
+  imageCache?: Map<string, HTMLImageElement>
+): VerseLayoutRect | null {
+  const logo = theme.logo
+  if (!logo?.url) return null
+  if ((verse?.image || verse?.video) && !logo.overMedia) return null
+  const img = imageCache?.get(logo.url)
+  if (!img) return null
+
+  const frameW = theme.resolution.width * scale
+  const frameH = theme.resolution.height * scale
+  const height = (frameH * logo.size) / 100
+  // An SVG without a width and height has no natural size: draw it square.
+  const aspect = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1
+  const width = Math.min(frameW, height * aspect)
+  const margin = (frameH * logo.margin) / 100
+  const left = logo.corner.endsWith("left")
+  const top = logo.corner.startsWith("top")
+  return {
+    x: left ? margin : frameW - margin - width,
+    y: top ? margin : frameH - margin - height,
+    width,
+    height,
+  }
+}
+
+function drawLogo(
+  ctx: CanvasRenderingContext2D,
+  logo: ThemeLogo,
+  rect: VerseLayoutRect,
+  options?: RenderOptions
+): void {
+  const img = options?.imageCache?.get(logo.url)
+  if (!img) return
+  ctx.save()
+  ctx.globalAlpha = (options?.opacity ?? 1) * (logo.opacity / 100)
+  ctx.imageSmoothingQuality = "high"
+  ctx.drawImage(gifFrameAt(logo.url, Date.now()) ?? img, rect.x, rect.y, rect.width, rect.height)
+  ctx.restore()
+}
+
+/** The logo goes over everything, unless an <img> above the canvas shows it. */
+function drawThemeLogo(
+  ctx: CanvasRenderingContext2D,
+  theme: BroadcastTheme,
+  verse: VerseRenderData | null,
+  options?: RenderOptions
+): void {
+  if (!theme.logo || options?.logoAbove) return
+  const rect = logoRect(theme, verse, options?.scale ?? 1, options?.imageCache)
+  if (rect) drawLogo(ctx, theme.logo, rect, options)
+}
+
 export function renderVerse(
   ctx: CanvasRenderingContext2D,
   theme: BroadcastTheme,
@@ -1714,6 +1778,7 @@ function renderVerseImpl(
       ? videoPicture(verse.video, options?.video, options)
       : cachedPicture(verse.image?.url, options)
     drawFullFrame(ctx, theme, picture, options)
+    drawThemeLogo(ctx, theme, verse, options)
     return computeVerseLayoutMetrics(ctx, theme, null, options)
   }
 
@@ -1769,6 +1834,7 @@ function renderVerseImpl(
   // If no verse data, just draw the background and text box
   if (!verse) {
     ctx.restore()
+    drawThemeLogo(ctx, theme, verse, options)
     return metrics
   }
 
@@ -1802,5 +1868,6 @@ function renderVerseImpl(
   }
 
   ctx.restore()
+  drawThemeLogo(ctx, theme, verse, options)
   return metrics
 }

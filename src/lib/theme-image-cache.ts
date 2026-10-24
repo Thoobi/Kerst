@@ -1,3 +1,5 @@
+import { decodeGif, isGifUrl } from "@/lib/gif-frames"
+
 /**
  * One decoded image per URL for the whole window.
  *
@@ -33,9 +35,14 @@ export function loadThemeImage(url: string): Promise<HTMLImageElement | null> {
     // taint the canvas, and NDI's getImageData readback would throw.
     if (!url.startsWith("data:") && !url.startsWith("blob:")) img.crossOrigin = "anonymous"
     img.onload = () => {
-      cache.set(url, img)
-      inFlight.delete(url)
-      resolve(img)
+      // A GIF's frames are decoded before it counts as loaded, so the first
+      // frames drawn with it already animate.
+      const frames = isGifUrl(url) ? decodeGif(url) : Promise.resolve(null)
+      void frames.then(() => {
+        cache.set(url, img)
+        inFlight.delete(url)
+        resolve(img)
+      })
     }
     img.onerror = () => {
       inFlight.delete(url)
@@ -126,12 +133,14 @@ export function themeImageUrls(theme: {
   textBox?: { image?: { url: string } | null }
   reference?: { surface?: { image?: { url: string } | null } }
   verseText?: { surface?: { image?: { url: string } | null } }
+  logo?: { url: string } | null
 }): string[] {
   const urls = [
     theme.background?.image?.url,
     theme.textBox?.image?.url,
     theme.reference?.surface?.image?.url,
     theme.verseText?.surface?.image?.url,
+    theme.logo?.url,
   ]
   return urls.filter((url): url is string => Boolean(url))
 }

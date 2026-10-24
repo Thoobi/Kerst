@@ -2,16 +2,17 @@ import { createRoot } from "react-dom/client"
 import { useRef, useEffect, useCallback, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import { backgroundRegion, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
+import { backgroundRegion, logoRect, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
+import { isAnimatedGif } from "@/lib/gif-frames"
 import { normalizeTheme } from "@/lib/theme-migrations"
 import { fitFrame, renderScale } from "@/lib/output-frame"
 import { SyncedVideo } from "@/components/ui/synced-video"
 import { LoopingVideo } from "@/components/ui/looping-video"
 import { forwardConsoleToLog } from "@/lib/console-to-log"
 import "./broadcast-fonts.css"
-import type { BroadcastTheme, VerseRenderData, VideoPlayback } from "@/types/broadcast"
-import type { NdiConfigEventPayload } from "@/types"
+import type { BroadcastTheme, ThemeLogo, VerseRenderData, VideoPlayback } from "@/types/broadcast"
+import type { CaptureConfigEventPayload } from "@/types"
 
 interface BackgroundBox {
   left: number
@@ -20,8 +21,10 @@ interface BackgroundBox {
   height: number
 }
 
-const sameBox = (a: BackgroundBox, b: BackgroundBox) =>
-  a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height
+const sameBox = (a: BackgroundBox | null, b: BackgroundBox | null) =>
+  a === b ||
+  (a !== null && b !== null &&
+    a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height)
 
 // The output windows are where the audience's picture comes from; their
 // warnings and errors belong in the log as much as the main window's.
@@ -38,7 +41,7 @@ interface BroadcastPayload {
 function BroadcastCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const latestData = useRef<BroadcastPayload | null>(null)
-  const ndiConfigRef = useRef<NdiConfigEventPayload>({
+  const ndiConfigRef = useRef<CaptureConfigEventPayload>({
     active: false,
     fps: 24,
     width: 1920,
@@ -59,6 +62,10 @@ function BroadcastCanvas() {
   const [background, setBackground] = useState<VideoPlayback | null>(null)
   const backgroundRef = useRef<HTMLVideoElement | null>(null)
   const [backgroundBox, setBackgroundBox] = useState<BackgroundBox | null>(null)
+  // The theme's logo is an <img> over the canvas and any video, so a GIF
+  // animates without redrawing; NDI draws it into its own frames.
+  const [logo, setLogo] = useState<ThemeLogo | null>(null)
+  const [logoBox, setLogoBox] = useState<BackgroundBox | null>(null)
 
   const logDebug = useCallback((message: string, meta?: unknown) => {
     if (!import.meta.env.DEV) return
@@ -107,6 +114,7 @@ function BroadcastCanvas() {
       imageCache: themeImageCache(),
       video: videoRef.current,
       backgroundBehind: true,
+      logoAbove: true,
     })
     const region = backgroundRegion(themeForContent(theme, verse), scale)
     const box = {
@@ -116,6 +124,14 @@ function BroadcastCanvas() {
       height: region.height / dpr,
     }
     setBackgroundBox((prev) => (prev && sameBox(prev, box) ? prev : box))
+    const logoRegion = logoRect(theme, verse, scale, themeImageCache())
+    const logoAt = logoRegion && {
+      left: logoRegion.x / dpr,
+      top: logoRegion.y / dpr,
+      width: logoRegion.width / dpr,
+      height: logoRegion.height / dpr,
+    }
+    setLogoBox((prev) => (sameBox(prev, logoAt) ? prev : logoAt))
     if (!result) {
       ctx.fillStyle = "#000"
       ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -167,7 +183,7 @@ function BroadcastCanvas() {
 
       // Raw bytes, not JSON: a playing video sends a full frame many times a second.
       const imageData = sourceCtx.getImageData(0, 0, sourceWidth, sourceHeight)
-      await invoke("push_ndi_frame", new Uint8Array(imageData.data.buffer), {
+      await invoke("push_output_frame", new Uint8Array(imageData.data.buffer), {
         headers: {
           "x-output-id": OUTPUT_ID,
           "x-frame-width": String(sourceWidth),
@@ -176,7 +192,7 @@ function BroadcastCanvas() {
       })
       lastPushRef.current = Date.now()
     } catch (error) {
-      console.warn("[broadcast-output] push_ndi_frame failed", error)
+      console.warn("[broadcast-output] push_output_frame failed", error)
     } finally {
       pushingRef.current = false
     }
@@ -216,6 +232,7 @@ function BroadcastCanvas() {
       }
       setVideo(event.payload.verse?.video ?? null)
       setBackground(event.payload.verse?.background ?? null)
+      setLogo(event.payload.theme.logo ?? null)
       preloadFrameAssets(event.payload)
       logDebug("Received broadcast:verse-update", {
         hasVerse: Boolean(event.payload.verse),
@@ -225,16 +242,16 @@ function BroadcastCanvas() {
       pushNdiBurst()
     })
 
-    const unlistenNdiConfig = currentWindow.listen<NdiConfigEventPayload>("broadcast:ndi-config", (event) => {
+    const unlistenNdiConfig = currentWindow.listen<CaptureConfigEventPayload>("broadcast:capture-config", (event) => {
       ndiConfigRef.current = event.payload
-      logDebug("Received broadcast:ndi-config", event.payload)
+      logDebug("Received broadcast:capture-config", event.payload)
       // Push burst when NDI becomes active
       if (event.payload.active) pushNdiBurst()
     })
 
-    // Request current NDI status on mount (fixes race condition
-    // where NDI is started before this window opens)
-    void invoke<{ active: boolean; width: number; height: number; fps: number } | null>("get_ndi_status", { outputId: OUTPUT_ID })
+    // Request current capture status on mount (fixes race condition
+    // where NDI or a stream is started before this window opens)
+    void invoke<{ active: boolean; width: number; height: number; fps: number } | null>("get_capture_status", { outputId: OUTPUT_ID })
       .then((status) => {
         if (status && status.active) {
           ndiConfigRef.current = {
@@ -243,7 +260,7 @@ function BroadcastCanvas() {
             width: status.width,
             height: status.height,
           }
-          logDebug("Fetched NDI status on mount", status)
+          logDebug("Fetched capture status on mount", status)
         }
       })
       .catch(() => {
@@ -277,16 +294,19 @@ function BroadcastCanvas() {
     return () => window.removeEventListener("resize", draw)
   }, [draw])
 
-  // While a video plays (or a background moves behind the text), NDI needs
-  // every frame, not just one per change. Pushes that can't keep up are
-  // skipped by pushNdiFrame's back-pressure.
-  const videoPlaying = (video?.playing ?? false) || (background?.playing ?? false)
+  // While a video plays (or a background moves behind the text, or a GIF
+  // logo is on screen), NDI needs every frame, not just one per change.
+  // Pushes that can't keep up are skipped by pushNdiFrame's back-pressure.
+  const moving =
+    (video?.playing ?? false) ||
+    (background?.playing ?? false) ||
+    (logo !== null && logoBox !== null && isAnimatedGif(logo.url))
   useEffect(() => {
-    if (!videoPlaying) return
+    if (!moving) return
     const fps = ndiConfigRef.current.fps || 30
     const timer = setInterval(() => void pushNdiFrame(), 1000 / fps)
     return () => clearInterval(timer)
-  }, [videoPlaying, pushNdiFrame])
+  }, [moving, pushNdiFrame])
 
   // Slow keepalive: push one frame every 2s if idle (prevents NDI receivers from dropping the source)
   useEffect(() => {
@@ -336,6 +356,13 @@ function BroadcastCanvas() {
               objectFit: "contain",
               background: "#000",
             }}
+          />
+        )}
+        {logo && logoBox && (
+          <img
+            src={logo.url}
+            alt=""
+            style={{ position: "absolute", ...logoBox, opacity: logo.opacity / 100, pointerEvents: "none" }}
           />
         )}
       </div>

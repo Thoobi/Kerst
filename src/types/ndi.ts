@@ -19,7 +19,8 @@ export interface NdiSessionInfo {
   fps: number
 }
 
-export interface NdiConfigEventPayload {
+/** How an output window should capture frames for NDI and/or a stream. */
+export interface CaptureConfigEventPayload {
   active: boolean
   fps: number
   width: number

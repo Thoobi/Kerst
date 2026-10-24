@@ -90,9 +90,12 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(Mutex::new(state::AppState::new()))
         .manage(Mutex::new(litdeck_detection::DetectionPipeline::new()))
         .manage(Mutex::new(litdeck_broadcast::ndi::NdiRuntime::default()))
+        .manage(Mutex::new(litdeck_stream::StreamRuntime::default()))
         .manage(Mutex::new(litdeck_detection::DirectDetector::new()))
         .manage(Mutex::new(litdeck_detection::DetectionMerger::new()))
         .manage(Mutex::new(litdeck_detection::ReadingMode::new()))
@@ -127,7 +130,13 @@ pub fn run() {
             commands::broadcast::start_ndi,
             commands::broadcast::stop_ndi,
             commands::broadcast::get_ndi_status,
-            commands::broadcast::push_ndi_frame,
+            commands::broadcast::get_capture_status,
+            commands::broadcast::push_output_frame,
+            commands::stream::get_stream_info,
+            commands::stream::list_stream_cameras,
+            commands::stream::start_stream,
+            commands::stream::stop_stream,
+            commands::stream::get_stream_status,
             commands::fonts::list_system_fonts,
             commands::library::list_songs,
             commands::library::search_songs,
@@ -174,8 +183,11 @@ pub fn run() {
             if let Ok(resource_dir) = app.path().resource_dir() {
                 let managed_ndi = app.state::<Mutex<litdeck_broadcast::ndi::NdiRuntime>>();
                 let mut ndi = managed_ndi.lock().unwrap();
-                ndi.set_library_search_dirs(vec![resource_dir]);
+                ndi.set_library_search_dirs(vec![resource_dir.clone()]);
+                let managed_streams = app.state::<Mutex<litdeck_stream::StreamRuntime>>();
+                managed_streams.lock().unwrap().set_search_dirs(vec![resource_dir]);
             }
+            commands::stream::spawn_status_emitter(app.handle().clone());
 
             // Try resource dir first (production), then dev fallback
             let db_path = app
@@ -307,8 +319,13 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                commands::stream::stop_all(app);
+            }
+        });
 }
 
 /// Store an embedding warning in `AppState` (read by `detection_status`)

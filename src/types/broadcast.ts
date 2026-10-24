@@ -69,6 +69,13 @@ export interface RenderOptions {
   /** A window's own copy of the background video, likewise. */
   backgroundVideo?: HTMLVideoElement | null
   /**
+   * An <img> over this canvas shows the theme's logo, so don't draw it:
+   * the browser animates a GIF in an <img> for free, and the logo must sit
+   * over a playing video, which covers the canvas. Canvases that must hold
+   * the pixels (NDI, the stream) leave this off.
+   */
+  logoAbove?: boolean
+  /**
    * A <video> element shows the background video behind this canvas, so
    * leave the background region transparent instead of copying frames in:
    * copying a 1080p frame onto a canvas costs WebKitGTK ~22 ms, too slow to
@@ -108,6 +115,25 @@ export interface SurfaceFill {
   padding: number
   /** When set, fills the surface, clipped to `borderRadius`. */
   image: ThemeImageFill | null
+}
+
+export type LogoCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right"
+
+/**
+ * A picture fixed in a corner of the frame over everything else, e.g. the
+ * church's logo as a bug on the stream. Animated GIFs play.
+ */
+export interface ThemeLogo {
+  url: string
+  corner: LogoCorner
+  /** Height, in % of the frame height; the width follows the picture. */
+  size: number
+  /** 0-100. */
+  opacity: number
+  /** Inset from the frame's edges, in % of the frame height. */
+  margin: number
+  /** Also over slides and videos shown full frame, not only over the theme. */
+  overMedia: boolean
 }
 
 export type TextHorizontalAlign = "left" | "center" | "right" | "justify"
@@ -181,6 +207,8 @@ export interface BroadcastTheme {
      */
     shrinkToFit?: boolean
   }
+  /** Absent or null means none. */
+  logo?: ThemeLogo | null
   /** Songs and texts styled apart from scripture; see `LyricsStyle`. */
   lyricsText?: LyricsStyle
   verseNumbers: {

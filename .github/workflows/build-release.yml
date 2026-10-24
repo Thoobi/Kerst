@@ -16,7 +16,8 @@ concurrency:
 jobs:
   build:
     name: Build (${{ matrix.target }})
-    timeout-minutes: 45
+    # The first macOS run after an ffmpeg bump also compiles ffmpeg (~10 min).
+    timeout-minutes: 60
 
     strategy:
       fail-fast: false
@@ -96,6 +97,36 @@ jobs:
       - name: Prepare application assets
         run: bun run setup:bundle
 
+      # Streaming encodes and sends through ffmpeg, shipped beside the app as
+      # a sidecar. macOS builds it from source (~10 min), so it is cached.
+      - name: Cache ffmpeg
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: sdk/ffmpeg
+          key: ffmpeg-8.1-${{ matrix.target }}-${{ hashFiles('scripts/fetch-ffmpeg.sh') }}
+
+      - name: Fetch ffmpeg
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        shell: bash
+        timeout-minutes: 30
+        run: scripts/fetch-ffmpeg.sh ${{ matrix.target }}
+
+      # Local transcription ships with the app so it works offline from the
+      # first launch. The model is ~870 MB; cache it rather than pulling it
+      # from Hugging Face on every build.
+      - name: Cache Whisper model
+        id: whisper-cache
+        uses: actions/cache@v4
+        with:
+          path: models/whisper
+          key: whisper-ggml-large-v3-turbo-q8_0
+
+      - name: Download Whisper model
+        if: steps.whisper-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 15
+        run: bun run download:whisper
+
       - name: Read application version
         id: version
         shell: bash
@@ -103,6 +134,21 @@ jobs:
           VERSION=$(grep '^version = ' src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Litdeck version: $VERSION"
+
+      # Installed copies only accept updates signed by this key (its public
+      # half is plugins.updater.pubkey in tauri.conf.json). Fail here, before
+      # the long build, rather than at bundling.
+      - name: Check updater signing key
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$TAURI_SIGNING_PRIVATE_KEY" ]]; then
+            echo "::error::The TAURI_SIGNING_PRIVATE_KEY secret is not set, so this" \
+                 "build cannot be signed for the in-app updater. Add it under" \
+                 "Settings → Secrets and variables → Actions."
+            exit 1
+          fi
 
       - name: Pre-build Rust (workaround for whisper-rs-sys env issue)
         run: cargo build --release --target ${{ matrix.target }}
@@ -124,12 +170,13 @@ jobs:
           # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-          # Auto-updater signing (optional)
-          # TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # In-app updater signing. createUpdaterArtifacts (in
+          # tauri.release.conf.json) makes the bundler require the key.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
         with:
-          args: --target ${{ matrix.target }}
+          args: --target ${{ matrix.target }} --config src-tauri/tauri.release.conf.json
 
       # Tauri's AppImage bundles Ubuntu's libwayland-*. On current desktops
       # those clash with the system's own Mesa/EGL, and WebKit aborts at
@@ -215,6 +262,23 @@ jobs:
             } |
             Copy-Item -Destination dist
 
+      # Sign what actually ships, after any repacking above: the AppImage is
+      # rebuilt after bundling, which invalidates the bundler's signature. The
+      # updater refuses any download whose .sig does not verify.
+      - name: Sign updater artifacts
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          rm -f dist/*.sig
+          shopt -s nullglob
+          for file in dist/*.app.tar.gz dist/*.AppImage dist/*.deb dist/*.rpm dist/*-setup.exe dist/*.msi; do
+            bunx tauri signer sign "$file" < /dev/null > /dev/null
+            echo "Signed $(basename "$file")"
+          done
+
       - name: List collected artifacts
         shell: bash
         run: |
@@ -240,7 +304,8 @@ jobs:
             if [[ -f "$file" ]] &&
                [[ "$file" != "dist/version.txt" ]] &&
                [[ "$file" != "dist/checksums.txt" ]] &&
-               [[ "$file" != "dist/sizes.txt" ]]; then
+               [[ "$file" != "dist/sizes.txt" ]] &&
+               [[ "$file" != *.sig ]]; then
 
               filename=$(basename "$file")
 
@@ -392,6 +457,57 @@ jobs:
 
           echo "Release assets:"
           ls -lh release-assets
+
+      # The in-app updater reads this from
+      # releases/latest/download/latest.json (plugins.updater.endpoints in
+      # tauri.conf.json). "latest" skips drafts and prereleases, so installed
+      # copies are only offered a release once it is published. Keys are the
+      # updater's {os}-{arch}[-{installer}] targets; a platform whose build is
+      # missing is simply left out.
+      - name: Generate updater manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION}"
+
+          platforms='{}'
+          add() {
+            local key="$1" pattern="$2" file
+            # Point at the versioned file, not its stable-named alias copy.
+            file=$(find release-assets -maxdepth 1 -name "$pattern" \
+              ! -name 'Litdeck-linux-*' ! -name 'Litdeck-macos-*' ! -name 'Litdeck-windows-*' | head -1)
+            if [[ -z "$file" || ! -f "$file.sig" ]]; then
+              echo "::warning::No signed ${pattern} for updater target ${key}."
+              return
+            fi
+            platforms=$(jq --arg key "$key" \
+              --arg url "${BASE}/$(basename "$file")" \
+              --arg sig "$(cat "$file.sig")" \
+              '.[$key] = {url: $url, signature: $sig}' <<< "$platforms")
+          }
+
+          # The bare {os}-{arch} key is the fallback for installs that do not
+          # report a bundle type.
+          add darwin-aarch64-app   '*.app.tar.gz'
+          add darwin-aarch64       '*.app.tar.gz'
+          add windows-x86_64-nsis  '*_x64-setup.exe'
+          add windows-x86_64       '*_x64-setup.exe'
+          add windows-x86_64-msi   '*_x64_*.msi'
+          add linux-x86_64-appimage '*_amd64.AppImage'
+          add linux-x86_64         '*_amd64.AppImage'
+          add linux-x86_64-deb     '*_amd64.deb'
+          add linux-x86_64-rpm     '*.x86_64.rpm'
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg notes "Litdeck v${VERSION}" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson platforms "$platforms" \
+            '{version: $version, notes: $notes, pub_date: $date, platforms: $platforms}' \
+            > release-assets/latest.json
+
+          cat release-assets/latest.json
 
       - name: Generate release metadata
         id: metadata
