@@ -12,6 +12,7 @@ import { gifFrameAt } from "@/lib/gif-frames"
 import { imageContentBox } from "@/lib/theme-image-cache"
 import type {
   BroadcastTheme,
+  LyricsStyle,
   SurfaceFill,
   ThemeImageFill,
   ThemeLogo,
@@ -1188,15 +1189,48 @@ export function backgroundRegion(theme: BroadcastTheme, scale = 1): VerseLayoutR
 const SCREEN_AREA_MARGIN = 5
 
 /**
- * The theme as songs and texts see it: its song and text style laid over
- * its verse text, and, if asked, the whole screen as the text area.
- * Scripture and everything else get the theme unchanged.
+ * The theme as the content sees it: songs and texts get its song and text
+ * style, Bible verses its Bible style, each laid over its verse text (and,
+ * if asked, the whole screen as the text area). Everything else gets the
+ * theme unchanged.
  */
 export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | null): BroadcastTheme {
-  const style = verse?.style === "lyrics" ? theme.lyricsText : undefined
-  if (!style) return theme
-  const { area, ...text } = style
-  const set = Object.fromEntries(Object.entries(text).filter(([, value]) => value !== undefined))
+  if (verse?.style === "lyrics" && theme.lyricsText) return withTextStyle(theme, theme.lyricsText)
+  if (verse?.style === "scripture" && theme.scriptureText) {
+    const { referenceFontSize, referenceColor, backgroundColor } = theme.scriptureText
+    const styled = withTextStyle(theme, theme.scriptureText)
+    return {
+      ...styled,
+      reference: {
+        ...styled.reference,
+        ...(referenceFontSize !== undefined ? { fontSize: referenceFontSize } : {}),
+        ...(referenceColor !== undefined ? { color: referenceColor } : {}),
+      },
+      ...(backgroundColor !== undefined
+        ? { background: { ...styled.background, type: "solid" as const, color: backgroundColor } }
+        : {}),
+    }
+  }
+  return theme
+}
+
+/** The `LyricsStyle` fields that override the theme's verse text. */
+const TEXT_STYLE_KEYS = [
+  "fontSize",
+  "fontWeight",
+  "lineHeight",
+  "color",
+  "horizontalAlign",
+  "verticalAlign",
+  "shrinkToFit",
+  "outline",
+] as const satisfies readonly (keyof LyricsStyle)[]
+
+function withTextStyle(theme: BroadcastTheme, style: LyricsStyle): BroadcastTheme {
+  const area = style.area
+  const set = Object.fromEntries(
+    TEXT_STYLE_KEYS.filter((key) => style[key] !== undefined).map((key) => [key, style[key]])
+  )
   const merged: BroadcastTheme = { ...theme, verseText: { ...theme.verseText, ...set } }
   if (area !== "screen") return merged
   const inner = 100 - SCREEN_AREA_MARGIN * 2

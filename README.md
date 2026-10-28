@@ -38,8 +38,10 @@ newer the right-click → Open trick no longer works, so use:
 
 Releases do **not** bundle the embedding model or the Whisper model — together
 they exceed a gigabyte. The Bible database ships inside the app, so reference
-detection and keyword search work out of the box; embedding re-ranking and local
-speech-to-text stay inactive until you build from source and run
+detection and keyword search work out of the box. Local speech-to-text downloads
+its model (~870 MB, once) when you choose **Local (Whisper)** under
+**Settings → Speech Recognition**; after that it works offline. Embedding
+re-ranking stays inactive until you build from source and run
 `bun run setup:all`. All releases are listed at
 [github.com/Thoobi/Kerst/releases](https://github.com/Thoobi/Kerst/releases).
 

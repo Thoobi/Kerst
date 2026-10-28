@@ -6,6 +6,7 @@ import type {
   BroadcastOutputStatus,
   BroadcastTheme,
   LyricsStyle,
+  ScriptureStyle,
   StreamStatus,
   Verse,
   VerseRenderData,
@@ -64,6 +65,8 @@ interface BroadcastState {
    * the designer does, and the outputs move to the copy.
    */
   updateLyricsStyle: (patch: Partial<LyricsStyle> | null) => void
+  /** The same for Bible verses: their text, reference and background. */
+  updateScriptureStyle: (patch: Partial<ScriptureStyle> | null) => void
   syncBroadcastOutputFor: (outputId: string) => void
 
   // Output management
@@ -86,6 +89,40 @@ interface BroadcastState {
   discardDraft: () => void
   setSelectedElement: (el: SelectedElement) => void
   setRenamingTheme: (id: string | null) => void
+}
+
+/**
+ * Save a change to the main output's theme. A built-in theme is copied
+ * first, as the designer does, and the outputs on it move to the copy.
+ */
+function editMainTheme(
+  get: () => BroadcastState,
+  set: (fn: (s: BroadcastState) => Partial<BroadcastState>) => void,
+  change: (theme: BroadcastTheme) => Partial<BroadcastTheme>
+): void {
+  const s = get()
+  const mainThemeId = s.outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? s.activeThemeId
+  let theme = s.themes.find((t) => t.id === mainThemeId) ?? s.themes[0]
+  if (!theme) return
+  if (theme.builtin) {
+    const now = Date.now()
+    const copy: BroadcastTheme = {
+      ...theme,
+      id: crypto.randomUUID(),
+      name: `${theme.name} (Custom)`,
+      builtin: false,
+      pinned: false,
+      createdAt: now,
+      updatedAt: now,
+    }
+    set((st) => ({ themes: [...st.themes, copy] }))
+    for (const output of get().outputs) {
+      if (output.themeId === theme.id) get().setOutputTheme(output.id, copy.id)
+    }
+    theme = copy
+  }
+  // saveTheme re-sends to the outputs on this theme.
+  get().saveTheme({ ...theme, ...change(theme), updatedAt: Date.now() })
 }
 
 function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
@@ -190,14 +227,27 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   loadThemes: () => {
     set({ themes: [...BUILTIN_THEMES] })
   },
-  saveTheme: (theme) =>
+  saveTheme: (theme) => {
     set((s) => ({
       themes: s.themes.some((t) => t.id === theme.id)
         ? s.themes.map((t) => (t.id === theme.id ? theme : t))
         : [...s.themes, theme],
-    })),
-  deleteTheme: (id) =>
-    set((s) => ({ themes: s.themes.filter((t) => t.id !== id || t.builtin) })),
+    }))
+    // Output windows draw from the theme they were last sent, so a saved
+    // change only reaches the screens if it is sent again.
+    for (const output of get().outputs) {
+      if (output.themeId === theme.id) get().syncBroadcastOutputFor(output.id)
+    }
+  },
+  deleteTheme: (id) => {
+    const deleted = get().themes.some((t) => t.id === id && !t.builtin)
+    set((s) => ({ themes: s.themes.filter((t) => t.id !== id || t.builtin) }))
+    if (!deleted) return
+    // An output on the deleted theme falls back to the first one; show it.
+    for (const output of get().outputs) {
+      if (output.themeId === id) get().syncBroadcastOutputFor(output.id)
+    }
+  },
   duplicateTheme: (id) => {
     const s = get()
     const source = s.themes.find((t) => t.id === id)
@@ -271,30 +321,14 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     }
   },
   updateLyricsStyle: (patch) => {
-    const s = get()
-    const mainThemeId = s.outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? s.activeThemeId
-    let theme = s.themes.find((t) => t.id === mainThemeId) ?? s.themes[0]
-    if (!theme) return
-    if (theme.builtin) {
-      const now = Date.now()
-      const copy: BroadcastTheme = {
-        ...theme,
-        id: crypto.randomUUID(),
-        name: `${theme.name} (Custom)`,
-        builtin: false,
-        pinned: false,
-        createdAt: now,
-        updatedAt: now,
-      }
-      set((st) => ({ themes: [...st.themes, copy] }))
-      for (const output of get().outputs) {
-        if (output.themeId === theme.id) get().setOutputTheme(output.id, copy.id)
-      }
-      theme = copy
-    }
-    const lyricsText = patch === null ? undefined : { ...theme.lyricsText, ...patch }
-    get().saveTheme({ ...theme, lyricsText, updatedAt: Date.now() })
-    get().syncBroadcastOutput()
+    editMainTheme(get, set, (theme) => ({
+      lyricsText: patch === null ? undefined : { ...theme.lyricsText, ...patch },
+    }))
+  },
+  updateScriptureStyle: (patch) => {
+    editMainTheme(get, set, (theme) => ({
+      scriptureText: patch === null ? undefined : { ...theme.scriptureText, ...patch },
+    }))
   },
   setActiveTheme: (activeThemeId) => {
     get().setOutputTheme(MAIN_OUTPUT_ID, activeThemeId)

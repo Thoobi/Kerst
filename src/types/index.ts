@@ -14,6 +14,7 @@ export type {
   VideoPlayback,
   RenderOptions,
   LyricsStyle,
+  ScriptureStyle,
 } from "./broadcast"
 export type { Slide, SlideKind, ScriptureSlide, LyricSlide, TextSlide, ImageSlide } from "./slide"
 export type {

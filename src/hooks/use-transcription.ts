@@ -5,6 +5,7 @@ import { useAudioStore } from "@/stores/audio-store"
 import { useSettingsStore } from "@/stores/settings-store"
 import { useTranscriptStore } from "@/stores/transcript-store"
 import { mark } from "@/lib/latency-marks"
+import { openSettings } from "@/lib/settings-dialog"
 import { useTauriEvent } from "./use-tauri-event"
 
 interface TranscriptPartialPayload {
@@ -23,6 +24,7 @@ interface UseTranscriptionOptions {
 }
 
 const MISSING_DEEPGRAM_KEY_MARKER = "No Deepgram API key"
+const MISSING_WHISPER_MODEL_MARKER = "Whisper model isn't downloaded"
 const NOT_RUNNING_ERROR = "Transcription is not running"
 
 export const transcriptionActions = {
@@ -47,6 +49,11 @@ export const transcriptionActions = {
       transcript.setConnectionStatus("error")
       if (msg.includes(MISSING_DEEPGRAM_KEY_MARKER) && onMissingApiKey) {
         onMissingApiKey()
+      } else if (msg.includes(MISSING_WHISPER_MODEL_MARKER)) {
+        toast.error("The Whisper model isn't downloaded yet", {
+          description: "Local transcription needs a one-time download.",
+          action: { label: "Open settings", onClick: () => openSettings("speech") },
+        })
       } else {
         toast.error("Could not start transcription", { description: msg })
       }

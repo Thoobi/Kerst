@@ -6,8 +6,10 @@ export function toRenderData(slide: Slide): VerseRenderData {
     case "scripture": {
       const { verse, translation } = slide
       return {
+        style: "scripture",
         reference: `${verse.book_name} ${verse.chapter}:${verse.verse} (${translation})`,
         segments: [{ verseNumber: verse.verse, text: verse.text }],
+        ...(slide.background ? { background: slide.background } : {}),
       }
     }
     case "lyrics":

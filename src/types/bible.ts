@@ -3,6 +3,8 @@ export interface Translation {
   abbreviation: string
   title: string
   language: string
+  /** Copyright or license notice; some licenses require showing it. */
+  license: string
   is_copyrighted: boolean
   is_downloaded: boolean
 }

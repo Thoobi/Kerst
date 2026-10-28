@@ -81,35 +81,9 @@ pub async fn start_transcription(
     let stt_provider: Box<dyn SttProvider> = match provider_name {
         #[cfg(feature = "whisper")]
         "whisper" => {
-            // Resolve bundled Whisper model path.
-            // Dev: {CARGO_MANIFEST_DIR}/../models/whisper/ggml-large-v3-turbo-q8_0.bin
-            // Prod: resource_dir()/models/whisper/ggml-large-v3-turbo-q8_0.bin
-            let model_filename = "ggml-large-v3-turbo-q8_0.bin";
-            let model_path = {
-                let base_dir =
-                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
-                let dev_path = base_dir
-                    .join("models")
-                    .join("whisper")
-                    .join(model_filename);
-                if dev_path.exists() {
-                    dev_path
-                } else {
-                    app.path()
-                        .resource_dir()
-                        .map(|p| {
-                            p.join("models")
-                                .join("whisper")
-                                .join(model_filename)
-                        })
-                        .ok()
-                        .filter(|p| p.exists())
-                        .ok_or_else(|| {
-                            "Whisper model not found. Run: bun run download:whisper"
-                                .to_string()
-                        })?
-                }
-            };
+            let model_path = super::whisper_model::installed_path(&app).ok_or(
+                "The Whisper model isn't downloaded yet. Download it in Settings → Speech Recognition.",
+            )?;
 
             let parallelism = std::thread::available_parallelism()
                 .map_or(4, usize::from);

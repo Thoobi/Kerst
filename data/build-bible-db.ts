@@ -201,13 +201,6 @@ const TRANSLATIONS_META: Array<{
     language: "en",
     license: "Lockman Foundation",
   },
-  {
-    file: "ASV.json",
-    abbreviation: "ASV",
-    title: "American Standard Version (1901)",
-    language: "en",
-    license: "Public Domain",
-  },
   // {
   //   file: "BRG.json",
   //   abbreviation: "BRG",
@@ -250,13 +243,6 @@ const TRANSLATIONS_META: Array<{
     language: "en",
     license: "American Bible Society",
   },
-  // {
-  //   file: "GNV.json",
-  //   abbreviation: "GNV",
-  //   title: "Geneva Bible (1599)",
-  //   language: "en",
-  //   license: "Public Domain",
-  // },
   {
     file: "GW.json",
     abbreviation: "GW",
@@ -432,29 +418,8 @@ const TRANSLATIONS_META: Array<{
     language: "en",
     license: "BroadStreet Publishing",
   },
-  // {
-  //   file: "WEB.json",
-  //   abbreviation: "WEB",
-  //   title: "World English Bible",
-  //   language: "en",
-  //   license: "Public Domain",
-  // },
-  // {
-  //   file: "YLT.json",
-  //   abbreviation: "YLT",
-  //   title: "Young's Literal Translation",
-  //   language: "en",
-  //   license: "Public Domain",
-  // },
 
   // // Spanish
-  // {
-  //   file: "SpaRV.json",
-  //   abbreviation: "SpaRV",
-  //   title: "Reina-Valera 1909",
-  //   language: "es",
-  //   license: "Public Domain",
-  // },
   // {
   //   file: "NVI-S.json",
   //   abbreviation: "NVI-S",
@@ -478,13 +443,6 @@ const TRANSLATIONS_META: Array<{
   // },
 
   // // French
-  // {
-  //   file: "FreJND.json",
-  //   abbreviation: "FreJND",
-  //   title: "J.N. Darby French 1885",
-  //   language: "fr",
-  //   license: "Public Domain",
-  // },
 
   // // Portuguese
   // {
@@ -503,6 +461,91 @@ const TRANSLATIONS_META: Array<{
   //   language: "af",
   //   license: "Unknown",
   // },
+  // Added in v0.4.1. Translation ids come from this order, and the app
+  // saves the chosen translation by id, so new translations go at the end:
+  // inserting one earlier would silently switch every user's selection.
+  // Sources: data/download-sources.ts (FREE_TRANSLATIONS).
+  {
+    file: "ASV.json",
+    abbreviation: "ASV",
+    title: "American Standard Version (1901)",
+    language: "en",
+    license: "Public Domain",
+  },
+  {
+    file: "BSB.json",
+    abbreviation: "BSB",
+    title: "Berean Standard Bible",
+    language: "en",
+    license: "Public Domain",
+  },
+  {
+    file: "WEB.json",
+    abbreviation: "WEB",
+    title: "World English Bible",
+    language: "en",
+    license: "Public Domain",
+  },
+  {
+    file: "YLT.json",
+    abbreviation: "YLT",
+    title: "Young's Literal Translation (1898)",
+    language: "en",
+    license: "Public Domain",
+  },
+  {
+    file: "Darby.json",
+    abbreviation: "DARBY",
+    title: "Darby Translation (1890)",
+    language: "en",
+    license: "Public Domain",
+  },
+  {
+    file: "BBE.json",
+    abbreviation: "BBE",
+    title: "Bible in Basic English",
+    language: "en",
+    license: "Public Domain",
+  },
+  {
+    file: "GNV.json",
+    abbreviation: "GNV",
+    title: "Geneva Bible (1599)",
+    language: "en",
+    license: "Public Domain",
+  },
+  {
+    file: "SpaRV.json",
+    abbreviation: "SpaRV",
+    title: "Reina-Valera 1909",
+    language: "es",
+    license: "Public Domain",
+  },
+  {
+    file: "FreJND.json",
+    abbreviation: "FreJND",
+    title: "J.N. Darby French 1885",
+    language: "fr",
+    license: "Public Domain",
+  },
+  // CC BY-SA 4.0: the notice must be shown with the text (Settings → Bible
+  // does), and the text must stay unmodified with the Biblica® mark intact.
+  {
+    file: "YOR.json",
+    abbreviation: "YOR",
+    title: "Bíbélì Mímọ́ ní Èdè Yorùbá Òde-Òní (Biblica®)",
+    language: "yo",
+    license:
+      "Copyright © 2009, 2017 Biblica, Inc. Used under the Creative Commons Attribution-ShareAlike 4.0 License (CC BY-SA 4.0).",
+  },
+  {
+    file: "IBO.json",
+    abbreviation: "IBO",
+    title: "Baịbụlụ Nsọ nʼIgbo Ndị Ugbu a (Biblica®)",
+    language: "ig",
+    license:
+      "Copyright © 2020 Biblica, Inc. Used under the Creative Commons Attribution-ShareAlike 4.0 License (CC BY-SA 4.0).",
+  },
 ]
 
 function main() {

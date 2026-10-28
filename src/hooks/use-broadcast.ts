@@ -3,11 +3,38 @@ import { mark } from "@/lib/latency-marks"
 import { toRenderData } from "@/lib/slides"
 import { useBroadcastStore } from "@/stores/broadcast-store"
 import { useBibleStore } from "@/stores/bible-store"
-import type { VerseRenderData } from "@/types"
+import { backgroundPlayback } from "@/stores/videos-store"
+import { MAIN_OUTPUT_ID } from "@/types"
+import type { BroadcastTheme, VerseRenderData } from "@/types"
 import type { Verse } from "@/types"
 
+/** The main output's theme, which holds the Bible style. */
+export function mainTheme(): BroadcastTheme | undefined {
+  const s = useBroadcastStore.getState()
+  const themeId = s.outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? s.activeThemeId
+  return s.themes.find((t) => t.id === themeId) ?? s.themes[0]
+}
+
 export function toVerseRenderData(verse: Verse, translation: string): VerseRenderData {
-  return toRenderData({ kind: "scripture", verse, translation })
+  // The Bible style's motion background, if any, keeps its loop running
+  // from verse to verse (backgroundPlayback reuses the live clock).
+  const background = backgroundPlayback(mainTheme()?.scriptureText?.backgroundVideoId)
+  return toRenderData({ kind: "scripture", verse, translation, background })
+}
+
+/**
+ * Choose the Bible style's motion background (null: none), swapping it on
+ * air at once if a verse is live. Colours and text need no swap: outputs
+ * redraw from the theme.
+ */
+export function setScriptureBackground(videoId: string | null): void {
+  const broadcast = useBroadcastStore.getState()
+  broadcast.updateScriptureStyle({ backgroundVideoId: videoId })
+  const { liveVerse, liveSourceVerse } = useBroadcastStore.getState()
+  if (liveVerse?.style !== "scripture") return
+  const next: VerseRenderData = { ...liveVerse, background: backgroundPlayback(videoId) }
+  if (!next.background) delete next.background
+  broadcast.setLiveVerse(next, liveSourceVerse)
 }
 
 // Monotonic ticket so an older present whose refetch resolves late can't

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
 import { SyncedVideo } from "@/components/ui/synced-video"
@@ -34,8 +34,15 @@ export function PreviewPanel() {
   const translation = translations.find((t) => t.id === activeTranslationId)?.abbreviation ?? "KJV"
 
   // A clicked slide or lyric takes the preview until a Bible verse is picked again.
-  const verseData =
-    previewContent ?? (selectedVerse ? toVerseRenderData(selectedVerse, translation) : null)
+  // Memoised: a verse with a motion background gets a fresh loop clock each
+  // time it is built, which would restart the loop on every render.
+  const scriptureVideoId = activeTheme?.scriptureText?.backgroundVideoId
+  const selectedVerseData = useMemo(
+    () => (selectedVerse ? toVerseRenderData(selectedVerse, translation) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when the Bible background changes
+    [selectedVerse, translation, scriptureVideoId]
+  )
+  const verseData = previewContent ?? selectedVerseData
 
   return (
     <div

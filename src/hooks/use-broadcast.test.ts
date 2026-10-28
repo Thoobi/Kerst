@@ -48,6 +48,7 @@ describe("presentVerse", () => {
           abbreviation: "NKJV",
           title: "New King James Version",
           language: "en",
+          license: "Thomas Nelson",
           is_copyrighted: true,
           is_downloaded: true,
         },

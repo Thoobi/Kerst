@@ -13,6 +13,8 @@ export interface ScriptureSlide {
   verse: Verse
   /** Translation abbreviation shown in the reference, e.g. "KJV". */
   translation: string
+  /** A motion background looping behind the verse. */
+  background?: VideoPlayback
 }
 
 export interface LyricSlide {

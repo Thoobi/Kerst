@@ -8,3 +8,4 @@ pub mod library;
 pub mod remote;
 pub mod stream;
 pub mod stt;
+pub mod whisper_model;

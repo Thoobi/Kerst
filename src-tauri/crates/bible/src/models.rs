@@ -6,6 +6,9 @@ pub struct Translation {
     pub abbreviation: String,
     pub title: String,
     pub language: String,
+    /// Copyright or license notice, shown with the text where the license
+    /// requires credit.
+    pub license: String,
     pub is_copyrighted: bool,
     pub is_downloaded: bool,
 }

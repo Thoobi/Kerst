@@ -159,7 +159,7 @@ impl BibleDb {
     pub fn list_translations(&self) -> Result<Vec<Translation>, BibleError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, abbreviation, title, language, is_copyrighted, is_downloaded \
+            "SELECT id, abbreviation, title, language, license, is_copyrighted, is_downloaded \
              FROM translations",
         )?;
         let rows = stmt.query_map([], |row: &rusqlite::Row| {
@@ -168,8 +168,9 @@ impl BibleDb {
                 abbreviation: row.get(1)?,
                 title: row.get(2)?,
                 language: row.get(3)?,
-                is_copyrighted: row.get(4)?,
-                is_downloaded: row.get(5)?,
+                license: row.get(4)?,
+                is_copyrighted: row.get(5)?,
+                is_downloaded: row.get(6)?,
             })
         })?;
         Ok(rows.collect::<Result<Vec<_>, _>>()?)

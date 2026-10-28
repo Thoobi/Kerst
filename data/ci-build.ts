@@ -27,6 +27,9 @@ const KJV_SOURCE = join(DATA_DIR, "sources", "KJV.json")
 const NIV_SOURCE = join(DATA_DIR, "sources", "NIV.json")
 const ESV_SOURCE = join(DATA_DIR, "sources", "ESV.json")
 const CROSS_REFS = join(DATA_DIR, "cross-refs", "cross_references.txt")
+// One of the separately fetched free translations; a checkout from before
+// they were added has the zip's files but not these.
+const YOR_SOURCE = join(DATA_DIR, "sources", "YOR.json")
 const DB_PATH = join(DATA_DIR, "litdeck.db")
 const VERSES_JSON = join(DATA_DIR, "verses-for-embedding.json")
 
@@ -86,6 +89,7 @@ async function main() {
       KJV_SOURCE,
       NIV_SOURCE,
       ESV_SOURCE,
+      YOR_SOURCE,
       CROSS_REFS
     )
   ) {

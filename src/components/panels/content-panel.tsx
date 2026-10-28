@@ -1,4 +1,5 @@
-import { BookOpenIcon, FilmIcon, MegaphoneIcon, MusicIcon, PresentationIcon } from "lucide-react"
+import { BookOpenIcon, FilmIcon, MegaphoneIcon, MusicIcon, PaletteIcon, PresentationIcon } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { SearchPanel } from "@/components/panels/search-panel"
 import { SlidesPanel } from "@/components/panels/slides-panel"
 import { SongsPanel } from "@/components/panels/songs-panel"
@@ -24,27 +25,42 @@ const TABS: { id: ContentTab; label: string; icon: typeof BookOpenIcon }[] = [
 export function ContentPanel() {
   const tab = useContentTabStore((s) => s.tab)
   const setTab = useContentTabStore((s) => s.setTab)
+  const bibleStyleOpen = useContentTabStore((s) => s.bibleStyleOpen)
 
   return (
     <div data-slot="content-panel" className="flex min-h-0 flex-1 flex-col gap-1.5">
-      <div role="tablist" className="flex shrink-0 items-center gap-0.5 self-start rounded-lg bg-muted p-0.5">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors",
-              tab === id
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            )}
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <div role="tablist" className="flex shrink-0 items-center gap-0.5 self-start rounded-lg bg-muted p-0.5">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={cn(
+                "flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors",
+                tab === id
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Icon className={cn("size-3.5", tab === id ? "text-primary" : "text-muted-foreground")} />
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === "bible" && (
+          <Button
+            variant={bibleStyleOpen ? "secondary" : "ghost"}
+            size="sm"
+            aria-pressed={bibleStyleOpen}
+            onClick={() => useContentTabStore.getState().setBibleStyleOpen(!bibleStyleOpen)}
+            title="Style Bible verses: text, reference and background"
           >
-            <Icon className={cn("size-3.5", tab === id ? "text-primary" : "text-muted-foreground")} />
-            {label}
-          </button>
-        ))}
+            <PaletteIcon />
+            Style
+          </Button>
+        )}
       </div>
       <div className={cn("flex min-h-0 flex-1 flex-col", tab !== "bible" && "hidden")}>
         <SearchPanel />

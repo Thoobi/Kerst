@@ -10,9 +10,14 @@ export type ContentTab = "bible" | "songs" | "slides" | "videos" | "texts"
 interface ContentTabState {
   tab: ContentTab
   setTab: (tab: ContentTab) => void
+  /** The Bible style panel is showing in place of detections. */
+  bibleStyleOpen: boolean
+  setBibleStyleOpen: (open: boolean) => void
 }
 
 export const useContentTabStore = create<ContentTabState>((set) => ({
   tab: "bible",
   setTab: (tab) => set({ tab }),
+  bibleStyleOpen: false,
+  setBibleStyleOpen: (bibleStyleOpen) => set({ bibleStyleOpen }),
 }))

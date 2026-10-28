@@ -49,6 +49,40 @@ describe("broadcast store sync", () => {
     )
   })
 
+  it("saving a theme from the designer re-sends it to the outputs showing it", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const state = useBroadcastStore.getState()
+    state.createNewTheme()
+    const custom = useBroadcastStore.getState().themes.at(-1)!
+    state.setOutputTheme("main", custom.id)
+    useBroadcastStore.setState({ isLive: true, liveVerse: sampleLiveVerse })
+
+    useBroadcastStore.getState().startEditing(custom.id)
+    useBroadcastStore.getState().updateDraftNested("verseText.color", "#ff0000")
+    emitToMock.mockClear()
+    useBroadcastStore.getState().saveDraft()
+
+    expect(emitToMock).toHaveBeenCalledWith(
+      "broadcast-main",
+      "broadcast:verse-update",
+      expect.objectContaining({
+        theme: expect.objectContaining({
+          id: custom.id,
+          verseText: expect.objectContaining({ color: "#ff0000" }),
+        }),
+      }),
+    )
+  })
+
+  it("saving a theme leaves outputs on other themes alone", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const [themeA, themeB] = useBroadcastStore.getState().themes
+    useBroadcastStore.getState().setOutputTheme("main", themeA.id)
+    emitToMock.mockClear()
+    useBroadcastStore.getState().saveTheme({ ...themeB, name: "Renamed" })
+    expect(emitToMock).not.toHaveBeenCalled()
+  })
+
   it("syncBroadcastOutput fans out to every output with its own theme", async () => {
     const { useBroadcastStore } = await import("./broadcast-store")
     const state = useBroadcastStore.getState()
@@ -416,5 +450,25 @@ describe("updateLyricsStyle", () => {
     })
     useBroadcastStore.getState().updateLyricsStyle(null)
     expect(useBroadcastStore.getState().themes.find((t) => t.id === main.themeId)!.lyricsText).toBeUndefined()
+  })
+
+  it("styles Bible verses on the same copy, apart from songs", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const builtin = useBroadcastStore.getState().themes.find((t) => t.builtin)!
+    useBroadcastStore.getState().setOutputTheme("main", builtin.id)
+
+    useBroadcastStore.getState().updateLyricsStyle({ fontSize: 90 })
+    useBroadcastStore.getState().updateScriptureStyle({ fontSize: 70, backgroundColor: "#000000" })
+    const state = useBroadcastStore.getState()
+    const main = state.outputs.find((o) => o.id === "main")!
+    const styled = state.themes.find((t) => t.id === main.themeId)!
+    expect(state.themes.filter((t) => t.name === `${builtin.name} (Custom)`)).toHaveLength(1)
+    expect(styled.lyricsText).toEqual({ fontSize: 90 })
+    expect(styled.scriptureText).toEqual({ fontSize: 70, backgroundColor: "#000000" })
+
+    useBroadcastStore.getState().updateScriptureStyle(null)
+    const reset = useBroadcastStore.getState().themes.find((t) => t.id === main.themeId)!
+    expect(reset.scriptureText).toBeUndefined()
+    expect(reset.lyricsText).toEqual({ fontSize: 90 })
   })
 })

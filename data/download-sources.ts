@@ -34,6 +34,102 @@ const EXPECTED_TRANSLATIONS = [
 
 const CROSS_REFS_URL = "https://a.openbible.info/data/cross-references.zip"
 
+// Public-domain and openly licensed translations, fetched one by one from
+// their publishers' distributions rather than the pre-built zip. Licenses are
+// recorded in build-bible-db.ts (TRANSLATIONS_META).
+//
+// scrollmapper/bible_databases is already in our JSON format; pinned to a
+// commit so a rebuild gets the same text. eBible.org ships verse-per-line
+// text that `fromEbibleVpl` converts.
+const SCROLLMAPPER_JSON =
+  "https://raw.githubusercontent.com/scrollmapper/bible_databases/59b18c5af5845728c275d5b7178ad0d024172b1f/formats/json"
+
+const FREE_TRANSLATIONS: Array<
+  | { file: string; scrollmapper: string }
+  | { file: string; ebible: string; name: string }
+> = [
+  { file: "ASV.json", scrollmapper: "ASV" },
+  { file: "BSB.json", scrollmapper: "BSB" },
+  { file: "YLT.json", scrollmapper: "YLT" },
+  { file: "Darby.json", scrollmapper: "Darby" },
+  { file: "BBE.json", scrollmapper: "BBE" },
+  { file: "GNV.json", scrollmapper: "Geneva1599" },
+  { file: "WEB.json", ebible: "engwebp", name: "WEB: World English Bible" },
+  { file: "YOR.json", ebible: "yor", name: "YOR: Bíbélì Mímọ́ ní Èdè Yorùbá Òde-Òní" },
+  { file: "IBO.json", ebible: "ibo", name: "IBO: Baịbụlụ Nsọ nʼIgbo Ndị Ugbu a" },
+]
+
+// eBible.org's VPL book codes, in canonical order, with the English names the
+// other sources use (build-bible-db.ts keys abbreviations by these names).
+const EBIBLE_BOOKS: Array<[string, string]> = [
+  ["GEN", "Genesis"], ["EXO", "Exodus"], ["LEV", "Leviticus"], ["NUM", "Numbers"],
+  ["DEU", "Deuteronomy"], ["JOS", "Joshua"], ["JDG", "Judges"], ["RUT", "Ruth"],
+  ["1SA", "I Samuel"], ["2SA", "II Samuel"], ["1KI", "I Kings"], ["2KI", "II Kings"],
+  ["1CH", "I Chronicles"], ["2CH", "II Chronicles"], ["EZR", "Ezra"], ["NEH", "Nehemiah"],
+  ["EST", "Esther"], ["JOB", "Job"], ["PSA", "Psalms"], ["PRO", "Proverbs"],
+  ["ECC", "Ecclesiastes"], ["SOL", "Song of Solomon"], ["ISA", "Isaiah"], ["JER", "Jeremiah"],
+  ["LAM", "Lamentations"], ["EZE", "Ezekiel"], ["DAN", "Daniel"], ["HOS", "Hosea"],
+  ["JOE", "Joel"], ["AMO", "Amos"], ["OBA", "Obadiah"], ["JON", "Jonah"],
+  ["MIC", "Micah"], ["NAH", "Nahum"], ["HAB", "Habakkuk"], ["ZEP", "Zephaniah"],
+  ["HAG", "Haggai"], ["ZEC", "Zechariah"], ["MAL", "Malachi"], ["MAT", "Matthew"],
+  ["MAR", "Mark"], ["LUK", "Luke"], ["JOH", "John"], ["ACT", "Acts"],
+  ["ROM", "Romans"], ["1CO", "I Corinthians"], ["2CO", "II Corinthians"], ["GAL", "Galatians"],
+  ["EPH", "Ephesians"], ["PHI", "Philippians"], ["COL", "Colossians"], ["1TH", "I Thessalonians"],
+  ["2TH", "II Thessalonians"], ["1TI", "I Timothy"], ["2TI", "II Timothy"], ["TIT", "Titus"],
+  ["PHM", "Philemon"], ["HEB", "Hebrews"], ["JAM", "James"], ["1PE", "I Peter"],
+  ["2PE", "II Peter"], ["1JO", "I John"], ["2JO", "II John"], ["3JO", "III John"],
+  ["JUD", "Jude"], ["REV", "Revelation of John"],
+]
+
+interface BibleJSON {
+  translation: string
+  books: Array<{
+    name: string
+    chapters: Array<{ chapter: number; verses: Array<{ verse: number; text: string }> }>
+  }>
+}
+
+/** Convert eBible.org VPL text ("GEN 1:1 In the beginning…") to our JSON. */
+export function fromEbibleVpl(vpl: string, name: string): BibleJSON {
+  const order = new Map(EBIBLE_BOOKS.map(([code], i) => [code, i]))
+  const books: BibleJSON["books"] = EBIBLE_BOOKS.map(([, bookName]) => ({
+    name: bookName,
+    chapters: [],
+  }))
+
+  for (const line of vpl.split(/\r?\n/)) {
+    const m = /^(\S+) (\d+):(\d+) (.*)$/.exec(line.replace(/^\uFEFF/, ""))
+    if (!m) continue
+    const index = order.get(m[1])
+    // Deuterocanonical books, where present, are outside the 66-book canon
+    // the database numbers by position.
+    if (index === undefined) continue
+    const text = m[4].trim()
+    if (!text) continue
+
+    const chapterNumber = Number(m[2])
+    const chapters = books[index].chapters
+    let chapter = chapters.find((c) => c.chapter === chapterNumber)
+    if (!chapter) {
+      chapter = { chapter: chapterNumber, verses: [] }
+      chapters.push(chapter)
+    }
+    chapter.verses.push({ verse: Number(m[3]), text })
+  }
+
+  return { translation: name, books }
+}
+
+/** The database numbers books by position, so anything but the full 66 in
+ *  order would put verses under the wrong book. */
+export function checkCanon(data: BibleJSON): string | null {
+  if (data.books.length !== EBIBLE_BOOKS.length) {
+    return `has ${data.books.length} books, expected ${EBIBLE_BOOKS.length}`
+  }
+  const empty = data.books.filter((b) => b.chapters.length === 0).map((b) => b.name)
+  return empty.length > 0 ? `has no text for ${empty.join(", ")}` : null
+}
+
 async function downloadFile(url: string, dest: string): Promise<void> {
   console.log(`  Downloading ${url}...`)
   const res = await fetch(url)
@@ -112,6 +208,47 @@ async function downloadSourcesZip(): Promise<void> {
   console.log(`  ✓ Extracted ${EXPECTED_TRANSLATIONS.length} translations`)
 }
 
+async function downloadFreeTranslations(): Promise<void> {
+  for (const entry of FREE_TRANSLATIONS) {
+    const dest = join(SOURCES_DIR, entry.file)
+    if (existsSync(dest)) {
+      console.log(`  ⏭ ${entry.file} already exists, skipping`)
+      continue
+    }
+
+    try {
+      let data: BibleJSON
+      if ("scrollmapper" in entry) {
+        const url = `${SCROLLMAPPER_JSON}/${entry.scrollmapper}.json`
+        console.log(`  Downloading ${url}...`)
+        const res = await fetch(url)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        data = (await res.json()) as BibleJSON
+      } else {
+        const zipDest = join(SOURCES_DIR, `${entry.ebible}_vpl.zip`)
+        await downloadFile(`https://ebible.org/Scriptures/${entry.ebible}_vpl.zip`, zipDest)
+        const proc = Bun.spawn(["unzip", "-p", zipDest, `${entry.ebible}_vpl.txt`], {
+          stdout: "pipe",
+          stderr: "inherit",
+        })
+        const vpl = await new Response(proc.stdout).text()
+        await rm(zipDest, { force: true })
+        if ((await proc.exited) !== 0) throw new Error("unzip failed")
+        data = fromEbibleVpl(vpl, entry.name)
+      }
+
+      const problem = checkCanon(data)
+      if (problem) throw new Error(problem)
+      await Bun.write(dest, JSON.stringify(data))
+      console.log(`  ✓ Saved ${entry.file}`)
+    } catch (err) {
+      // One unreachable source shouldn't fail a release; the database build
+      // skips a missing file and the warning shows on the CI run.
+      console.log(`::warning::Skipped ${entry.file}: ${err instanceof Error ? err.message : err}`)
+    }
+  }
+}
+
 async function downloadCrossRefs(): Promise<void> {
   const crossRefFile = join(CROSS_REFS_DIR, "cross_references.txt")
   const existing = Bun.file(crossRefFile)
@@ -133,13 +270,16 @@ async function main() {
   console.log("\n📖 Downloading Bible translations (pre-built zip)...\n")
   await downloadSourcesZip()
 
+  console.log("\n📖 Downloading free translations...\n")
+  await downloadFreeTranslations()
+
   console.log("\n🔗 Downloading cross-references...\n")
   await downloadCrossRefs()
 
   console.log("\n✅ All source data downloaded!\n")
 }
 
-main().catch((err) => {
+if (import.meta.main) main().catch((err) => {
   console.error("❌ Download failed:", err)
   process.exit(1)
 })

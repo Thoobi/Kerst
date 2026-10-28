@@ -4,6 +4,7 @@ pub const EVENT_TRANSCRIPT_FINAL: &str = "transcript_final";
 pub const EVENT_AUDIO_SOURCE_LOST: &str = "audio_source_lost";
 pub const EVENT_AUDIO_SOURCE_RECOVERED: &str = "audio_source_recovered";
 pub const EVENT_AUDIO_TEST_STOPPED: &str = "audio_test_stopped";
+pub const EVENT_WHISPER_MODEL_PROGRESS: &str = "whisper_model_progress";
 
 #[derive(Clone, serde::Serialize)]
 pub struct AudioLevelPayload {
@@ -22,4 +23,10 @@ pub struct TranscriptPayload {
     pub text: String,
     pub is_final: bool,
     pub confidence: f64,
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct WhisperModelProgressPayload {
+    pub downloaded_bytes: u64,
+    pub total_bytes: u64,
 }

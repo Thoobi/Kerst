@@ -2582,12 +2582,13 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "litdeck"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "axum",
  "crossbeam-channel",
  "dotenvy",
  "fontdb",
+ "futures-util",
  "libc",
  "litdeck-api",
  "litdeck-audio",
@@ -2598,8 +2599,10 @@ dependencies = [
  "litdeck-stream",
  "litdeck-stt",
  "log",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "sha2",
  "sysinfo",
  "tauri",
  "tauri-build",

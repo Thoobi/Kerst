@@ -2,9 +2,6 @@
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "bundle": {
     "createUpdaterArtifacts": true,
-    "externalBin": ["../sdk/ffmpeg/ffmpeg"],
-    "resources": {
-      "../models/whisper/ggml-large-v3-turbo-q8_0.bin": "models/whisper/ggml-large-v3-turbo-q8_0.bin"
-    }
+    "externalBin": ["../sdk/ffmpeg/ffmpeg"]
   }
 }

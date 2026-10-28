@@ -759,6 +759,44 @@ describe("song and text style", () => {
   })
 })
 
+describe("Bible style", () => {
+  const verse: VerseRenderData = { ...VERSE, style: "scripture" }
+  const theme: BroadcastTheme = {
+    ...freeTheme({ verseBox: { x: 10, y: 40, width: 80, height: 15 } }),
+    scriptureText: {
+      fontSize: 90,
+      color: "#ffee00",
+      referenceFontSize: 40,
+      referenceColor: "#00ffcc",
+      backgroundColor: "#112233",
+      backgroundVideoId: "video-1",
+    },
+  }
+
+  it("applies only to Bible verses", () => {
+    const lyric: VerseRenderData = { style: "lyrics", reference: "", segments: [{ text: "Way maker" }] }
+    expect(themeForContent(theme, lyric)).toBe(theme)
+    expect(themeForContent(theme, VERSE)).toBe(theme)
+
+    const forVerse = themeForContent(theme, verse)
+    expect(forVerse.verseText).toMatchObject({ fontSize: 90, color: "#ffee00" })
+    expect(forVerse.reference).toMatchObject({ fontSize: 40, color: "#00ffcc" })
+    expect(forVerse.background).toMatchObject({ type: "solid", color: "#112233" })
+  })
+
+  it("keeps its own fields off the verse text", () => {
+    const forVerse = themeForContent(theme, verse)
+    expect(forVerse.verseText).not.toHaveProperty("referenceColor")
+    expect(forVerse.verseText).not.toHaveProperty("backgroundVideoId")
+  })
+
+  it("leaves the theme's reference and background alone when they aren't set", () => {
+    const forVerse = themeForContent({ ...theme, scriptureText: { fontSize: 90 } }, verse)
+    expect(forVerse.reference).toEqual(theme.reference)
+    expect(forVerse.background).toEqual(theme.background)
+  })
+})
+
 describe("logoRect", () => {
   const logoImage = { naturalWidth: 400, naturalHeight: 200 } as HTMLImageElement
   const cache = new Map([["logo.gif", logoImage]])

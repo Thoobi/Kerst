@@ -23,8 +23,11 @@ export interface VerseRenderData {
    * can show a frame, the poster is drawn instead.
    */
   video?: VideoPlayback
-  /** Lyrics and texts set "lyrics", so the theme's song and text style applies. */
-  style?: "lyrics"
+  /**
+   * Lyrics and texts set "lyrics", so the theme's song and text style
+   * applies; Bible verses set "scripture" for its Bible style.
+   */
+  style?: "lyrics" | "scripture"
   /**
    * A small credit line in the bottom-right corner, e.g. a song's title and
    * author, kept off the main text so only the words are big on screen.
@@ -162,6 +165,24 @@ export interface LyricsStyle {
   area?: "theme" | "screen"
 }
 
+/**
+ * How Bible verses look on the theme, laid over its verse text, reference
+ * and background the way `LyricsStyle` is for songs. Edited from the Bible
+ * style panel beside the Bible tab.
+ */
+export interface ScriptureStyle extends LyricsStyle {
+  referenceFontSize?: number
+  referenceColor?: string
+  /** A solid colour in place of the theme's background. */
+  backgroundColor?: string
+  /**
+   * A library video looped behind verses in place of the theme's
+   * background; wins over `backgroundColor`. Resolved into the verse's
+   * `background` when it is presented.
+   */
+  backgroundVideoId?: string | null
+}
+
 export interface BroadcastTheme {
   id: string
   name: string
@@ -211,6 +232,8 @@ export interface BroadcastTheme {
   logo?: ThemeLogo | null
   /** Songs and texts styled apart from scripture; see `LyricsStyle`. */
   lyricsText?: LyricsStyle
+  /** Bible verses styled apart from the theme; see `ScriptureStyle`. */
+  scriptureText?: ScriptureStyle
   verseNumbers: {
     visible: boolean
     fontSize: number

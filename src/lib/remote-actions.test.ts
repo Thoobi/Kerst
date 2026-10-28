@@ -61,6 +61,7 @@ beforeEach(() => {
         abbreviation: "KJV",
         title: "King James Version",
         language: "en",
+        license: "Public Domain",
         is_copyrighted: false,
         is_downloaded: true,
       },

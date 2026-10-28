@@ -31,7 +31,7 @@ missing_panics_doc = "allow"
 
 [package]
 name = "litdeck"
-version = "0.4.0"
+version = "0.4.1"
 description = "Litdeck - Real-Time AI Bible Verse Detection"
 authors = ["Faithful"]
 license = "MIT"
@@ -75,6 +75,10 @@ fontdb = "0.24.0"
 axum = "0.8"
 tower-http = { version = "0.6", features = ["fs", "cors"] }
 uuid = { version = "1.24", features = ["v4"] }
+# Already built by litdeck-stt; used for the first-use Whisper model download.
+reqwest = { version = "0.12", features = ["stream"] }
+futures-util = "0.3"
+sha2 = "0.10"
 
 [features]
 default = ["whisper"]

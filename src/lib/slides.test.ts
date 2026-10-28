@@ -33,8 +33,9 @@ const image: ImageSlide = {
 }
 
 describe("toRenderData", () => {
-  it("renders scripture exactly as before: reference with translation, one numbered segment", () => {
+  it("renders scripture as before, tagged for the Bible style: reference with translation, one numbered segment", () => {
     expect(toRenderData(scripture)).toEqual({
+      style: "scripture",
       reference: "John 3:16 (KJV)",
       segments: [{ verseNumber: 16, text: "For God so loved the world" }],
     })

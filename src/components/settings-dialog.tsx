@@ -46,6 +46,7 @@ import {
 } from "lucide-react"
 import { LevelMeter } from "@/components/ui/level-meter"
 import { useAudioTest } from "@/hooks/use-audio-test"
+import { formatMegabytes, useWhisperModel } from "@/hooks/use-whisper-model"
 import { useSettingsStore } from "@/stores"
 import { useTranscriptStore } from "@/stores/transcript-store"
 import { useTutorialStore } from "@/stores/tutorial-store"
@@ -306,13 +307,16 @@ function SpeechSection() {
                 Local (Whisper)
               </span>
               <p className="text-[0.625rem] leading-relaxed text-muted-foreground">
-                Runs Whisper large-v3-turbo locally on your device. Fully
-                offline, no API key needed. Audio never leaves your machine.
+                Runs Whisper large-v3-turbo locally on your device. No API key
+                needed, and audio never leaves your machine. Needs a one-time
+                download, then works fully offline.
               </p>
             </div>
           </label>
         </RadioGroup>
       </div>
+
+      {sttProvider === "whisper" && <WhisperModelPanel />}
 
       {/* Deepgram settings — show when deepgram is selected */}
       {sttProvider === "deepgram" && (
@@ -351,6 +355,76 @@ function SpeechSection() {
             <span className="text-primary">deepgram.com</span>
           </p>
         </div>
+      )}
+    </div>
+  )
+}
+
+function WhisperModelPanel() {
+  const { phase, downloadedBytes, totalBytes, error, download, cancel } =
+    useWhisperModel()
+
+  const percent =
+    totalBytes > 0 ? Math.floor((downloadedBytes / totalBytes) * 100) : 0
+  const resumable = phase === "missing" && downloadedBytes > 0
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Whisper Model
+        </label>
+        {phase === "installed" && (
+          <Badge variant="outline" className="text-[0.5rem]">
+            Downloaded
+          </Badge>
+        )}
+      </div>
+
+      {phase === "installed" && (
+        <p className="text-[0.625rem] text-muted-foreground">
+          Ready. Local transcription works without an internet connection.
+        </p>
+      )}
+
+      {phase === "missing" && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+          <p className="text-[0.625rem] leading-relaxed text-muted-foreground">
+            {resumable
+              ? `${formatMegabytes(downloadedBytes)} of ${formatMegabytes(totalBytes)} downloaded. Resume to finish.`
+              : `The model is ${formatMegabytes(totalBytes)}. Download it once, ideally before the event, on a good connection.`}
+          </p>
+          <Button size="sm" onClick={() => void download()}>
+            {resumable ? "Resume" : "Download"}
+          </Button>
+        </div>
+      )}
+
+      {(phase === "downloading" || phase === "verifying") && (
+        <div className="flex flex-col gap-2 rounded-lg border p-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[0.625rem] text-muted-foreground tabular-nums">
+              {phase === "verifying"
+                ? "Checking the download…"
+                : `Downloading… ${formatMegabytes(downloadedBytes)} of ${formatMegabytes(totalBytes)} (${percent}%)`}
+            </span>
+            {phase === "downloading" && (
+              <Button size="sm" variant="outline" onClick={() => void cancel()}>
+                Pause
+              </Button>
+            )}
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary transition-[width]"
+              style={{ width: `${phase === "verifying" ? 100 : percent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <p className="text-[0.625rem] text-destructive">{error}</p>
       )}
     </div>
   )
@@ -507,6 +581,7 @@ interface TranslationInfo {
   abbreviation: string
   title: string
   language: string
+  license: string
 }
 
 function BibleSection() {
@@ -545,6 +620,7 @@ function BibleSection() {
     }
   }
 
+  const activeLicense = translations.find((t) => t.id === activeId)?.license
   const englishTranslations = translations.filter((t) => t.language === "en")
   const otherTranslations = translations.filter((t) => t.language !== "en")
 
@@ -593,6 +669,10 @@ function BibleSection() {
           Detected verses will display in this translation.
           {translations.length > 0 && ` ${translations.length} translations available.`}
         </p>
+        {/* Openly licensed translations (CC BY-SA) require their notice to be shown. */}
+        {activeLicense?.startsWith("Copyright") && (
+          <p className="text-[0.625rem] text-muted-foreground">{activeLicense}</p>
+        )}
       </div>
     </div>
   )

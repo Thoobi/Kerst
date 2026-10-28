@@ -112,21 +112,6 @@ jobs:
         timeout-minutes: 30
         run: scripts/fetch-ffmpeg.sh ${{ matrix.target }}
 
-      # Local transcription ships with the app so it works offline from the
-      # first launch. The model is ~870 MB; cache it rather than pulling it
-      # from Hugging Face on every build.
-      - name: Cache Whisper model
-        id: whisper-cache
-        uses: actions/cache@v4
-        with:
-          path: models/whisper
-          key: whisper-ggml-large-v3-turbo-q8_0
-
-      - name: Download Whisper model
-        if: steps.whisper-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 15
-        run: bun run download:whisper
-
       - name: Read application version
         id: version
         shell: bash

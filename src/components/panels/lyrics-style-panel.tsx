@@ -1,16 +1,22 @@
-import { useMemo } from "react"
-import { BoldIcon, RotateCcwIcon } from "lucide-react"
+import { useMemo, useState } from "react"
+import { BoldIcon, RotateCcwIcon, XIcon } from "lucide-react"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { HorizontalAlignButtons, VerticalAlignButtons } from "@/components/broadcast/align-buttons"
+import { BackgroundPicker } from "@/components/panels/background-picker"
+import { setScriptureBackground } from "@/hooks/use-broadcast"
+import { toRenderData } from "@/lib/slides"
 import { computeVerseLayoutMetrics } from "@/lib/verse-renderer"
 import { cn } from "@/lib/utils"
-import { useBroadcastStore, usePreviewStore } from "@/stores"
+import { useBibleStore, useBroadcastStore, usePreviewStore } from "@/stores"
+import { useContentTabStore } from "@/stores/content-tab-store"
 import { MAIN_OUTPUT_ID } from "@/types"
-import type { BroadcastTheme, LyricsStyle, VerseRenderData } from "@/types"
+import type { BroadcastTheme, LyricsStyle, ScriptureStyle, VerseRenderData } from "@/types"
+
+type Kind = "lyrics" | "scripture"
 
 /** Stands in for the words when the preview isn't showing a song or text. */
 const SAMPLE: VerseRenderData = {
@@ -19,6 +25,18 @@ const SAMPLE: VerseRenderData = {
   segments: ["Way maker, miracle worker", "Promise keeper", "Light in the darkness", "My God, that is who You are"].map(
     (text, i) => ({ text, lineBreak: i > 0 })
   ),
+}
+
+/** Stands in for the verse when none is picked yet. */
+const SAMPLE_VERSE: VerseRenderData = {
+  style: "scripture",
+  reference: "John 3:16 (KJV)",
+  segments: [
+    {
+      verseNumber: 16,
+      text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+    },
+  ],
 }
 
 let measureCtx: CanvasRenderingContext2D | null = null
@@ -32,6 +50,38 @@ function useShownSize(theme: BroadcastTheme | undefined, content: VerseRenderDat
     const fitted = computeVerseLayoutMetrics(measureCtx, theme, content).fittedVerseFontSize
     return fitted === undefined ? null : Math.round(fitted)
   }, [theme, content])
+}
+
+function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: T
+  options: readonly (readonly [T, string])[]
+  onChange: (value: T) => void
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex rounded-md bg-muted p-0.5">
+      {options.map(([option, text]) => (
+        <button
+          key={option}
+          type="button"
+          role="radio"
+          aria-checked={value === option}
+          onClick={() => onChange(option)}
+          className={cn(
+            "h-7 flex-1 rounded-[5px] text-xs transition-colors",
+            value === option ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function Field({ label, children, aside }: { label: string; children: React.ReactNode; aside?: React.ReactNode }) {
@@ -51,23 +101,58 @@ function Field({ label, children, aside }: { label: string; children: React.Reac
  * size, weight, spacing, alignment, colour, outline and how much of the
  * screen the words get, applied at once to the Preview, Live and outputs.
  * It's stored on the main output's theme as its song and text style, so
- * scripture keeps the theme's own look.
+ * scripture keeps its own look.
  */
 export function LyricsStylePanel() {
+  return <TextStylePanel kind="lyrics" />
+}
+
+/**
+ * The same for Bible verses, opened from the Bible tab: the verse text, the
+ * reference and the background, stored on the main output's theme as its
+ * Bible style.
+ */
+export function ScriptureStylePanel() {
+  return <TextStylePanel kind="scripture" />
+}
+
+function TextStylePanel({ kind }: { kind: Kind }) {
   const themes = useBroadcastStore((s) => s.themes)
   const outputs = useBroadcastStore((s) => s.outputs)
   const activeThemeId = useBroadcastStore((s) => s.activeThemeId)
   const preview = usePreviewStore((s) => s.content)
+  const selectedVerse = useBibleStore((s) => s.selectedVerse)
+  const translations = useBibleStore((s) => s.translations)
+  const activeTranslationId = useBibleStore((s) => s.activeTranslationId)
+  // "Video" picked, but no video chosen from the list yet.
+  const [choosingVideo, setChoosingVideo] = useState(false)
 
   const themeId = outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? activeThemeId
   const theme = themes.find((t) => t.id === themeId) ?? themes[0]
-  const content = preview?.style === "lyrics" ? preview : SAMPLE
+  const translation = translations.find((t) => t.id === activeTranslationId)?.abbreviation ?? "KJV"
+  const content = useMemo(() => {
+    if (kind === "lyrics") return preview?.style === "lyrics" ? preview : SAMPLE
+    return selectedVerse ? toRenderData({ kind: "scripture", verse: selectedVerse, translation }) : SAMPLE_VERSE
+  }, [kind, preview, selectedVerse, translation])
   const shown = useShownSize(theme, content)
   if (!theme) return null
 
   const base = theme.verseText
-  const style: LyricsStyle = theme.lyricsText ?? {}
-  const update = (patch: Partial<LyricsStyle>) => useBroadcastStore.getState().updateLyricsStyle(patch)
+  const style: ScriptureStyle = (kind === "lyrics" ? theme.lyricsText : theme.scriptureText) ?? {}
+  const update = (patch: Partial<ScriptureStyle>) => {
+    const broadcast = useBroadcastStore.getState()
+    if (kind === "lyrics") broadcast.updateLyricsStyle(patch as Partial<LyricsStyle>)
+    else broadcast.updateScriptureStyle(patch)
+  }
+  const reset = () => {
+    const broadcast = useBroadcastStore.getState()
+    if (kind === "lyrics") broadcast.updateLyricsStyle(null)
+    else if (style.backgroundVideoId) {
+      // Through the background helper so a live verse loses its video too.
+      setScriptureBackground(null)
+      broadcast.updateScriptureStyle(null)
+    } else broadcast.updateScriptureStyle(null)
+  }
 
   const fontSize = style.fontSize ?? base.fontSize
   const fontWeight = style.fontWeight ?? base.fontWeight
@@ -78,32 +163,51 @@ export function LyricsStylePanel() {
   const area = style.area ?? "theme"
   const bold = fontWeight >= 600
   const shrunk = shrinkToFit && shown !== null && shown < fontSize
-  const customised = theme.lyricsText !== undefined && Object.keys(theme.lyricsText).length > 0
+  const customised = Object.values(style).some((value) => value !== undefined && value !== null)
+  const referenceSize = style.referenceFontSize ?? theme.reference.fontSize
+  const referenceColor = style.referenceColor ?? theme.reference.color
+  const backgroundMode =
+    style.backgroundVideoId || choosingVideo ? "video" : style.backgroundColor ? "colour" : "theme"
 
   return (
     <div
-      data-slot="lyrics-style-panel"
+      data-slot={kind === "lyrics" ? "lyrics-style-panel" : "scripture-style-panel"}
       className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs"
     >
-      <PanelHeader title="Song & text style">
-        <Button
-          variant="ghost"
-          size="xs"
-          className="text-muted-foreground"
-          disabled={!customised}
-          onClick={() => useBroadcastStore.getState().updateLyricsStyle(null)}
-          title="Go back to the theme's own text style"
-        >
-          <RotateCcwIcon />
-          Reset
-        </Button>
+      <PanelHeader title={kind === "lyrics" ? "Song & text style" : "Bible style"}>
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground"
+            disabled={!customised}
+            onClick={reset}
+            title="Go back to the theme's own style"
+          >
+            <RotateCcwIcon />
+            Reset
+          </Button>
+          {kind === "scripture" && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="text-muted-foreground"
+              onClick={() => useContentTabStore.getState().setBibleStyleOpen(false)}
+              title="Close and show detections"
+              aria-label="Close Bible style"
+            >
+              <XIcon />
+            </Button>
+          )}
+        </div>
       </PanelHeader>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3.5 pb-3.5">
         <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
           Changes show at once in Preview and Live. They're saved on{" "}
           <span className="font-medium text-foreground">{theme.name}</span>
-          {theme.builtin && " (as a custom copy)"}; Bible verses keep the theme's look.
+          {theme.builtin && " (as a custom copy)"}
+          {kind === "lyrics" ? "; Bible verses keep their own look." : "; songs and texts keep their own look."}
         </p>
 
         <Field label="Size" aside={<span className="text-xs tabular-nums text-muted-foreground">{fontSize}px</span>}>
@@ -145,28 +249,15 @@ export function LyricsStylePanel() {
         </label>
 
         <Field label="Text area">
-          <div role="radiogroup" aria-label="Text area" className="flex rounded-md bg-muted p-0.5">
-            {(
-              [
-                ["theme", "Theme's box"],
-                ["screen", "Whole screen"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={area === value}
-                onClick={() => update({ area: value })}
-                className={cn(
-                  "h-7 flex-1 rounded-[5px] text-xs transition-colors",
-                  area === value ? "bg-card font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            label="Text area"
+            value={area}
+            options={[
+              ["theme", "Theme's box"],
+              ["screen", "Whole screen"],
+            ]}
+            onChange={(value) => update({ area: value })}
+          />
         </Field>
 
         <Field
@@ -244,6 +335,74 @@ export function LyricsStylePanel() {
             </div>
           )}
         </Field>
+
+        {kind === "scripture" && (
+          <>
+            <Field
+              label="Reference"
+              aside={<span className="text-xs tabular-nums text-muted-foreground">{referenceSize}px</span>}
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={referenceColor.slice(0, 7)}
+                  onChange={(e) => update({ referenceColor: e.target.value })}
+                  className="h-7 w-8 shrink-0 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                  aria-label="Reference colour"
+                />
+                <Slider
+                  min={12}
+                  max={160}
+                  step={1}
+                  value={[referenceSize]}
+                  onValueChange={([v]) => update({ referenceFontSize: v })}
+                  className="flex-1"
+                  aria-label="Reference size"
+                />
+              </div>
+            </Field>
+
+            <Field label="Background">
+              <Segmented
+                label="Background"
+                value={backgroundMode}
+                options={[
+                  ["theme", "Theme"],
+                  ["colour", "Colour"],
+                  ["video", "Video"],
+                ]}
+                onChange={(mode) => {
+                  setChoosingVideo(mode === "video")
+                  if (mode === "video") return
+                  if (style.backgroundVideoId) setScriptureBackground(null)
+                  update({
+                    backgroundColor:
+                      mode === "colour" ? (style.backgroundColor ?? theme.background.color.slice(0, 7)) : undefined,
+                  })
+                }}
+              />
+              {backgroundMode === "video" && (
+                <BackgroundPicker
+                  videoId={style.backgroundVideoId ?? null}
+                  onChoose={async (videoId) => {
+                    setScriptureBackground(videoId)
+                    if (videoId) update({ backgroundColor: undefined })
+                    else setChoosingVideo(false)
+                  }}
+                />
+              )}
+              {backgroundMode === "colour" && style.backgroundColor && (
+                <input
+                  type="color"
+                  value={style.backgroundColor.slice(0, 7)}
+                  onChange={(e) => update({ backgroundColor: e.target.value })}
+                  className="h-8 w-full cursor-pointer rounded-md border border-input bg-transparent p-0.5"
+                  aria-label="Background colour"
+                />
+              )}
+            </Field>
+          </>
+        )}
       </div>
     </div>
   )
