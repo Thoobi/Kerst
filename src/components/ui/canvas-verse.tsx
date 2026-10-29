@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback, memo } from "react"
 import { backgroundRegion, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { LoopingVideo } from "@/components/ui/looping-video"
+import { useTimerTick } from "@/hooks/use-timer-tick"
 import type { BroadcastTheme, VerseRenderData } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -19,6 +20,8 @@ export const CanvasVerse = memo(function CanvasVerse({
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
+  // A running timer redraws as its reading changes.
+  const timerTick = useTimerTick(verse?.timer)
 
   // Measure container width with ResizeObserver
   useEffect(() => {
@@ -56,7 +59,8 @@ export const CanvasVerse = memo(function CanvasVerse({
       imageCache: themeImageCache(),
       backgroundBehind: true,
     })
-  }, [theme, verse, containerWidth])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the tick only marks when to redraw
+  }, [theme, verse, containerWidth, timerTick])
 
   // Preload every image the frame uses (theme art, or a full-frame slide) so
   // the renderer finds them in the cache.

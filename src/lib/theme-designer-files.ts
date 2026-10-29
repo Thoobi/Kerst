@@ -3,6 +3,19 @@ import { readFile, writeTextFile } from "@tauri-apps/plugin-fs"
 import type { BroadcastTheme } from "@/types"
 import { normalizeTheme } from "@/lib/theme-migrations"
 
+const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"]
+
+/** The image type from a file's first bytes, for the formats that have a signature. */
+function sniffImageType(bytes: Uint8Array): string | null {
+  const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end))
+  if (ascii(0, 4) === "GIF8") return "image/gif"
+  if (bytes[0] === 0x89 && ascii(1, 4) === "PNG") return "image/png"
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return "image/jpeg"
+  if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp"
+  if (ascii(0, 2) === "BM") return "image/bmp"
+  return null
+}
+
 /**
  * Opens a native file dialog to pick an image, reads it,
  * and returns a base64 data URL that persists across restarts.
@@ -13,7 +26,9 @@ export async function pickThemeBackgroundImage(): Promise<string | null> {
     filters: [
       {
         name: "Images",
-        extensions: ["png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"],
+        // Linux's file chooser matches these case-sensitively, so a camera's
+        // or a designer's LOGO.GIF would be hidden without the capitals.
+        extensions: IMAGE_EXTENSIONS.flatMap((e) => [e, e.toUpperCase()]),
       },
     ],
   })
@@ -31,7 +46,8 @@ export async function pickThemeBackgroundImage(): Promise<string | null> {
     bmp: "image/bmp",
     svg: "image/svg+xml",
   }
-  const mime = mimeMap[extension] ?? "image/png"
+  // Trust the bytes over the name: a GIF saved as .png must still animate.
+  const mime = sniffImageType(bytes) ?? mimeMap[extension] ?? "image/png"
 
   let binary = ""
   for (const byte of bytes) {

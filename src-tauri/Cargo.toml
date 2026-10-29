@@ -31,7 +31,7 @@ missing_panics_doc = "allow"
 
 [package]
 name = "litdeck"
-version = "0.4.5"
+version = "0.4.6"
 description = "Litdeck - Real-Time AI Bible Verse Detection"
 authors = ["Faithful"]
 license = "MIT"

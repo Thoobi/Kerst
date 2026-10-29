@@ -1,7 +1,7 @@
 import { create } from "zustand"
 
 /** The content tabs, in the order they're shown. */
-export type ContentTab = "bible" | "songs" | "slides" | "videos" | "texts"
+export type ContentTab = "bible" | "songs" | "slides" | "videos" | "texts" | "timer"
 
 /**
  * Which content tab is showing. A store rather than local state so the

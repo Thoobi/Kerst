@@ -1,3 +1,4 @@
+import { toast } from "sonner"
 import { useBroadcastStore } from "@/stores/broadcast-store"
 import { pickThemeBackgroundImage } from "@/lib/theme-designer-files"
 import { Slider } from "@/components/ui/slider"
@@ -61,8 +62,12 @@ export function LogoProperties() {
 
   const pick = () => {
     void (async () => {
-      const url = await pickThemeBackgroundImage()
-      if (url) update("logo", { ...DEFAULT_LOGO, ...logo, url })
+      try {
+        const url = await pickThemeBackgroundImage()
+        if (url) update("logo", { ...DEFAULT_LOGO, ...logo, url })
+      } catch (error) {
+        toast.error("Could not add the logo", { description: String(error) })
+      }
     })()
   }
 

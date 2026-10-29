@@ -36,6 +36,7 @@ import {
   ndiResolutionDimensions,
 } from "@/lib/broadcast-output-control"
 import { useBroadcastStore } from "@/stores"
+import { outputVerse } from "@/stores/broadcast-store"
 import type { BroadcastOutput, BroadcastOutputStatus, DestinationStatus, StreamStatus } from "@/types"
 import { MAIN_OUTPUT_ID, isOnAir } from "@/types"
 
@@ -141,8 +142,7 @@ export function OutputCard({
   busy = false,
 }: OutputCardProps) {
   const themes = useBroadcastStore((s) => s.themes)
-  const isLive = useBroadcastStore((s) => s.isLive)
-  const liveVerse = useBroadcastStore((s) => s.liveVerse)
+  const verse = useBroadcastStore((s) => outputVerse(s, output.id))
   const renameOutput = useBroadcastStore((s) => s.renameOutput)
   const streamStatus = useBroadcastStore((s) => s.streamStatus[output.id])
 
@@ -180,7 +180,7 @@ export function OutputCard({
         {theme ? (
           <CanvasVerse
             theme={theme}
-            verse={isLive && onAir ? liveVerse : null}
+            verse={onAir ? verse : null}
             className={cn("aspect-video w-full", !onAir && "opacity-45 saturate-50")}
           />
         ) : (

@@ -11,8 +11,9 @@ import { fitFrame, renderScale } from "@/lib/output-frame"
 import { SyncedVideo } from "@/components/ui/synced-video"
 import { LoopingVideo } from "@/components/ui/looping-video"
 import { forwardConsoleToLog } from "@/lib/console-to-log"
+import { timerText } from "@/lib/timer"
 import "./broadcast-fonts.css"
-import type { BroadcastTheme, ThemeLogo, VerseRenderData, VideoPlayback } from "@/types/broadcast"
+import type { BroadcastTheme, ThemeLogo, TimerClock, VerseRenderData, VideoPlayback } from "@/types/broadcast"
 import type { CaptureConfigEventPayload } from "@/types"
 
 interface BackgroundBox {
@@ -68,6 +69,8 @@ function BroadcastCanvas() {
   // into its own frames.
   const [logo, setLogo] = useState<ThemeLogo | null>(null)
   const [logoBox, setLogoBox] = useState<BackgroundBox | null>(null)
+  // A running timer draws itself: each window reads the clock.
+  const [timer, setTimer] = useState<TimerClock | null>(null)
 
   const logDebug = useCallback((message: string, meta?: unknown) => {
     if (!import.meta.env.DEV) return
@@ -235,6 +238,7 @@ function BroadcastCanvas() {
       setVideo(event.payload.verse?.video ?? null)
       setBackground(event.payload.verse?.background ?? null)
       setLogo(event.payload.theme.logo ?? null)
+      setTimer(event.payload.verse?.timer ?? null)
       preloadFrameAssets(event.payload)
       logDebug("Received broadcast:verse-update", {
         hasVerse: Boolean(event.payload.verse),
@@ -309,6 +313,21 @@ function BroadcastCanvas() {
     const timer = setInterval(() => void pushNdiFrame(), 1000 / fps)
     return () => clearInterval(timer)
   }, [moving, pushNdiFrame])
+
+  // Redraw a running timer each time its reading changes, and send NDI and
+  // the stream that frame.
+  useEffect(() => {
+    if (!timer?.running) return
+    let last = timerText(timer, Date.now())
+    const id = setInterval(() => {
+      const text = timerText(timer, Date.now())
+      if (text === last) return
+      last = text
+      draw()
+      void pushNdiFrame()
+    }, 100)
+    return () => clearInterval(id)
+  }, [timer, draw, pushNdiFrame])
 
   // Slow keepalive: push one frame every 2s if idle (prevents NDI receivers from dropping the source)
   useEffect(() => {

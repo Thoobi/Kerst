@@ -11,6 +11,7 @@ import {
 import { gifFrameAt } from "@/lib/gif-frames"
 import { drawImageSmooth } from "@/lib/image-scaling"
 import { imageContentBox } from "@/lib/theme-image-cache"
+import { withTimerText } from "@/lib/timer"
 import type {
   BroadcastTheme,
   LyricsStyle,
@@ -1186,6 +1187,9 @@ export function backgroundRegion(theme: BroadcastTheme, scale = 1): VerseLayoutR
   return regionFor(buildScaledTheme(theme, scale), 0, 0)
 }
 
+/** How much bigger a timer's clock is than the theme's words, in %, unless its style says. */
+export const DEFAULT_TIMER_SIZE = 300
+
 /** Margin around the words when songs and texts use the whole screen, as % of each side. */
 const SCREEN_AREA_MARGIN = 5
 
@@ -1196,6 +1200,24 @@ const SCREEN_AREA_MARGIN = 5
  * theme unchanged.
  */
 export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | null): BroadcastTheme {
+  if (verse?.timer) {
+    // A clock is a few characters: drawn big by default, shrunk to fit the box.
+    const style = verse.timer.style
+    const styled = theme.lyricsText ? withTextStyle(theme, theme.lyricsText) : theme
+    return {
+      ...styled,
+      verseText: {
+        ...styled.verseText,
+        fontSize: (styled.verseText.fontSize * (style?.size ?? DEFAULT_TIMER_SIZE)) / 100,
+        shrinkToFit: true,
+        ...(style?.color ? { color: style.color } : {}),
+      },
+      ...(style?.captionColor ? { reference: { ...styled.reference, color: style.captionColor } } : {}),
+      ...(style?.backgroundColor
+        ? { background: { ...styled.background, type: "solid" as const, color: style.backgroundColor } }
+        : {}),
+    }
+  }
   if (verse?.style === "lyrics" && theme.lyricsText) return withTextStyle(theme, theme.lyricsText)
   if (verse?.style === "scripture" && theme.scriptureText) {
     const { referenceFontSize, referenceColor, backgroundColor } = theme.scriptureText
@@ -1821,7 +1843,8 @@ export function renderVerse(
   options?: RenderOptions
 ): VerseLayoutMetrics | null {
   try {
-    return renderVerseImpl(ctx, theme, verse, options)
+    // A timer's words are its clock's reading right now.
+    return renderVerseImpl(ctx, theme, withTimerText(verse, Date.now()), options)
   } catch (e) {
     console.error("[verse-renderer] render error:", e)
     return null

@@ -12,6 +12,8 @@ export type {
   VerseRenderData,
   VerseSegment,
   VideoPlayback,
+  TimerClock,
+  TimerStyle,
   RenderOptions,
   LyricsStyle,
   ScriptureStyle,

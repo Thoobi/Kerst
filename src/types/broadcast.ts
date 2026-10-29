@@ -39,6 +39,41 @@ export interface VerseRenderData {
    * follows its clock like `video`.
    */
   background?: VideoPlayback
+  /**
+   * A running clock. Each window works out the time itself from this and
+   * draws it as the words, `caption` as the reference, ticking on its own.
+   */
+  timer?: TimerClock
+}
+
+/**
+ * A countdown or count-up as a clock every window can read, like
+ * `VideoPlayback`: at `anchor` (`Date.now()`) it showed `seconds`, and if
+ * `running` it has moved on in real time since.
+ */
+export interface TimerClock {
+  direction: "down" | "up"
+  seconds: number
+  anchor: number
+  running: boolean
+  /** Shown with the time, e.g. "Service starts in". */
+  caption: string
+  /** Shown in place of the time once a countdown reaches zero; empty keeps 0:00. */
+  endText: string
+  style?: TimerStyle
+}
+
+/**
+ * How a timer looks, over whichever theme each output has. A motion
+ * background goes in the frame's `background`, as for texts.
+ */
+export interface TimerStyle {
+  /** The clock's size, in % of the theme's word size. */
+  size: number
+  color?: string
+  captionColor?: string
+  /** A solid colour in place of the theme's background. */
+  backgroundColor?: string
 }
 
 /**

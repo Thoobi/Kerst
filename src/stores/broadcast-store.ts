@@ -38,6 +38,12 @@ interface BroadcastState {
   // When on, detections auto-present to the live output. When off, the live
   // output only changes via explicit presents (manual operator control).
   autoLive: boolean
+  /**
+   * A timer shown on some outputs in place of the live content, so one
+   * screen can count down while another carries the Bible. Not persisted.
+   */
+  timerVerse: VerseRenderData | null
+  timerOutputIds: string[]
 
   // Designer state
   isDesignerOpen: boolean
@@ -58,6 +64,8 @@ interface BroadcastState {
   setLive: (live: boolean) => void
   setLiveVerse: (verse: VerseRenderData | null, source?: Verse | null) => void
   setAutoLive: (auto: boolean) => void
+  /** Show `verse` (a timer) on `outputIds`; null or no ids hands them back to the live content. */
+  setTimerOverlay: (verse: VerseRenderData | null, outputIds: string[]) => void
   syncBroadcastOutput: () => void
   /**
    * Change how songs and texts look on the main output's theme (null resets
@@ -155,14 +163,23 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: unkno
   return result
 }
 
+/** What one output shows: the timer if it was sent there, else the live content. */
+export function outputVerse(
+  state: Pick<BroadcastState, "isLive" | "liveVerse" | "timerVerse" | "timerOutputIds">,
+  outputId: string
+): VerseRenderData | null {
+  if (!state.isLive) return null
+  if (state.timerVerse && state.timerOutputIds.includes(outputId)) return state.timerVerse
+  return state.liveVerse
+}
+
 function emitDraftToBroadcast(state: BroadcastState): void {
   if (!state.draftTheme) return
-  const verse = state.isLive ? state.liveVerse : null
   for (const output of state.outputs) {
     if (output.themeId !== state.editingThemeId) continue
     void emitTo(outputWindowLabel(output.id), "broadcast:verse-update", {
       theme: state.draftTheme,
-      verse,
+      verse: outputVerse(state, output.id),
     }).catch(() => {})
   }
 }
@@ -218,6 +235,8 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   liveVerse: null,
   liveSourceVerse: null,
   autoLive: true,
+  timerVerse: null,
+  timerOutputIds: [],
   isDesignerOpen: false,
   editingThemeId: null,
   renamingThemeId: null,
@@ -312,7 +331,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
 
     void emitTo(outputWindowLabel(outputId), "broadcast:verse-update", {
       theme,
-      verse: s.isLive ? s.liveVerse : null,
+      verse: outputVerse(s, outputId),
     }).catch(() => {})
   },
   syncBroadcastOutput: () => {
@@ -421,6 +440,10 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     get().syncBroadcastOutput()
   },
   setAutoLive: (autoLive) => set({ autoLive }),
+  setTimerOverlay: (timerVerse, timerOutputIds) => {
+    set({ timerVerse: timerOutputIds.length > 0 ? timerVerse : null, timerOutputIds })
+    get().syncBroadcastOutput()
+  },
 
   // Designer
   setDesignerOpen: (isDesignerOpen) => {
