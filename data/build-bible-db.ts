@@ -165,7 +165,14 @@ interface ScrollmapperJSON {
   }>
 }
 
+// Every translation has a fixed id: the app saves the chosen translation by
+// id, so ids must not depend on which sources happened to download. A
+// missing source leaves a gap instead of renumbering the rest (v0.4.3's
+// Linux build lost Yoruba to a failed download, which moved Igbo to its id).
+// 1-18 are the ids complete builds have always produced; new translations
+// take the next free number. 101+ are entries whose sources we don't ship.
 const TRANSLATIONS_META: Array<{
+  id: number
   file: string
   abbreviation: string
   title: string
@@ -188,6 +195,7 @@ const TRANSLATIONS_META: Array<{
   //   license: "Public Domain",
   // },
   {
+    id: 1,
     file: "AMP.json",
     abbreviation: "AMP",
     title: "Amplified Bible",
@@ -195,6 +203,7 @@ const TRANSLATIONS_META: Array<{
     license: "Lockman Foundation",
   },
   {
+    id: 101,
     file: "AMPC.json",
     abbreviation: "AMPC",
     title: "Amplified Bible Classic",
@@ -223,6 +232,7 @@ const TRANSLATIONS_META: Array<{
   //   license: "Wartburg Project",
   // },
   {
+    id: 2,
     file: "ESV.json",
     abbreviation: "ESV",
     title: "English Standard Version",
@@ -237,6 +247,7 @@ const TRANSLATIONS_META: Array<{
   //   license: "Crossway",
   // },
   {
+    id: 102,
     file: "GNT.json",
     abbreviation: "GNT",
     title: "Good News Translation",
@@ -244,6 +255,7 @@ const TRANSLATIONS_META: Array<{
     license: "American Bible Society",
   },
   {
+    id: 103,
     file: "GW.json",
     abbreviation: "GW",
     title: "GOD'S WORD Translation",
@@ -251,6 +263,7 @@ const TRANSLATIONS_META: Array<{
     license: "God's Word to the Nations",
   },
   {
+    id: 104,
     file: "ISV.json",
     abbreviation: "ISV",
     title: "International Standard Version",
@@ -272,6 +285,7 @@ const TRANSLATIONS_META: Array<{
   //   license: "Deuel Enterprises",
   // },
   {
+    id: 3,
     file: "KJV.json",
     abbreviation: "KJV",
     title: "King James Version",
@@ -300,6 +314,7 @@ const TRANSLATIONS_META: Array<{
   //   license: "Passio",
   // },
   {
+    id: 105,
     file: "MSG.json",
     abbreviation: "MSG",
     title: "The Message",
@@ -307,6 +322,7 @@ const TRANSLATIONS_META: Array<{
     license: "NavPress",
   },
   {
+    id: 4,
     file: "NASB.json",
     abbreviation: "NASB",
     title: "New American Standard Bible",
@@ -328,6 +344,7 @@ const TRANSLATIONS_META: Array<{
   //   license: "Unknown",
   // },
   {
+    id: 106,
     file: "NCV.json",
     abbreviation: "NCV",
     title: "New Century Version",
@@ -335,6 +352,7 @@ const TRANSLATIONS_META: Array<{
     license: "Thomas Nelson",
   },
   {
+    id: 107,
     file: "NET.json",
     abbreviation: "NET",
     title: "NET Bible",
@@ -342,6 +360,7 @@ const TRANSLATIONS_META: Array<{
     license: "Biblical Studies Press",
   },
   {
+    id: 5,
     file: "NIV.json",
     abbreviation: "NIV",
     title: "New International Version",
@@ -363,6 +382,7 @@ const TRANSLATIONS_META: Array<{
   //   license: "Biblica",
   // },
   {
+    id: 6,
     file: "NKJV.json",
     abbreviation: "NKJV",
     title: "New King James Version",
@@ -370,6 +390,7 @@ const TRANSLATIONS_META: Array<{
     license: "Thomas Nelson",
   },
   {
+    id: 7,
     file: "NLT.json",
     abbreviation: "NLT",
     title: "New Living Translation",
@@ -405,6 +426,7 @@ const TRANSLATIONS_META: Array<{
   //   license: "National Council of Churches",
   // },
   {
+    id: 108,
     file: "RSV.json",
     abbreviation: "RSV",
     title: "Revised Standard Version",
@@ -412,6 +434,7 @@ const TRANSLATIONS_META: Array<{
     license: "National Council of Churches",
   },
   {
+    id: 109,
     file: "TPT.json",
     abbreviation: "TPT",
     title: "The Passion Translation",
@@ -461,11 +484,9 @@ const TRANSLATIONS_META: Array<{
   //   language: "af",
   //   license: "Unknown",
   // },
-  // Added in v0.4.1. Translation ids come from this order, and the app
-  // saves the chosen translation by id, so new translations go at the end:
-  // inserting one earlier would silently switch every user's selection.
-  // Sources: data/download-sources.ts (FREE_TRANSLATIONS).
+  // Added in v0.4.1. Sources: data/download-sources.ts (FREE_TRANSLATIONS).
   {
+    id: 8,
     file: "ASV.json",
     abbreviation: "ASV",
     title: "American Standard Version (1901)",
@@ -473,6 +494,7 @@ const TRANSLATIONS_META: Array<{
     license: "Public Domain",
   },
   {
+    id: 9,
     file: "BSB.json",
     abbreviation: "BSB",
     title: "Berean Standard Bible",
@@ -480,6 +502,7 @@ const TRANSLATIONS_META: Array<{
     license: "Public Domain",
   },
   {
+    id: 10,
     file: "WEB.json",
     abbreviation: "WEB",
     title: "World English Bible",
@@ -487,6 +510,7 @@ const TRANSLATIONS_META: Array<{
     license: "Public Domain",
   },
   {
+    id: 11,
     file: "YLT.json",
     abbreviation: "YLT",
     title: "Young's Literal Translation (1898)",
@@ -494,6 +518,7 @@ const TRANSLATIONS_META: Array<{
     license: "Public Domain",
   },
   {
+    id: 12,
     file: "Darby.json",
     abbreviation: "DARBY",
     title: "Darby Translation (1890)",
@@ -501,6 +526,7 @@ const TRANSLATIONS_META: Array<{
     license: "Public Domain",
   },
   {
+    id: 13,
     file: "BBE.json",
     abbreviation: "BBE",
     title: "Bible in Basic English",
@@ -508,6 +534,7 @@ const TRANSLATIONS_META: Array<{
     license: "Public Domain",
   },
   {
+    id: 14,
     file: "GNV.json",
     abbreviation: "GNV",
     title: "Geneva Bible (1599)",
@@ -515,6 +542,7 @@ const TRANSLATIONS_META: Array<{
     license: "Public Domain",
   },
   {
+    id: 15,
     file: "SpaRV.json",
     abbreviation: "SpaRV",
     title: "Reina-Valera 1909",
@@ -522,6 +550,7 @@ const TRANSLATIONS_META: Array<{
     license: "Public Domain",
   },
   {
+    id: 16,
     file: "FreJND.json",
     abbreviation: "FreJND",
     title: "J.N. Darby French 1885",
@@ -531,6 +560,7 @@ const TRANSLATIONS_META: Array<{
   // CC BY-SA 4.0: the notice must be shown with the text (Settings → Bible
   // does), and the text must stay unmodified with the Biblica® mark intact.
   {
+    id: 17,
     file: "YOR.json",
     abbreviation: "YOR",
     title: "Bíbélì Mímọ́ ní Èdè Yorùbá Òde-Òní (Biblica®)",
@@ -539,6 +569,7 @@ const TRANSLATIONS_META: Array<{
       "Copyright © 2009, 2017 Biblica, Inc. Used under the Creative Commons Attribution-ShareAlike 4.0 License (CC BY-SA 4.0).",
   },
   {
+    id: 18,
     file: "IBO.json",
     abbreviation: "IBO",
     title: "Baịbụlụ Nsọ nʼIgbo Ndị Ugbu a (Biblica®)",
@@ -547,6 +578,9 @@ const TRANSLATIONS_META: Array<{
       "Copyright © 2020 Biblica, Inc. Used under the Creative Commons Attribution-ShareAlike 4.0 License (CC BY-SA 4.0).",
   },
 ]
+
+const duplicateIds = TRANSLATIONS_META.map((m) => m.id).filter((id, i, all) => all.indexOf(id) !== i)
+if (duplicateIds.length > 0) throw new Error(`Duplicate translation ids: ${duplicateIds.join(", ")}`)
 
 function main() {
   console.log("\n🔨 Building litdeck.db...\n")
@@ -575,7 +609,7 @@ function main() {
 
   // Prepare insert statements
   const insertTranslation = db.prepare(
-    "INSERT INTO translations (abbreviation, title, language, license) VALUES (?, ?, ?, ?)"
+    "INSERT INTO translations (id, abbreviation, title, language, license) VALUES (?, ?, ?, ?, ?)"
   )
   const insertBook = db.prepare(
     "INSERT INTO books (translation_id, book_number, name, abbreviation, testament) VALUES (?, ?, ?, ?, ?)"
@@ -603,15 +637,13 @@ function main() {
 
     // Insert translation
     insertTranslation.run(
+      meta.id,
       meta.abbreviation,
       meta.title,
       meta.language,
       meta.license
     )
-    const translationId = db
-      .query("SELECT last_insert_rowid() as id")
-      .get() as { id: number }
-    const tId = translationId.id
+    const tId = meta.id
 
     let verseCount = 0
 

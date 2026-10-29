@@ -208,6 +208,33 @@ async function downloadSourcesZip(): Promise<void> {
   console.log(`  ✓ Extracted ${EXPECTED_TRANSLATIONS.length} translations`)
 }
 
+async function fetchTranslation(entry: (typeof FREE_TRANSLATIONS)[number]): Promise<BibleJSON> {
+  if ("scrollmapper" in entry) {
+    const url = `${SCROLLMAPPER_JSON}/${entry.scrollmapper}.json`
+    console.log(`  Downloading ${url}...`)
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return (await res.json()) as BibleJSON
+  }
+
+  const zipDest = join(SOURCES_DIR, `${entry.ebible}_vpl.zip`)
+  try {
+    await downloadFile(`https://ebible.org/Scriptures/${entry.ebible}_vpl.zip`, zipDest)
+    const head = new Uint8Array(await Bun.file(zipDest).slice(0, 4).arrayBuffer())
+    if (!isZip(head)) throw new Error("the server sent something other than a zip file")
+    const proc = Bun.spawn(["unzip", "-p", zipDest, `${entry.ebible}_vpl.txt`], {
+      stdout: "pipe",
+      stderr: "inherit",
+    })
+    const vpl = await new Response(proc.stdout).text()
+    const code = await proc.exited
+    if (code !== 0) throw new Error(`unzip failed (exit ${code})`)
+    return fromEbibleVpl(vpl, entry.name)
+  } finally {
+    await rm(zipDest, { force: true })
+  }
+}
+
 async function downloadFreeTranslations(): Promise<void> {
   for (const entry of FREE_TRANSLATIONS) {
     const dest = join(SOURCES_DIR, entry.file)
@@ -216,35 +243,31 @@ async function downloadFreeTranslations(): Promise<void> {
       continue
     }
 
-    try {
-      let data: BibleJSON
-      if ("scrollmapper" in entry) {
-        const url = `${SCROLLMAPPER_JSON}/${entry.scrollmapper}.json`
-        console.log(`  Downloading ${url}...`)
-        const res = await fetch(url)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        data = (await res.json()) as BibleJSON
-      } else {
-        const zipDest = join(SOURCES_DIR, `${entry.ebible}_vpl.zip`)
-        await downloadFile(`https://ebible.org/Scriptures/${entry.ebible}_vpl.zip`, zipDest)
-        const proc = Bun.spawn(["unzip", "-p", zipDest, `${entry.ebible}_vpl.txt`], {
-          stdout: "pipe",
-          stderr: "inherit",
-        })
-        const vpl = await new Response(proc.stdout).text()
-        await rm(zipDest, { force: true })
-        if ((await proc.exited) !== 0) throw new Error("unzip failed")
-        data = fromEbibleVpl(vpl, entry.name)
+    // Mirrors fail now and then (v0.4.3's Linux build got a broken Yoruba
+    // zip); a few tries ride that out.
+    let lastError: unknown = null
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const data = await fetchTranslation(entry)
+        const problem = checkCanon(data)
+        if (problem) throw new Error(problem)
+        await Bun.write(dest, JSON.stringify(data))
+        console.log(`  ✓ Saved ${entry.file}`)
+        lastError = null
+        break
+      } catch (err) {
+        lastError = err
+        console.log(`  ⚠ ${entry.file} attempt ${attempt} failed: ${err instanceof Error ? err.message : err}`)
+        if (attempt < 3) await Bun.sleep(attempt * 5000)
       }
-
-      const problem = checkCanon(data)
-      if (problem) throw new Error(problem)
-      await Bun.write(dest, JSON.stringify(data))
-      console.log(`  ✓ Saved ${entry.file}`)
-    } catch (err) {
+    }
+    if (lastError) {
       // One unreachable source shouldn't fail a release; the database build
-      // skips a missing file and the warning shows on the CI run.
-      console.log(`::warning::Skipped ${entry.file}: ${err instanceof Error ? err.message : err}`)
+      // skips a missing file (keeping every other translation's id) and the
+      // warning shows on the CI run.
+      console.log(
+        `::warning::Skipped ${entry.file}: ${lastError instanceof Error ? lastError.message : lastError}`
+      )
     }
   }
 }
