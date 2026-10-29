@@ -126,6 +126,7 @@ pub fn run() {
             commands::whisper_model::whisper_model_status,
             commands::whisper_model::download_whisper_model,
             commands::whisper_model::cancel_whisper_model_download,
+            commands::whisper_model::delete_whisper_model,
             commands::broadcast::list_monitors,
             commands::broadcast::ensure_broadcast_window,
             commands::broadcast::open_broadcast_window,

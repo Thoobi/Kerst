@@ -81,6 +81,20 @@ pub async fn start_transcription(
     let stt_provider: Box<dyn SttProvider> = match provider_name {
         #[cfg(feature = "whisper")]
         "whisper" => {
+            // whisper.cpp is built for AVX2-class x86 CPUs; on anything
+            // older it would die on an illegal instruction mid-service.
+            #[cfg(target_arch = "x86_64")]
+            if !(std::arch::is_x86_feature_detected!("avx2")
+                && std::arch::is_x86_feature_detected!("fma")
+                && std::arch::is_x86_feature_detected!("f16c")
+                && std::arch::is_x86_feature_detected!("bmi2"))
+            {
+                return Err(
+                    "This computer's processor is too old for local Whisper transcription (it needs AVX2). Use Cloud (Deepgram) in Settings → Speech Recognition instead."
+                        .into(),
+                );
+            }
+
             let model_path = super::whisper_model::installed_path(&app).ok_or(
                 "The Whisper model isn't downloaded yet. Download it in Settings → Speech Recognition.",
             )?;

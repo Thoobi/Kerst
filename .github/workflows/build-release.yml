@@ -93,11 +93,26 @@ jobs:
             gstreamer1.0-plugins-good \
             gstreamer1.0-libav
 
+      # whisper.cpp otherwise compiles for this runner's own CPU
+      # (-march=native), and GitHub's runners have AVX-512: v0.4.1 and
+      # v0.4.2 crashed with "Illegal instruction" the moment a 2015 i5
+      # loaded the model. OFF targets SSE4.2/AVX/AVX2/BMI2/FMA/F16C, which
+      # nearly every x86 PC since 2013 has. The Mac runner is Apple Silicon
+      # (M1), whose native build runs on every later Mac.
+      - name: Build Whisper for any AVX2 x86-64 CPU
+        if: runner.arch == 'X64'
+        shell: bash
+        run: echo "GGML_NATIVE=OFF" >> "$GITHUB_ENV"
+
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
         with:
           workspaces: |
             ./src-tauri
+          # whisper-rs-sys doesn't rebuild when GGML_* changes, so a cache
+          # from a native build would keep shipping it. Change this key
+          # whenever the GGML_* settings above change.
+          key: ggml-baseline-avx2
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile

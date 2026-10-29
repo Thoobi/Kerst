@@ -82,6 +82,9 @@ fn part_path(dir: &Path) -> PathBuf {
 #[derive(serde::Serialize)]
 pub struct WhisperModelStatus {
     pub installed: bool,
+    /// The model (or a partial download) is the in-app download, which
+    /// `delete_whisper_model` can remove. A dev or bundled copy isn't.
+    pub removable: bool,
     pub downloading: bool,
     /// Bytes already on disk, including a paused partial download.
     pub downloaded_bytes: u64,
@@ -94,7 +97,13 @@ pub struct WhisperModelStatus {
 )]
 #[tauri::command]
 pub fn whisper_model_status(app: AppHandle) -> WhisperModelStatus {
-    let installed = installed_path(&app).is_some();
+    let path = installed_path(&app);
+    let installed = path.is_some();
+    let download = download_dir(&app);
+    let removable = match &path {
+        Some(path) => download.as_ref().is_some_and(|dir| path.starts_with(dir)),
+        None => download.is_some_and(|dir| part_path(&dir).exists()),
+    };
     let downloading = ACTIVE_DOWNLOAD.lock().is_ok_and(|active| active.is_some());
     let downloaded_bytes = if installed {
         MODEL_SIZE
@@ -106,6 +115,7 @@ pub fn whisper_model_status(app: AppHandle) -> WhisperModelStatus {
 
     WhisperModelStatus {
         installed,
+        removable,
         downloading,
         downloaded_bytes,
         total_bytes: MODEL_SIZE,
@@ -153,6 +163,38 @@ pub async fn download_whisper_model(app: AppHandle) -> Result<(), String> {
         Err(e) => log::warn!("Whisper model download stopped: {e}"),
     }
     result
+}
+
+/// Delete the downloaded model and any partial download, freeing ~870 MB.
+/// Local transcription then needs the download again.
+#[expect(clippy::needless_pass_by_value, reason = "Tauri command extractors require pass-by-value")]
+#[tauri::command]
+pub fn delete_whisper_model(
+    app: AppHandle,
+    state: tauri::State<'_, Mutex<crate::state::AppState>>,
+) -> Result<(), String> {
+    if ACTIVE_DOWNLOAD.lock().is_ok_and(|active| active.is_some()) {
+        return Err("Pause the download before removing the model".into());
+    }
+    // Windows can't delete a file whisper.cpp has open.
+    let transcribing = state
+        .lock()
+        .map_err(|e| e.to_string())?
+        .stt_active
+        .load(Ordering::Relaxed);
+    if transcribing {
+        return Err("Stop transcription before removing the model".into());
+    }
+
+    let dir = download_dir(&app).ok_or("Could not find the app data folder")?;
+    for path in [dir.join(MODEL_FILE), part_path(&dir)] {
+        match std::fs::remove_file(&path) {
+            Ok(()) => log::info!("Removed {}", path.display()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(format!("Could not remove {}: {e}", path.display())),
+        }
+    }
+    Ok(())
 }
 
 /// Stop the download in flight. The partial file is kept so the next

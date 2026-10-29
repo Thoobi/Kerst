@@ -4,8 +4,10 @@
 //! ```sh
 //! espeak-ng -w /tmp/s.wav "For God so loved the world"
 //! ffmpeg -i /tmp/s.wav -ar 16000 -ac 1 -f s16le /tmp/s.raw
-//! cargo run -p litdeck-stt --features whisper --example whisper_file -- /tmp/s.raw
+//! cargo run -p litdeck-stt --features whisper --example whisper_file -- /tmp/s.raw [threads]
 //! ```
+//!
+//! `threads` defaults to 4; the app uses half the CPU's threads.
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -21,7 +23,8 @@ async fn main() {
 
     let (audio_tx, audio_rx) = crossbeam_channel::bounded(64);
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel(64);
-    let provider = std::sync::Arc::new(WhisperProvider::new(model, None, 4));
+    let threads = std::env::args().nth(2).and_then(|n| n.parse().ok()).unwrap_or(4);
+    let provider = std::sync::Arc::new(WhisperProvider::new(model, None, threads));
     let running = provider.clone();
     let task = tokio::spawn(async move { running.start(audio_rx, event_tx).await });
 

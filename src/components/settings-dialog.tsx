@@ -361,8 +361,9 @@ function SpeechSection() {
 }
 
 function WhisperModelPanel() {
-  const { phase, downloadedBytes, totalBytes, error, download, cancel } =
+  const { phase, removable, downloadedBytes, totalBytes, error, download, cancel, remove } =
     useWhisperModel()
+  const [confirmingRemove, setConfirmingRemove] = useState(false)
 
   const percent =
     totalBytes > 0 ? Math.floor((downloadedBytes / totalBytes) * 100) : 0
@@ -381,22 +382,60 @@ function WhisperModelPanel() {
         )}
       </div>
 
-      {phase === "installed" && (
-        <p className="text-[0.625rem] text-muted-foreground">
-          Ready. Local transcription works without an internet connection.
-        </p>
+      {phase === "installed" && !confirmingRemove && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[0.625rem] text-muted-foreground">
+            Ready. Local transcription works without an internet connection.
+          </p>
+          {removable && (
+            <Button size="sm" variant="ghost" onClick={() => setConfirmingRemove(true)}>
+              Remove
+            </Button>
+          )}
+        </div>
       )}
 
-      {phase === "missing" && (
+      {confirmingRemove && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+          <p className="text-[0.625rem] leading-relaxed text-muted-foreground">
+            Remove the model to free {formatMegabytes(totalBytes)}? Local transcription will need
+            the download again.
+          </p>
+          <div className="flex shrink-0 gap-1.5">
+            <Button size="sm" variant="ghost" onClick={() => setConfirmingRemove(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => {
+                setConfirmingRemove(false)
+                void remove()
+              }}
+            >
+              Remove
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {phase === "missing" && !confirmingRemove && (
         <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
           <p className="text-[0.625rem] leading-relaxed text-muted-foreground">
             {resumable
               ? `${formatMegabytes(downloadedBytes)} of ${formatMegabytes(totalBytes)} downloaded. Resume to finish.`
               : `The model is ${formatMegabytes(totalBytes)}. Download it once, ideally before the event, on a good connection.`}
           </p>
-          <Button size="sm" onClick={() => void download()}>
-            {resumable ? "Resume" : "Download"}
-          </Button>
+          <div className="flex shrink-0 gap-1.5">
+            {resumable && removable && (
+              <Button size="sm" variant="ghost" onClick={() => void remove()} title="Delete the partial download">
+                Discard
+              </Button>
+            )}
+            <Button size="sm" onClick={() => void download()}>
+              {resumable ? "Resume" : "Download"}
+            </Button>
+          </div>
         </div>
       )}
 

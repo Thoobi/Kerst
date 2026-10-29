@@ -5,6 +5,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
 import { backgroundRegion, logoRect, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { isAnimatedGif } from "@/lib/gif-frames"
+import { LogoCanvas } from "@/components/broadcast/logo-canvas"
 import { normalizeTheme } from "@/lib/theme-migrations"
 import { fitFrame, renderScale } from "@/lib/output-frame"
 import { SyncedVideo } from "@/components/ui/synced-video"
@@ -62,8 +63,9 @@ function BroadcastCanvas() {
   const [background, setBackground] = useState<VideoPlayback | null>(null)
   const backgroundRef = useRef<HTMLVideoElement | null>(null)
   const [backgroundBox, setBackgroundBox] = useState<BackgroundBox | null>(null)
-  // The theme's logo is an <img> over the canvas and any video, so a GIF
-  // animates without redrawing; NDI draws it into its own frames.
+  // The theme's logo sits over the canvas and any video in its own small
+  // canvas, so a GIF animates without redrawing the frame; NDI draws it
+  // into its own frames.
   const [logo, setLogo] = useState<ThemeLogo | null>(null)
   const [logoBox, setLogoBox] = useState<BackgroundBox | null>(null)
 
@@ -358,13 +360,7 @@ function BroadcastCanvas() {
             }}
           />
         )}
-        {logo && logoBox && (
-          <img
-            src={logo.url}
-            alt=""
-            style={{ position: "absolute", ...logoBox, opacity: logo.opacity / 100, pointerEvents: "none" }}
-          />
-        )}
+        {logo && logoBox && <LogoCanvas logo={logo} box={logoBox} />}
       </div>
     </div>
   )

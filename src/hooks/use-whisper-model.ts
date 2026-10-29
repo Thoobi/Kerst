@@ -6,6 +6,7 @@ import { useTauriEvent } from "./use-tauri-event"
 
 interface WhisperModelStatus {
   installed: boolean
+  removable: boolean
   downloading: boolean
   downloaded_bytes: number
   total_bytes: number
@@ -20,6 +21,8 @@ type Phase = "unknown" | "missing" | "downloading" | "verifying" | "installed"
 
 interface WhisperModelState {
   phase: Phase
+  /** The in-app download (or a partial one) is there to remove. */
+  removable: boolean
   downloadedBytes: number
   totalBytes: number
   error: string | null
@@ -31,6 +34,7 @@ interface WhisperModelState {
  */
 const useWhisperModelStore = create<WhisperModelState>(() => ({
   phase: "unknown",
+  removable: false,
   downloadedBytes: 0,
   totalBytes: 0,
   error: null,
@@ -48,6 +52,7 @@ export const whisperModelActions = {
           : status.downloading
             ? "downloading"
             : "missing",
+        removable: status.removable,
         downloadedBytes: status.downloaded_bytes,
         totalBytes: status.total_bytes,
       })
@@ -75,6 +80,16 @@ export const whisperModelActions = {
 
   async cancel(): Promise<void> {
     await invoke("cancel_whisper_model_download")
+  },
+
+  async remove(): Promise<void> {
+    try {
+      await invoke("delete_whisper_model")
+      useWhisperModelStore.setState({ error: null })
+    } catch (e) {
+      useWhisperModelStore.setState({ error: String(e) })
+    }
+    await whisperModelActions.refresh()
   },
 }
 
