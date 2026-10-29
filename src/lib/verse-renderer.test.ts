@@ -591,8 +591,9 @@ describe("renderVerse — full-frame image slides", () => {
     expect(fills[0].args).toEqual([0, 0, 1920, 1080])
     const draws = calls.filter((c) => c.method === "drawImage")
     expect(draws).toHaveLength(1)
-    // 1024x768 scaled to the frame height: 1440 wide, centred.
-    expect(draws[0].args.slice(1)).toEqual([240, 0, 1440, 1080])
+    // 1024x768 scaled to the frame height: 1440 wide, centred (the last
+    // four arguments are where it lands).
+    expect(draws[0].args.slice(-4)).toEqual([240, 0, 1440, 1080])
   })
 
   it("ignores the theme and draws no text", () => {
@@ -618,7 +619,7 @@ describe("renderVerse — full-frame image slides", () => {
       imageCache: new Map([[SLIDE_URL, slideImage(1920, 1080)]]),
     })
     const draws = calls.filter((c) => c.method === "drawImage")
-    expect(draws[0].args.slice(1)).toEqual([0, 0, 480, 270])
+    expect(draws[0].args.slice(-4)).toEqual([0, 0, 480, 270])
   })
 })
 
@@ -788,6 +789,30 @@ describe("Bible style", () => {
     const forVerse = themeForContent(theme, verse)
     expect(forVerse.verseText).not.toHaveProperty("referenceColor")
     expect(forVerse.verseText).not.toHaveProperty("backgroundVideoId")
+  })
+
+  it("centres a verse and its reference on the whole screen, even when the theme pins the reference to the top", () => {
+    const pinned: BroadcastTheme = {
+      ...theme,
+      scriptureText: { area: "screen" },
+      reference: { ...theme.reference, position: "above", verticalAlign: "top" },
+    }
+    const metrics = computeVerseLayoutMetrics(stubCtx(), pinned, verse)
+    const top = metrics.referenceRect!.y
+    const bottom = metrics.verseRect!.y + metrics.verseRect!.height
+    const middle = (top + bottom) / 2
+    expect(Math.abs(middle - pinned.resolution.height / 2)).toBeLessThan(pinned.resolution.height * 0.05)
+  })
+
+  it("moves the verse and its reference together when aligned to the bottom", () => {
+    const pinned: BroadcastTheme = {
+      ...theme,
+      reference: { ...theme.reference, position: "above", verticalAlign: "top" },
+    }
+    const atTop = computeVerseLayoutMetrics(stubCtx(), { ...pinned, scriptureText: {} }, verse)
+    const atBottom = computeVerseLayoutMetrics(stubCtx(), { ...pinned, scriptureText: { verticalAlign: "bottom" } }, verse)
+    expect(atBottom.referenceRect!.y).toBeGreaterThan(atTop.referenceRect!.y)
+    expect(atBottom.verseRect!.y).toBeGreaterThan(atTop.verseRect!.y)
   })
 
   it("leaves the theme's reference and background alone when they aren't set", () => {

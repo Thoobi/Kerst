@@ -59,6 +59,11 @@ jobs:
       # minutes is ~4x the normal duration; the connection timeouts turn a hung
       # mirror into an error instead of a hang, and the retry rides out a single
       # flaky mirror.
+      # The AppImage carries its own GStreamer core (WebKit links it), so it
+      # must carry the plugins too: without them WebKit finds no appsink or
+      # audio sink and no video or sound plays (bundleMediaFramework in
+      # tauri.linux.conf.json). The plugins come from this machine, hence
+      # the gstreamer1.0-* packages; libav decodes H.264/AAC video.
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         timeout-minutes: 10
@@ -83,7 +88,10 @@ jobs:
             libasound2-dev \
             libudev-dev \
             patchelf \
-            desktop-file-utils
+            desktop-file-utils \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-libav
 
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2

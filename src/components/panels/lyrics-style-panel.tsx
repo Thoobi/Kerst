@@ -238,9 +238,26 @@ function TextStylePanel({ kind }: { kind: Kind }) {
             {shown === null
               ? ""
               : shrunk
-                ? `Showing at ${shown}px to fit. Give it the whole screen, or turn off Shrink to fit.`
+                ? `Only ${shown}px fits, so it shows at ${shown}px. To go bigger:`
                 : `Showing at ${shown}px.`}
           </p>
+          {shrunk && (
+            <div className="flex flex-wrap gap-1.5">
+              {area !== "screen" && (
+                <Button variant="outline" size="xs" onClick={() => update({ area: "screen" })}>
+                  Use whole screen
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => update({ shrinkToFit: false })}
+                title="Shows the exact size; long text may run off the screen"
+              >
+                Turn off Shrink to fit
+              </Button>
+            </div>
+          )}
         </Field>
 
         <label className="flex items-center justify-between gap-2">

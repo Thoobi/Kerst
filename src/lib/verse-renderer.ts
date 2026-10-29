@@ -9,6 +9,7 @@ import {
   type RichInlineLine,
 } from "@chenglou/pretext/rich-inline"
 import { gifFrameAt } from "@/lib/gif-frames"
+import { drawImageSmooth } from "@/lib/image-scaling"
 import { imageContentBox } from "@/lib/theme-image-cache"
 import type {
   BroadcastTheme,
@@ -604,7 +605,7 @@ function drawImageFill(
       break
   }
 
-  ctx.drawImage(img, sx, sy, sw, sh, drawX, drawY, drawW, drawH)
+  drawImageSmooth(ctx, img, sx, sy, sw, sh, drawX, drawY, drawW, drawH)
   ctx.filter = "none"
 
   if (image.tint) {
@@ -1231,14 +1232,20 @@ function withTextStyle(theme: BroadcastTheme, style: LyricsStyle): BroadcastThem
   const set = Object.fromEntries(
     TEXT_STYLE_KEYS.filter((key) => style[key] !== undefined).map((key) => [key, style[key]])
   )
-  const merged: BroadcastTheme = { ...theme, verseText: { ...theme.verseText, ...set } }
+  // A box's top alignment would pin the words to the top of the whole
+  // screen; there they're centred unless the style says otherwise.
+  const verticalAlign = area === "screen" ? (style.verticalAlign ?? "middle") : style.verticalAlign
+  const merged: BroadcastTheme = {
+    ...theme,
+    verseText: { ...theme.verseText, ...set, ...(verticalAlign ? { verticalAlign } : {}) },
+    // With the reference above the words, the block takes the reference's
+    // vertical alignment (see layoutVerse), so it has to move with them.
+    ...(verticalAlign ? { reference: { ...theme.reference, verticalAlign } } : {}),
+  }
   if (area !== "screen") return merged
   const inner = 100 - SCREEN_AREA_MARGIN * 2
   return {
     ...merged,
-    // A box's top alignment would pin the words to the top of the whole
-    // screen; centre them unless the style says otherwise.
-    verseText: { ...merged.verseText, verticalAlign: style.verticalAlign ?? "middle" },
     layout: {
       ...merged.layout,
       mode: "stacked",
@@ -1634,7 +1641,18 @@ function drawFullFrame(
     const fit = Math.min(frameW / picture.width, frameH / picture.height)
     const drawW = picture.width * fit
     const drawH = picture.height * fit
-    ctx.drawImage(picture.source, (frameW - drawW) / 2, (frameH - drawH) / 2, drawW, drawH)
+    drawImageSmooth(
+      ctx,
+      picture.source,
+      0,
+      0,
+      picture.width,
+      picture.height,
+      (frameW - drawW) / 2,
+      (frameH - drawH) / 2,
+      drawW,
+      drawH
+    )
   }
   ctx.restore()
 }
@@ -1771,7 +1789,16 @@ function drawLogo(
   ctx.save()
   ctx.globalAlpha = (options?.opacity ?? 1) * (logo.opacity / 100)
   ctx.imageSmoothingQuality = "high"
-  ctx.drawImage(gifFrameAt(logo.url, Date.now()) ?? img, rect.x, rect.y, rect.width, rect.height)
+  const frame = gifFrameAt(logo.url, Date.now())
+  const source = frame ?? img
+  const width = frame ? frame.width : img.naturalWidth
+  const height = frame ? frame.height : img.naturalHeight
+  if (width > 0 && height > 0) {
+    drawImageSmooth(ctx, source, 0, 0, width, height, rect.x, rect.y, rect.width, rect.height)
+  } else {
+    // An SVG without a width and height has no natural size.
+    ctx.drawImage(source, rect.x, rect.y, rect.width, rect.height)
+  }
   ctx.restore()
 }
 

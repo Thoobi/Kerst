@@ -4,6 +4,11 @@
     "resources": {
       "../data/litdeck.db": "litdeck.db",
       "../sdk/ndi/linux/libndi.so": "sdk/ndi/linux/libndi.so"
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      }
     }
   }
 }
