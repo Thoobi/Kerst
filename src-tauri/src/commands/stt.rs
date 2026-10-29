@@ -53,6 +53,7 @@ pub async fn start_transcription(
     device_id: Option<String>,
     gain: Option<f32>,
     provider: Option<String>,
+    whisper_model: Option<super::whisper_model::WhisperModel>,
 ) -> Result<(), String> {
     // ── 1. Guard: already running? ──────────────────────────────────────
     let (stt_active, audio_active, audio_test_active) = {
@@ -95,7 +96,8 @@ pub async fn start_transcription(
                 );
             }
 
-            let model_path = super::whisper_model::installed_path(&app).ok_or(
+            let model = whisper_model.unwrap_or(super::whisper_model::WhisperModel::Accurate);
+            let model_path = super::whisper_model::installed_path(&app, model).ok_or(
                 "The Whisper model isn't downloaded yet. Download it in Settings → Speech Recognition.",
             )?;
 

@@ -2,6 +2,17 @@ import { create } from "zustand"
 import { load, type Store } from "@tauri-apps/plugin-store"
 
 type SttProvider = "deepgram" | "whisper"
+export type WhisperModel = "accurate" | "fast"
+
+/**
+ * Computers with 4 threads or fewer start on the fast model: the accurate
+ * one takes ~70 s per 10 s of speech on a 2015 dual-core i5, far behind a
+ * live sermon, while the fast one keeps up there.
+ */
+export function recommendedWhisperModel(): WhisperModel {
+  const threads = typeof navigator !== "undefined" ? navigator.hardwareConcurrency : undefined
+  return threads !== undefined && threads <= 4 ? "fast" : "accurate"
+}
 
 interface SettingsState {
   deepgramApiKey: string | null
@@ -14,6 +25,7 @@ interface SettingsState {
   cooldownMs: number
   onboardingComplete: boolean
   sttProvider: SttProvider
+  whisperModel: WhisperModel
 
   setDeepgramApiKey: (key: string | null) => void
   setOpenaiApiKey: (key: string | null) => void
@@ -25,6 +37,7 @@ interface SettingsState {
   setCooldownMs: (ms: number) => void
   setOnboardingComplete: (complete: boolean) => void
   setSttProvider: (provider: SttProvider) => void
+  setWhisperModel: (model: WhisperModel) => void
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -38,6 +51,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   cooldownMs: 2500,
   onboardingComplete: false,
   sttProvider: "deepgram",
+  whisperModel: recommendedWhisperModel(),
 
   setDeepgramApiKey: (deepgramApiKey) => set({ deepgramApiKey }),
   setOpenaiApiKey: (openaiApiKey) => set({ openaiApiKey }),
@@ -49,6 +63,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setCooldownMs: (cooldownMs) => set({ cooldownMs }),
   setOnboardingComplete: (onboardingComplete) => set({ onboardingComplete }),
   setSttProvider: (sttProvider) => set({ sttProvider }),
+  setWhisperModel: (whisperModel) => set({ whisperModel }),
 }))
 
 const PERSISTED_KEYS = [
@@ -62,6 +77,7 @@ const PERSISTED_KEYS = [
   "cooldownMs",
   "onboardingComplete",
   "sttProvider",
+  "whisperModel",
 ] as const satisfies readonly (keyof SettingsState)[]
 
 let tauriStore: Store | null = null

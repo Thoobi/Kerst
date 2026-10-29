@@ -47,6 +47,7 @@ import {
 import { LevelMeter } from "@/components/ui/level-meter"
 import { useAudioTest } from "@/hooks/use-audio-test"
 import { formatMegabytes, useWhisperModel } from "@/hooks/use-whisper-model"
+import { recommendedWhisperModel, type WhisperModel } from "@/stores/settings-store"
 import { useSettingsStore } from "@/stores"
 import { useTranscriptStore } from "@/stores/transcript-store"
 import { useTutorialStore } from "@/stores/tutorial-store"
@@ -307,9 +308,9 @@ function SpeechSection() {
                 Local (Whisper)
               </span>
               <p className="text-[0.625rem] leading-relaxed text-muted-foreground">
-                Runs Whisper large-v3-turbo locally on your device. No API key
-                needed, and audio never leaves your machine. Needs a one-time
-                download, then works fully offline.
+                Runs Whisper on your device. No API key needed, and audio never
+                leaves your machine. Needs a one-time download, then works fully
+                offline.
               </p>
             </div>
           </label>
@@ -360,9 +361,27 @@ function SpeechSection() {
   )
 }
 
+const WHISPER_MODELS: { id: WhisperModel; name: string; size: string; about: string }[] = [
+  {
+    id: "accurate",
+    name: "Accurate",
+    size: "874 MB",
+    about: "The best transcription. Needs a fast computer: on an older laptop it falls far behind live speech.",
+  },
+  {
+    id: "fast",
+    name: "Fast",
+    size: "82 MB",
+    about: "Keeps up with live speech on older and slower laptops. A little less accurate.",
+  },
+]
+
 function WhisperModelPanel() {
+  const whisperModel = useSettingsStore((s) => s.whisperModel)
+  const setWhisperModel = useSettingsStore((s) => s.setWhisperModel)
+  const recommended = recommendedWhisperModel()
   const { phase, removable, downloadedBytes, totalBytes, error, download, cancel, remove } =
-    useWhisperModel()
+    useWhisperModel(whisperModel)
   const [confirmingRemove, setConfirmingRemove] = useState(false)
 
   const percent =
@@ -371,20 +390,46 @@ function WhisperModelPanel() {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Whisper Model
-        </label>
-        {phase === "installed" && (
-          <Badge variant="outline" className="text-[0.5rem]">
-            Downloaded
-          </Badge>
-        )}
-      </div>
+      <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Whisper Model
+      </label>
+      <RadioGroup
+        value={whisperModel}
+        onValueChange={(v) => {
+          setWhisperModel(v as WhisperModel)
+          setConfirmingRemove(false)
+        }}
+        className="grid grid-cols-2 gap-2"
+      >
+        {WHISPER_MODELS.map((m) => (
+          <label
+            key={m.id}
+            className="flex cursor-pointer items-start gap-2 rounded-lg border p-2.5 transition-colors has-data-[state=checked]:border-primary/50 has-data-[state=checked]:bg-primary/5"
+          >
+            <RadioGroupItem value={m.id} className="mt-0.5" />
+            <div className="flex flex-col gap-0.5">
+              <span className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-foreground">
+                {m.name}
+                <span className="font-normal text-muted-foreground">{m.size}</span>
+                {m.id === recommended && (
+                  <Badge variant="outline" className="text-[0.5rem]">
+                    Recommended for this computer
+                  </Badge>
+                )}
+              </span>
+              <p className="text-[0.625rem] leading-relaxed text-muted-foreground">{m.about}</p>
+            </div>
+          </label>
+        ))}
+      </RadioGroup>
+
 
       {phase === "installed" && !confirmingRemove && (
         <div className="flex items-center justify-between gap-3">
-          <p className="text-[0.625rem] text-muted-foreground">
+          <p className="flex items-center gap-2 text-[0.625rem] text-muted-foreground">
+            <Badge variant="outline" className="text-[0.5rem]">
+              Downloaded
+            </Badge>
             Ready. Local transcription works without an internet connection.
           </p>
           {removable && (

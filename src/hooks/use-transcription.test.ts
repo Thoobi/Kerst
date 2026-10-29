@@ -45,6 +45,7 @@ describe("use-transcription", () => {
         deepgramApiKey: "ignored-for-whisper",
         audioDeviceId: "dev-42",
         gain: 1.5,
+        whisperModel: "fast",
       })
 
       await transcriptionActions.start()
@@ -54,6 +55,7 @@ describe("use-transcription", () => {
         deviceId: "dev-42",
         gain: 1.5,
         provider: "whisper",
+        whisperModel: "fast",
       })
     })
 

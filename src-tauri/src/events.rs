@@ -27,6 +27,7 @@ pub struct TranscriptPayload {
 
 #[derive(Clone, serde::Serialize)]
 pub struct WhisperModelProgressPayload {
+    pub model: crate::commands::whisper_model::WhisperModel,
     pub downloaded_bytes: u64,
     pub total_bytes: u64,
 }
