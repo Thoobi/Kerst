@@ -522,6 +522,62 @@ function ReferenceProperties() {
   )
 }
 
+const AREA_OPTIONS = [
+  ["theme", "Theme's box"],
+  ["screen", "Whole screen"],
+] as const
+
+/**
+ * Whether songs and texts, and Bible verses, use the theme's text box or the
+ * whole screen: the same switch as on the Song & text and Bible style
+ * panels, saved as the theme's default for each.
+ */
+function TextAreaControl() {
+  const draftTheme = useBroadcastStore((s) => s.draftTheme)
+  const update = useBroadcastStore((s) => s.updateDraftNested)
+  if (!draftTheme) return null
+
+  const row = (label: string, key: "lyricsText" | "scriptureText", savedKey: "savedLyricsText" | "savedScriptureText") => {
+    const value = draftTheme[key]?.area ?? "theme"
+    return (
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-muted-foreground">{label}</label>
+        <div role="radiogroup" aria-label={label} className="flex rounded-md bg-muted p-0.5">
+          {AREA_OPTIONS.map(([option, text]) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={value === option}
+              onClick={() => {
+                const area = option === "screen" ? "screen" : undefined
+                update(`${key}.area`, area)
+                // Kept as the saved default too, so Reset on the style panel keeps it.
+                update(`${savedKey}.area`, area)
+              }}
+              className={cn(
+                "h-7 flex-1 rounded-[5px] text-xs transition-colors",
+                value === option
+                  ? "bg-card font-medium text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t pt-3">
+      {row("Songs & texts area", "lyricsText", "savedLyricsText")}
+      {row("Bible verses area", "scriptureText", "savedScriptureText")}
+    </div>
+  )
+}
+
 function VerseProperties() {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
   const update = useBroadcastStore((s) => s.updateDraftNested)
@@ -542,6 +598,8 @@ function VerseProperties() {
     <div className="flex flex-col gap-3">
       <SectionHeader title="Verse Text" description="Customize how verse text appears" />
       <FontControls prefix="verseText" />
+      <TextAreaControl />
+
 
       {/* Verse Numbers */}
       <div className="flex flex-col gap-3 border-t pt-3">

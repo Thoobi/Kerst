@@ -88,3 +88,41 @@ describe("timer store", () => {
     }
   })
 })
+
+describe("timer look", () => {
+  beforeEach(() => {
+    emitToMock.mockReset()
+    emitToMock.mockResolvedValue(undefined)
+    vi.resetModules()
+  })
+
+  it("Save keeps the look; Reset goes back to it", async () => {
+    const { useTimerStore } = await import("./timer-store")
+    const timer = useTimerStore.getState()
+    timer.setStyle({ size: 300, color: "#ff0000" })
+    expect(useTimerStore.getState().lookUnsaved()).toBe(true)
+    timer.saveLook()
+    expect(useTimerStore.getState().lookUnsaved()).toBe(false)
+
+    timer.setStyle({ size: 500, backgroundCamera: { cameraId: "phone", url: "http://10.0.0.5:8080/video" } })
+    timer.setBackgroundVideo("video-1")
+    expect(useTimerStore.getState().lookUnsaved()).toBe(true)
+    timer.resetLook()
+    const after = useTimerStore.getState()
+    expect(after.style).toMatchObject({ size: 300, color: "#ff0000" })
+    expect(after.style.backgroundCamera).toBeUndefined()
+    expect(after.backgroundVideoId).toBeNull()
+    expect(after.clock.style).toEqual(after.style)
+  })
+
+  it("follows a camera to its new address", async () => {
+    const { useTimerStore } = await import("./timer-store")
+    const timer = useTimerStore.getState()
+    timer.setStyle({ backgroundCamera: { cameraId: "phone", url: "http://10.0.0.5:8080/video" } })
+    timer.saveLook()
+    timer.retargetCamera("phone", "http://10.0.0.6:8080/video")
+    const after = useTimerStore.getState()
+    expect(after.style.backgroundCamera?.url).toBe("http://10.0.0.6:8080/video")
+    expect(after.savedStyle.backgroundCamera?.url).toBe("http://10.0.0.6:8080/video")
+  })
+})

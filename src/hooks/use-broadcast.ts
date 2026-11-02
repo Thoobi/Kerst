@@ -37,6 +37,21 @@ export function setScriptureBackground(videoId: string | null): void {
   broadcast.setLiveVerse(next, liveSourceVerse)
 }
 
+/**
+ * After the Bible style changed wholesale (Reset, back to the original),
+ * put the live verse's motion background in line with it.
+ */
+export function syncLiveScriptureBackground(): void {
+  const broadcast = useBroadcastStore.getState()
+  const { liveVerse, liveSourceVerse } = broadcast
+  if (liveVerse?.style !== "scripture") return
+  const videoId = mainTheme()?.scriptureText?.backgroundVideoId ?? null
+  if ((liveVerse.background?.id ?? null) === videoId) return
+  const next: VerseRenderData = { ...liveVerse, background: backgroundPlayback(videoId) }
+  if (!next.background) delete next.background
+  broadcast.setLiveVerse(next, liveSourceVerse)
+}
+
 // Monotonic ticket so an older present whose refetch resolves late can't
 // overwrite a newer one (detections can present in quick succession).
 let presentSeq = 0

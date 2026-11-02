@@ -472,3 +472,129 @@ describe("updateLyricsStyle", () => {
     expect(reset.lyricsText).toEqual({ fontSize: 90 })
   })
 })
+
+describe("saving a text style as the theme's default", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  async function styledMain() {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const builtin = useBroadcastStore.getState().themes.find((t) => t.builtin)!
+    useBroadcastStore.getState().setOutputTheme("main", builtin.id)
+    const mainTheme = () => {
+      const s = useBroadcastStore.getState()
+      return s.themes.find((t) => t.id === s.outputs.find((o) => o.id === "main")!.themeId)!
+    }
+    return { store: useBroadcastStore, mainTheme }
+  }
+
+  it("Reset goes back to the saved style, not the theme's original", async () => {
+    const { store, mainTheme } = await styledMain()
+    store.getState().updateLyricsStyle({ fontSize: 90 })
+    store.getState().saveTextStyle("lyrics")
+    expect(mainTheme().savedLyricsText).toEqual({ fontSize: 90 })
+
+    store.getState().updateLyricsStyle({ fontSize: 120, fontWeight: 700 })
+    store.getState().updateLyricsStyle(null)
+    expect(mainTheme().lyricsText).toEqual({ fontSize: 90 })
+  })
+
+  it("the saved style is a copy: later edits don't change it", async () => {
+    const { store, mainTheme } = await styledMain()
+    store.getState().updateScriptureStyle({ outline: { color: "#000000", width: 3 } })
+    store.getState().saveTextStyle("scripture")
+    store.getState().updateScriptureStyle({ outline: { color: "#ff0000", width: 8 } })
+    expect(mainTheme().savedScriptureText).toEqual({ outline: { color: "#000000", width: 3 } })
+  })
+
+  it("going back to the original drops the style and its saved default", async () => {
+    const { store, mainTheme } = await styledMain()
+    store.getState().updateScriptureStyle({ fontSize: 70 })
+    store.getState().saveTextStyle("scripture")
+    store.getState().updateLyricsStyle({ fontSize: 90 })
+    store.getState().restoreThemeOriginalStyle("scripture")
+    expect(mainTheme().scriptureText).toBeUndefined()
+    expect(mainTheme().savedScriptureText).toBeUndefined()
+    expect(mainTheme().lyricsText).toEqual({ fontSize: 90 })
+  })
+
+  it("sameTextStyle ignores unset keys and key order", async () => {
+    const { sameTextStyle } = await import("./broadcast-store")
+    expect(sameTextStyle({ fontSize: 1, color: undefined }, { fontSize: 1 })).toBe(true)
+    expect(sameTextStyle({ a: 1, b: 2 }, { b: 2, a: 1 })).toBe(true)
+    expect(sameTextStyle(undefined, {})).toBe(true)
+    expect(sameTextStyle({ fontSize: 1 }, undefined)).toBe(false)
+  })
+})
+
+describe("retargetCamera", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it("moves every feed from the camera to its new address, and leaves other cameras alone", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const base = useBroadcastStore.getState().themes.find((t) => t.builtin)!
+    const withCamera = {
+      ...base,
+      id: "cam-theme",
+      builtin: false,
+      background: { ...base.background, type: "camera" as const, camera: { cameraId: "phone", url: "http://10.0.0.5:8080/video" } },
+      scriptureText: { backgroundCamera: { cameraId: "phone", url: "http://10.0.0.5:8080/video" } },
+    }
+    const other = {
+      ...base,
+      id: "other-theme",
+      builtin: false,
+      background: { ...base.background, type: "camera" as const, camera: { cameraId: "door", url: "http://10.0.0.9:8080/video" } },
+    }
+    useBroadcastStore.setState({ themes: [...useBroadcastStore.getState().themes, withCamera, other] })
+
+    useBroadcastStore.getState().retargetCamera("phone", "http://10.0.0.77:8080/video")
+    const themes = useBroadcastStore.getState().themes
+    const moved = themes.find((t) => t.id === "cam-theme")!
+    expect(moved.background.camera?.url).toBe("http://10.0.0.77:8080/video")
+    expect(moved.scriptureText?.backgroundCamera?.url).toBe("http://10.0.0.77:8080/video")
+    expect(themes.find((t) => t.id === "other-theme")!.background.camera?.url).toBe("http://10.0.0.9:8080/video")
+  })
+})
+
+describe("hiding the lower third", () => {
+  beforeEach(() => {
+    emitToMock.mockReset()
+    emitToMock.mockResolvedValue(undefined)
+    vi.resetModules()
+  })
+
+  it("takes the words off lower-third outputs only, staying on air, and resets off air", async () => {
+    const { useBroadcastStore, outputVerse } = await import("./broadcast-store")
+    const themes = useBroadcastStore.getState().themes
+    const lowerThird = themes.find((t) => t.background.type === "transparent")!
+    const fullScreen = themes.find((t) => t.background.type !== "transparent")!
+    useBroadcastStore.setState({
+      isLive: true,
+      liveVerse: sampleLiveVerse,
+      outputs: [
+        { ...useBroadcastStore.getState().outputs[0], id: "main", themeId: lowerThird.id },
+        { ...useBroadcastStore.getState().outputs[0], id: "screen", themeId: fullScreen.id },
+      ],
+    })
+
+    useBroadcastStore.getState().setLowerThirdHidden(true)
+    const s = useBroadcastStore.getState()
+    expect(outputVerse(s, "main")).toBeNull()
+    expect(outputVerse(s, "screen")).toEqual(sampleLiveVerse)
+    expect(s.isLive).toBe(true)
+    // The lower-third output was sent nothing to show.
+    const sentMain = emitToMock.mock.calls.filter(([label]) => label === "broadcast-main").pop()
+    expect(sentMain?.[2].verse).toBeNull()
+
+    useBroadcastStore.getState().setLowerThirdHidden(false)
+    expect(outputVerse(useBroadcastStore.getState(), "main")).toEqual(sampleLiveVerse)
+
+    useBroadcastStore.getState().setLowerThirdHidden(true)
+    useBroadcastStore.getState().setLive(false)
+    expect(useBroadcastStore.getState().lowerThirdHidden).toBe(false)
+  })
+})

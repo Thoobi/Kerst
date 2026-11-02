@@ -43,7 +43,9 @@ import {
   HelpCircleIcon,
   GraduationCapIcon,
   BrainCircuitIcon,
+  CameraIcon,
 } from "lucide-react"
+import { CamerasSection } from "@/components/settings/cameras-section"
 import { LevelMeter } from "@/components/ui/level-meter"
 import { useAudioTest } from "@/hooks/use-audio-test"
 import { formatMegabytes, useWhisperModel } from "@/hooks/use-whisper-model"
@@ -64,6 +66,7 @@ type NavSection =
   | "speech"
   | "bible"
   | "display"
+  | "cameras"
   | "api-keys"
   | "remote"
   | "diagnostics"
@@ -89,6 +92,11 @@ const navItems: { name: string; id: NavSection; icon: React.ReactNode }[] = [
     name: "Display Mode",
     id: "display",
     icon: <TvIcon strokeWidth={2} />,
+  },
+  {
+    name: "Cameras",
+    id: "cameras",
+    icon: <CameraIcon strokeWidth={2} />,
   },
   {
     name: "Remote Control",
@@ -650,6 +658,7 @@ const sectionTitles: Record<NavSection, string> = {
   speech: "Speech Recognition",
   bible: "Bible Translation",
   display: "Display Mode",
+  cameras: "Cameras",
   remote: "Remote Control",
   "api-keys": "API Keys",
   diagnostics: "Diagnostics",
@@ -1083,6 +1092,7 @@ const sectionComponents: Record<NavSection, React.FC> = {
   speech: SpeechSection,
   bible: BibleSection,
   display: DisplayModeSection,
+  cameras: CamerasSection,
   remote: RemoteControlSection,
   "api-keys": ApiKeysSection,
   diagnostics: DiagnosticsSection,

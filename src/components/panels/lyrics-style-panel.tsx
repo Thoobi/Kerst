@@ -1,17 +1,25 @@
 import { useMemo, useState } from "react"
-import { BoldIcon, RotateCcwIcon, XIcon } from "lucide-react"
+import { BoldIcon, MoreHorizontalIcon, RotateCcwIcon, SaveIcon, XIcon } from "lucide-react"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { HorizontalAlignButtons, VerticalAlignButtons } from "@/components/broadcast/align-buttons"
 import { BackgroundPicker } from "@/components/panels/background-picker"
-import { setScriptureBackground } from "@/hooks/use-broadcast"
+import { setScriptureBackground, syncLiveScriptureBackground } from "@/hooks/use-broadcast"
+import { CameraPicker } from "@/components/panels/camera-picker"
 import { toRenderData } from "@/lib/slides"
 import { computeVerseLayoutMetrics } from "@/lib/verse-renderer"
 import { cn } from "@/lib/utils"
 import { useBibleStore, useBroadcastStore, usePreviewStore } from "@/stores"
+import { sameTextStyle } from "@/stores/broadcast-store"
 import { useContentTabStore } from "@/stores/content-tab-store"
 import { MAIN_OUTPUT_ID } from "@/types"
 import type { BroadcastTheme, LyricsStyle, ScriptureStyle, VerseRenderData } from "@/types"
@@ -37,6 +45,11 @@ const SAMPLE_VERSE: VerseRenderData = {
       text: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
     },
   ],
+}
+
+/** A colour input's value from a theme colour, which may be "transparent". */
+function safeColor(color: string): string {
+  return /^#[0-9a-fA-F]{6}/.test(color) ? color.slice(0, 7) : "#000000"
 }
 
 let measureCtx: CanvasRenderingContext2D | null = null
@@ -126,6 +139,8 @@ function TextStylePanel({ kind }: { kind: Kind }) {
   const activeTranslationId = useBibleStore((s) => s.activeTranslationId)
   // "Video" picked, but no video chosen from the list yet.
   const [choosingVideo, setChoosingVideo] = useState(false)
+  // Likewise "Camera" picked before a camera is chosen.
+  const [choosingCamera, setChoosingCamera] = useState(false)
 
   const themeId = outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? activeThemeId
   const theme = themes.find((t) => t.id === themeId) ?? themes[0]
@@ -144,14 +159,26 @@ function TextStylePanel({ kind }: { kind: Kind }) {
     if (kind === "lyrics") broadcast.updateLyricsStyle(patch as Partial<LyricsStyle>)
     else broadcast.updateScriptureStyle(patch)
   }
+  const saved = kind === "lyrics" ? theme.savedLyricsText : theme.savedScriptureText
+  const unsaved = !sameTextStyle(style, saved)
+  const save = () => useBroadcastStore.getState().saveTextStyle(kind)
+  // Back to the saved style (the theme's own look if none was saved).
   const reset = () => {
     const broadcast = useBroadcastStore.getState()
+    setChoosingVideo(false)
+    setChoosingCamera(false)
     if (kind === "lyrics") broadcast.updateLyricsStyle(null)
-    else if (style.backgroundVideoId) {
-      // Through the background helper so a live verse loses its video too.
-      setScriptureBackground(null)
+    else {
       broadcast.updateScriptureStyle(null)
-    } else broadcast.updateScriptureStyle(null)
+      // So a live verse swaps to (or drops) the saved motion background too.
+      syncLiveScriptureBackground()
+    }
+  }
+  const restoreOriginal = () => {
+    setChoosingVideo(false)
+    setChoosingCamera(false)
+    useBroadcastStore.getState().restoreThemeOriginalStyle(kind)
+    if (kind === "scripture") syncLiveScriptureBackground()
   }
 
   const fontSize = style.fontSize ?? base.fontSize
@@ -164,10 +191,17 @@ function TextStylePanel({ kind }: { kind: Kind }) {
   const bold = fontWeight >= 600
   const shrunk = shrinkToFit && shown !== null && shown < fontSize
   const customised = Object.values(style).some((value) => value !== undefined && value !== null)
+  const camera = kind === "scripture" ? (style as ScriptureStyle).backgroundCamera : null
   const referenceSize = style.referenceFontSize ?? theme.reference.fontSize
   const referenceColor = style.referenceColor ?? theme.reference.color
   const backgroundMode =
-    style.backgroundVideoId || choosingVideo ? "video" : style.backgroundColor ? "colour" : "theme"
+    style.backgroundVideoId || choosingVideo
+      ? "video"
+      : style.backgroundCamera?.url || choosingCamera
+        ? "camera"
+        : style.backgroundColor
+          ? "colour"
+          : "theme"
 
   return (
     <div
@@ -180,13 +214,38 @@ function TextStylePanel({ kind }: { kind: Kind }) {
             variant="ghost"
             size="xs"
             className="text-muted-foreground"
-            disabled={!customised}
+            disabled={!unsaved}
             onClick={reset}
-            title="Go back to the theme's own style"
+            title={saved ? "Go back to the saved style" : "Go back to the theme's own style"}
           >
             <RotateCcwIcon />
             Reset
           </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            className={cn("relative", unsaved ? "text-primary" : "text-muted-foreground")}
+            disabled={!unsaved}
+            onClick={save}
+            title={`Save as ${theme.name}'s default look, on every output that uses it`}
+          >
+            <SaveIcon />
+            Save
+            {unsaved && <span aria-label="Unsaved changes" className="size-1.5 rounded-full bg-primary" />}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-xs" className="text-muted-foreground" aria-label="More style options">
+                <MoreHorizontalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem disabled={!customised && !saved} onSelect={restoreOriginal}>
+                <RotateCcwIcon />
+                Back to the theme's original look
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {kind === "scripture" && (
             <Button
               variant="ghost"
@@ -204,9 +263,9 @@ function TextStylePanel({ kind }: { kind: Kind }) {
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3.5 pb-3.5">
         <p className="text-[0.6875rem] leading-relaxed text-muted-foreground">
-          Changes show at once in Preview and Live. They're saved on{" "}
+          Changes show at once in Preview and Live. Save makes them{" "}
           <span className="font-medium text-foreground">{theme.name}</span>
-          {theme.builtin && " (as a custom copy)"}
+          {theme.builtin ? "'s default (as a custom copy)" : "'s default"}
           {kind === "lyrics" ? "; Bible verses keep their own look." : "; songs and texts keep their own look."}
         </p>
 
@@ -387,23 +446,42 @@ function TextStylePanel({ kind }: { kind: Kind }) {
                   ["theme", "Theme"],
                   ["colour", "Colour"],
                   ["video", "Video"],
+                  ["camera", "Camera"],
                 ]}
                 onChange={(mode) => {
                   setChoosingVideo(mode === "video")
+                  setChoosingCamera(mode === "camera")
                   if (mode === "video") return
                   if (style.backgroundVideoId) setScriptureBackground(null)
+                  if (mode === "camera") {
+                    update({ backgroundColor: undefined })
+                    return
+                  }
                   update({
+                    backgroundCamera: undefined,
                     backgroundColor:
-                      mode === "colour" ? (style.backgroundColor ?? theme.background.color.slice(0, 7)) : undefined,
+                      mode === "colour" ? (style.backgroundColor ?? safeColor(theme.background.color)) : undefined,
                   })
                 }}
               />
+              {backgroundMode === "camera" && (
+                <CameraPicker
+                  feed={camera}
+                  onChoose={(feed) => {
+                    if (feed) update({ backgroundCamera: feed, backgroundColor: undefined })
+                    else {
+                      update({ backgroundCamera: undefined })
+                      setChoosingCamera(false)
+                    }
+                  }}
+                />
+              )}
               {backgroundMode === "video" && (
                 <BackgroundPicker
                   videoId={style.backgroundVideoId ?? null}
                   onChoose={async (videoId) => {
                     setScriptureBackground(videoId)
-                    if (videoId) update({ backgroundColor: undefined })
+                    if (videoId) update({ backgroundColor: undefined, backgroundCamera: undefined })
                     else setChoosingVideo(false)
                   }}
                 />

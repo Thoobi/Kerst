@@ -14,6 +14,7 @@ import { imageContentBox } from "@/lib/theme-image-cache"
 import { withTimerText } from "@/lib/timer"
 import type {
   BroadcastTheme,
+  CameraFeed,
   LyricsStyle,
   SurfaceFill,
   ThemeImageFill,
@@ -474,7 +475,8 @@ function drawBackground(
   ctx: CanvasRenderingContext2D,
   theme: BroadcastTheme,
   rect: VerseLayoutRect,
-  imageCache?: Map<string, HTMLImageElement>
+  imageCache?: Map<string, HTMLImageElement>,
+  options?: RenderOptions
 ): void {
   const { width, height } = theme.resolution
   const bg = theme.background
@@ -528,7 +530,58 @@ function drawBackground(
     case "transparent":
       ctx.clearRect(0, 0, width, height)
       break
+
+    case "camera":
+      if (options?.backgroundBehind) ctx.clearRect(rect.x, rect.y, rect.width, rect.height)
+      else drawCameraBackground(ctx, bg.camera?.fit ?? "cover", rect, options?.cameraImage)
+      break
   }
+}
+
+/** The pixel size of something drawable, or null while it has no picture. */
+function sourceSize(source: CanvasImageSource): { width: number; height: number } | null {
+  if (source instanceof HTMLImageElement) {
+    return source.complete && source.naturalWidth > 0 ? { width: source.naturalWidth, height: source.naturalHeight } : null
+  }
+  if (source instanceof HTMLVideoElement) {
+    return source.videoWidth > 0 ? { width: source.videoWidth, height: source.videoHeight } : null
+  }
+  const { width, height } = source as { width: number | SVGAnimatedLength; height: number | SVGAnimatedLength }
+  return typeof width === "number" && typeof height === "number" && width > 0 && height > 0 ? { width, height } : null
+}
+
+/**
+ * A live camera in place of the theme's background, fitted to the background
+ * region; black until it has a picture (or while it can't be reached).
+ */
+function drawCameraBackground(
+  ctx: CanvasRenderingContext2D,
+  fit: "cover" | "contain",
+  rect: VerseLayoutRect,
+  source: CanvasImageSource | null | undefined
+): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(rect.x, rect.y, rect.width, rect.height)
+  ctx.clip()
+  ctx.fillStyle = "#000"
+  ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+  const size = source ? sourceSize(source) : null
+  if (source && size) {
+    const k =
+      fit === "contain"
+        ? Math.min(rect.width / size.width, rect.height / size.height)
+        : Math.max(rect.width / size.width, rect.height / size.height)
+    const drawW = size.width * k
+    const drawH = size.height * k
+    ctx.imageSmoothingQuality = "high"
+    try {
+      ctx.drawImage(source, rect.x + (rect.width - drawW) / 2, rect.y + (rect.height - drawH) / 2, drawW, drawH)
+    } catch {
+      // A broken stream mid-frame: keep the black.
+    }
+  }
+  ctx.restore()
 }
 
 /**
@@ -634,15 +687,64 @@ function drawSurface(
   surface: SurfaceFill | undefined,
   rect: VerseLayoutRect,
   baseOpacity: number,
-  imageCache?: Map<string, HTMLImageElement>
+  imageCache?: Map<string, HTMLImageElement>,
+  options?: RenderOptions
 ): void {
   if (!surface?.enabled) return
+  if (surface.video?.videoId) {
+    drawVideoSurface(ctx, surface, surface.video, rect, baseOpacity, imageCache, options)
+    return
+  }
   ctx.save()
   ctx.globalAlpha = baseOpacity * surface.opacity
   ctx.fillStyle = surface.color
   fillRoundRect(ctx, rect, surface.borderRadius)
   if (surface.image) {
     drawImageFill(ctx, surface.image, rect, surface.borderRadius, imageCache)
+  }
+  ctx.restore()
+}
+
+/**
+ * A surface filled with a looping video, tinted by its colour at its
+ * opacity. With `bandBehind` a <video> behind the canvas shows it, so the
+ * surface is cut out of whatever is under it; otherwise the video's current
+ * frame (or its poster until there is one) is drawn in, cropped to fill.
+ */
+function drawVideoSurface(
+  ctx: CanvasRenderingContext2D,
+  surface: SurfaceFill,
+  video: NonNullable<SurfaceFill["video"]>,
+  rect: VerseLayoutRect,
+  baseOpacity: number,
+  imageCache?: Map<string, HTMLImageElement>,
+  options?: RenderOptions
+): void {
+  ctx.save()
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, surface.borderRadius)
+  ctx.clip()
+  if (options?.bandBehind) {
+    ctx.clearRect(rect.x, rect.y, rect.width, rect.height)
+  } else {
+    const element = options?.bandVideo
+    const poster = video.poster ? imageCache?.get(video.poster) : undefined
+    const source: CanvasImageSource | undefined =
+      element && element.readyState >= 2 && element.videoWidth > 0 && videoReadable(element) ? element : poster
+    const size = source ? sourceSize(source) : null
+    ctx.globalAlpha = baseOpacity
+    ctx.fillStyle = "#000"
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+    if (source && size) {
+      const k = Math.max(rect.width / size.width, rect.height / size.height)
+      const w = size.width * k
+      const h = size.height * k
+      ctx.drawImage(source, rect.x + (rect.width - w) / 2, rect.y + (rect.height - h) / 2, w, h)
+    }
+  }
+  if (surface.opacity > 0) {
+    ctx.globalAlpha = baseOpacity * surface.opacity
+    ctx.fillStyle = surface.color
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
   }
   ctx.restore()
 }
@@ -1213,14 +1315,12 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
         ...(style?.color ? { color: style.color } : {}),
       },
       ...(style?.captionColor ? { reference: { ...styled.reference, color: style.captionColor } } : {}),
-      ...(style?.backgroundColor
-        ? { background: { ...styled.background, type: "solid" as const, color: style.backgroundColor } }
-        : {}),
+      ...backgroundOverride(styled, style?.backgroundCamera, style?.backgroundColor),
     }
   }
   if (verse?.style === "lyrics" && theme.lyricsText) return withTextStyle(theme, theme.lyricsText)
   if (verse?.style === "scripture" && theme.scriptureText) {
-    const { referenceFontSize, referenceColor, backgroundColor } = theme.scriptureText
+    const { referenceFontSize, referenceColor, backgroundColor, backgroundCamera } = theme.scriptureText
     const styled = withTextStyle(theme, theme.scriptureText)
     return {
       ...styled,
@@ -1229,12 +1329,32 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
         ...(referenceFontSize !== undefined ? { fontSize: referenceFontSize } : {}),
         ...(referenceColor !== undefined ? { color: referenceColor } : {}),
       },
-      ...(backgroundColor !== undefined
-        ? { background: { ...styled.background, type: "solid" as const, color: backgroundColor } }
-        : {}),
+      ...backgroundOverride(styled, backgroundCamera, backgroundColor),
     }
   }
   return theme
+}
+
+/** A camera or a solid colour in place of the theme's background; the camera wins. */
+function backgroundOverride(
+  theme: BroadcastTheme,
+  camera: CameraFeed | null | undefined,
+  color: string | undefined
+): Partial<BroadcastTheme> {
+  if (camera?.url) return { background: { ...theme.background, type: "camera", camera } }
+  if (color !== undefined) return { background: { ...theme.background, type: "solid", color } }
+  return {}
+}
+
+/**
+ * The camera showing behind this frame, if any: the theme's camera
+ * background or a style's camera in its place. A motion background, a slide
+ * or a full-frame video covers it, so then there is none.
+ */
+export function activeCamera(theme: BroadcastTheme, verse: VerseRenderData | null): CameraFeed | null {
+  if (verse?.background || verse?.image || verse?.video) return null
+  const bg = themeForContent(theme, verse).background
+  return bg.type === "camera" && bg.camera?.url ? bg.camera : null
 }
 
 /** The `LyricsStyle` fields that override the theme's verse text. */
@@ -1688,12 +1808,39 @@ function cachedPicture(url: string | undefined, options?: RenderOptions) {
  * A video's current frame from the window's own copy (`el`), once it has
  * one; before that (and in windows without a copy) its poster.
  */
+/** Videos already known to be readable; one that is stays so. */
+const readableVideos = new WeakSet<HTMLVideoElement>()
+
+/**
+ * Whether a video's frames can be drawn into a canvas that must be read back
+ * (NDI, the stream). WebKit can count a video as cross-origin for a moment
+ * while it starts loading; drawing it then would leave that canvas unreadable
+ * for good. Checked on a fresh 1×1 canvas (a tainted one stays tainted).
+ */
+export function videoReadable(el: HTMLVideoElement): boolean {
+  if (readableVideos.has(el)) return true
+  if (typeof document === "undefined") return true
+  try {
+    const probe = document.createElement("canvas")
+    probe.width = 1
+    probe.height = 1
+    const ctx = probe.getContext("2d")
+    if (!ctx) return false
+    ctx.drawImage(el, 0, 0, 1, 1)
+    ctx.getImageData(0, 0, 1, 1)
+    readableVideos.add(el)
+    return true
+  } catch {
+    return false
+  }
+}
+
 function videoPicture(
   video: VideoPlayback,
   el: HTMLVideoElement | null | undefined,
   options?: RenderOptions
 ) {
-  if (el && el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && el.videoWidth > 0) {
+  if (el && el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && el.videoWidth > 0 && videoReadable(el)) {
     return { source: el, width: el.videoWidth, height: el.videoHeight }
   }
   return cachedPicture(video.poster, options)
@@ -1857,7 +2004,14 @@ function renderVerseImpl(
   verse: VerseRenderData | null,
   options?: RenderOptions
 ): VerseLayoutMetrics {
+  const layer = options?.layer ?? "all"
+  const drawBase = layer === "all" || layer === "base" || layer === "backdrop"
+  // The band and plates come on with the words: with nothing to say (off
+  // air), a Lower Thirds band doesn't sit there empty.
+  const drawPlates = verse !== null && (layer === "all" || layer === "base" || layer === "content")
+  const drawText = layer === "all" || layer === "text" || layer === "content"
   if (verse?.image || verse?.video) {
+    if (!drawBase) return computeVerseLayoutMetrics(ctx, theme, null, options)
     const picture = verse.video
       ? videoPicture(verse.video, options?.video, options)
       : cachedPicture(verse.image?.url, options)
@@ -1877,26 +2031,29 @@ function renderVerseImpl(
   }
 
   // Draw background: the theme's own, or a motion background in its place.
-  if (verse?.background && options?.backgroundBehind) {
+  if (!drawBase) {
+    // Words only.
+  } else if (verse?.background && options?.backgroundBehind) {
     const r = metrics.backgroundRect
     ctx.clearRect(r.x, r.y, r.width, r.height)
   } else if (verse?.background) {
     drawVideoBackground(ctx, verse.background, metrics.backgroundRect, options)
   } else {
-    drawBackground(ctx, scaledTheme, metrics.backgroundRect, options?.imageCache)
+    drawBackground(ctx, scaledTheme, metrics.backgroundRect, options?.imageCache, options)
   }
 
   // The container behind the reference + verse block, then each element's own
   // plate on top of it.
   const baseOpacity = options?.opacity ?? 1
-  drawSurface(
+  if (drawPlates) drawSurface(
     ctx,
     scaledTheme.textBox,
     metrics.textBoxRect,
     baseOpacity,
-    options?.imageCache
+    options?.imageCache,
+    options
   )
-  if (metrics.referenceSurfaceRect) {
+  if (drawPlates && metrics.referenceSurfaceRect) {
     drawSurface(
       ctx,
       scaledTheme.reference.surface,
@@ -1905,7 +2062,7 @@ function renderVerseImpl(
       options?.imageCache
     )
   }
-  if (metrics.verseSurfaceRect) {
+  if (drawPlates && metrics.verseSurfaceRect) {
     drawSurface(
       ctx,
       scaledTheme.verseText.surface,
@@ -1916,9 +2073,9 @@ function renderVerseImpl(
   }
 
   // If no verse data, just draw the background and text box
-  if (!verse) {
+  if (!verse || !drawText) {
     ctx.restore()
-    drawThemeLogo(ctx, theme, verse, options)
+    if (drawBase) drawThemeLogo(ctx, theme, verse, options)
     return metrics
   }
 
@@ -1952,6 +2109,6 @@ function renderVerseImpl(
   }
 
   ctx.restore()
-  drawThemeLogo(ctx, theme, verse, options)
+  if (drawBase) drawThemeLogo(ctx, theme, verse, options)
   return metrics
 }

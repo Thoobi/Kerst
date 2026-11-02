@@ -14,6 +14,13 @@ export function recommendedWhisperModel(): WhisperModel {
   return threads !== undefined && threads <= 4 ? "fast" : "accurate"
 }
 
+/** A network camera the operator added, e.g. a phone running IP Webcam. */
+export interface SavedCamera {
+  id: string
+  name: string
+  url: string
+}
+
 interface SettingsState {
   deepgramApiKey: string | null
   openaiApiKey: string | null
@@ -26,6 +33,7 @@ interface SettingsState {
   onboardingComplete: boolean
   sttProvider: SttProvider
   whisperModel: WhisperModel
+  cameras: SavedCamera[]
 
   setDeepgramApiKey: (key: string | null) => void
   setOpenaiApiKey: (key: string | null) => void
@@ -38,9 +46,12 @@ interface SettingsState {
   setOnboardingComplete: (complete: boolean) => void
   setSttProvider: (provider: SttProvider) => void
   setWhisperModel: (model: WhisperModel) => void
+  addCamera: (camera: Omit<SavedCamera, "id">) => SavedCamera
+  updateCamera: (id: string, patch: Partial<Omit<SavedCamera, "id">>) => void
+  removeCamera: (id: string) => void
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
+export const useSettingsStore = create<SettingsState>((set, get) => ({
   deepgramApiKey: null,
   openaiApiKey: null,
   claudeApiKey: null,
@@ -52,6 +63,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   onboardingComplete: false,
   sttProvider: "deepgram",
   whisperModel: recommendedWhisperModel(),
+  cameras: [],
 
   setDeepgramApiKey: (deepgramApiKey) => set({ deepgramApiKey }),
   setOpenaiApiKey: (openaiApiKey) => set({ openaiApiKey }),
@@ -64,6 +76,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setOnboardingComplete: (onboardingComplete) => set({ onboardingComplete }),
   setSttProvider: (sttProvider) => set({ sttProvider }),
   setWhisperModel: (whisperModel) => set({ whisperModel }),
+  addCamera: (camera) => {
+    const added = { ...camera, id: crypto.randomUUID() }
+    set({ cameras: [...get().cameras, added] })
+    return added
+  },
+  updateCamera: (id, patch) => set({ cameras: get().cameras.map((c) => (c.id === id ? { ...c, ...patch } : c)) }),
+  removeCamera: (id) => set({ cameras: get().cameras.filter((c) => c.id !== id) }),
 }))
 
 const PERSISTED_KEYS = [
@@ -78,6 +97,7 @@ const PERSISTED_KEYS = [
   "onboardingComplete",
   "sttProvider",
   "whisperModel",
+  "cameras",
 ] as const satisfies readonly (keyof SettingsState)[]
 
 let tauriStore: Store | null = null

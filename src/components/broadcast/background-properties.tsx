@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { SurfaceControls } from "@/components/broadcast/surface-properties"
 import { buildColorWithOpacity, parseColorOpacity } from "@/lib/color-utils"
+import { CameraPicker } from "@/components/panels/camera-picker"
 
 function SolidSection() {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
@@ -313,6 +314,41 @@ function TransparentSection() {
   )
 }
 
+function CameraSection() {
+  const draftTheme = useBroadcastStore((s) => s.draftTheme)
+  const update = useBroadcastStore((s) => s.updateDraftNested)
+  if (!draftTheme) return null
+  const camera = draftTheme.background.camera ?? null
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium text-muted-foreground">Camera</label>
+        <div className="rounded-md border">
+          <CameraPicker feed={camera} onChoose={(feed) => update("background.camera", feed)} />
+        </div>
+        <p className="text-[0.6875rem] text-muted-foreground">
+          Live behind the text, e.g. a Lower Thirds band over the pulpit camera. Add cameras in Settings → Cameras.
+        </p>
+      </div>
+      {camera && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Fit Mode</label>
+          <Select value={camera.fit ?? "cover"} onValueChange={(v) => update("background.camera.fit", v)}>
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="cover">Fill (crop edges)</SelectItem>
+              <SelectItem value="contain">Fit (whole picture)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function BackgroundProperties() {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
   const update = useBroadcastStore((s) => s.updateDraftNested)
@@ -360,6 +396,7 @@ export function BackgroundProperties() {
             <SelectItem value="gradient">Gradient</SelectItem>
             <SelectItem value="image">Image</SelectItem>
             <SelectItem value="transparent">Transparent</SelectItem>
+            <SelectItem value="camera">Live camera</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -369,6 +406,7 @@ export function BackgroundProperties() {
       {bgType === "gradient" && <GradientSection />}
       {bgType === "image" && <ImageSection />}
       {bgType === "transparent" && <TransparentSection />}
+      {bgType === "camera" && <CameraSection />}
 
       {/* The container the reference + verse sit in — always available. */}
       <SurfaceControls

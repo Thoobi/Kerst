@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { EyeIcon, EyeOffIcon } from "lucide-react"
 import { toast } from "sonner"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
@@ -10,6 +11,8 @@ import { cn } from "@/lib/utils"
 import { useBroadcastStore, useBibleStore } from "@/stores"
 import { presentVerse, toVerseRenderData } from "@/hooks/use-broadcast"
 import { bibleActions } from "@/hooks/use-bible"
+import { isLowerThird } from "@/lib/lower-third"
+import { isTypingOrHandled } from "@/lib/operator-keys"
 
 export function LiveOutputPanel() {
   const isLive = useBroadcastStore((s) => s.isLive)
@@ -21,11 +24,32 @@ export function LiveOutputPanel() {
   const volume = useVideosStore((s) => s.volume)
   const muted = useVideosStore((s) => s.muted)
 
+  const lowerThirdHidden = useBroadcastStore((s) => s.lowerThirdHidden)
+  const outputs = useBroadcastStore((s) => s.outputs)
+
   const activeTheme = themes.find((t) => t.id === activeThemeId) ?? themes[0]
+  // Any output on a lower third can have its band hidden and revealed here.
+  const hasLowerThird = outputs.some((o) => isLowerThird(themes.find((t) => t.id === o.themeId)))
+  const bandHidden = lowerThirdHidden && isLowerThird(activeTheme)
 
   // The live output renders only what was explicitly presented — it no longer
   // follows the preview selection, so detections can't override the operator.
-  const verseData = isLive ? liveVerse : null
+  const verseData = isLive && !bandHidden ? liveVerse : null
+
+  // H hides or reveals the lower third, from anywhere but a text field.
+  useEffect(() => {
+    if (!hasLowerThird) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "h" && event.key !== "H") return
+      if (isTypingOrHandled(event) || event.shiftKey) return
+      const broadcast = useBroadcastStore.getState()
+      if (!broadcast.isLive) return
+      event.preventDefault()
+      broadcast.setLowerThirdHidden(!broadcast.lowerThirdHidden)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [hasLowerThird])
 
   // Refetch the live verse when the translation changes so the live output
   // text follows the new translation. Updates the live output only — the
@@ -86,6 +110,28 @@ export function LiveOutputPanel() {
             }
           />
         </label>
+        {hasLowerThird && (
+          <button
+            type="button"
+            aria-pressed={lowerThirdHidden}
+            disabled={!isLive}
+            onClick={() => useBroadcastStore.getState().setLowerThirdHidden(!lowerThirdHidden)}
+            title={
+              lowerThirdHidden
+                ? "Bring the lower third back on screen (H)"
+                : "Take the lower third off screen, staying on air (H)"
+            }
+            className={cn(
+              "flex h-6 items-center gap-1 rounded-full px-2 text-xs font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-40",
+              lowerThirdHidden
+                ? "bg-amber-500/20 text-amber-600 hover:bg-amber-500/30 dark:text-amber-400"
+                : "border border-border text-foreground hover:bg-muted"
+            )}
+          >
+            {lowerThirdHidden ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
+            {lowerThirdHidden ? "Show band" : "Hide band"}
+          </button>
+        )}
         <button
           type="button"
           role="switch"
@@ -115,7 +161,7 @@ export function LiveOutputPanel() {
             isLive ? "ring-live-pulse/30" : "ring-border"
           )}
         >
-          <CanvasVerse theme={activeTheme} verse={verseData} />
+          <CanvasVerse theme={activeTheme} verse={verseData} animate />
           {verseData?.video && (
             // The one copy of a live video that makes sound: outputs play
             // muted, so the audio never doubles up.
@@ -128,6 +174,13 @@ export function LiveOutputPanel() {
               }
               className="absolute inset-1.5 size-[calc(100%-0.75rem)] rounded-md bg-black object-contain"
             />
+          )}
+          {isLive && bandHidden && (
+            <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex justify-center pb-2">
+              <span className="rounded-full bg-black/60 px-2.5 py-1 text-[0.6875rem] font-medium tracking-wide text-amber-300">
+                Lower third hidden · H to show
+              </span>
+            </div>
           )}
           {!isLive && (
             <div className="absolute inset-1.5 flex items-center justify-center rounded-md bg-black/55">

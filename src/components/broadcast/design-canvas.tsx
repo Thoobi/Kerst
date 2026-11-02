@@ -18,6 +18,14 @@ import {
   MaximizeIcon,
 } from "lucide-react"
 import type { BroadcastTheme } from "@/types"
+import { latestCameraFrame, watchCamera } from "@/lib/mjpeg-reader"
+import { BandVideo } from "@/components/ui/band-video"
+
+/**
+ * The editor's copy of the band's looping video, playing out of sight: its
+ * current frame is drawn into the band (the editor's canvas holds the pixels).
+ */
+const designerBand: { current: HTMLVideoElement | null } = { current: null }
 
 const WS_WIDTH = 1920
 const WS_HEIGHT = 1080
@@ -301,6 +309,29 @@ export function DesignCanvas() {
     })
   }, [draftTheme])
 
+  // A live camera background moves: redraw a few times a second (the
+  // editor needs to show it, not play it smoothly; outputs do that).
+  const cameraUrl = draftTheme?.background.type === "camera" ? draftTheme.background.camera?.url : undefined
+  // Likewise a band video, a few times a second.
+  const bandVideo = draftTheme?.textBox.enabled && draftTheme.textBox.video?.videoId ? draftTheme.textBox.video : null
+  const bandBoxRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!bandVideo) return
+    const id = setInterval(resyncLatestTheme, 200)
+    return () => clearInterval(id)
+  }, [bandVideo, resyncLatestTheme])
+
+  useEffect(() => {
+    if (!cameraUrl) return
+    let last = 0
+    return watchCamera(cameraUrl, () => {
+      const now = performance.now()
+      if (now - last < 200) return
+      last = now
+      resyncLatestTheme()
+    })
+  }, [cameraUrl, resyncLatestTheme])
+
   useEffect(() => {
     const refRegion = objectsRef.current.referenceRegion
     const verseRegion = objectsRef.current.verseRegion
@@ -363,6 +394,15 @@ export function DesignCanvas() {
           <MaximizeIcon className="size-3.5" />
         </Button>
       </div>
+
+      {/* The band's video, playing out of sight for the canvas to copy. Not
+          beside the <canvas>: Fabric moves that into a wrapper of its own,
+          and React inserting next to it then fails and unmounts the app. */}
+      {bandVideo && (
+        <div aria-hidden className="pointer-events-none fixed left-0 top-0 h-[90px] w-[160px] overflow-hidden opacity-0">
+          <BandVideo video={bandVideo} boxRef={bandBoxRef} elementRef={designerBand} />
+        </div>
+      )}
 
       {/* Canvas container */}
       <div ref={containerRef} className="relative min-h-0 flex-1">
@@ -535,6 +575,8 @@ function renderThemeBitmap(
 
   const metrics = renderVerse(ctx, theme, SAMPLE_VERSE, {
     imageCache: themeImageCache(),
+    cameraImage: theme.background.type === "camera" ? latestCameraFrame(theme.background.camera?.url) : null,
+    bandVideo: designerBand.current,
   })
   if (theme.background.type === "transparent") {
     drawTransparencyCheckerboard(ctx)

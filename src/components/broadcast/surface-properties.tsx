@@ -11,6 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
+import { BackgroundPicker } from "@/components/panels/background-picker"
+import { libraryFileUrl } from "@/lib/library-api"
+import { useVideosStore } from "@/stores/videos-store"
 import type { BroadcastTheme, SurfaceFill, ThemeImageFill } from "@/types/broadcast"
 
 /** Dotted path to a SurfaceFill within a theme. */
@@ -69,6 +72,9 @@ export function SurfaceControls({
   const surface = surfaceAt(draftTheme, prefix)
   const enabled = surface?.enabled ?? false
   const image = surface?.image ?? null
+  // A looping video fill: the text container (a Lower Thirds band) only.
+  const canVideo = prefix === "textBox"
+  const video = canVideo ? (surface?.video ?? null) : null
   const { hex: colorHex } = parseColorOpacity(surface?.color ?? "#000000")
   const tint = image?.tint
     ? parseColorOpacity(image.tint)
@@ -108,10 +114,17 @@ export function SurfaceControls({
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground">Fill</label>
             <Select
-              value={image ? "image" : "color"}
-              onValueChange={(v) =>
+              value={video ? "video" : image ? "image" : "color"}
+              onValueChange={(v) => {
                 update(`${prefix}.image`, v === "image" ? { ...DEFAULT_IMAGE } : null)
-              }
+                if (v !== "video" && video) update(`${prefix}.video`, null)
+                if (v === "video") {
+                  // A placeholder until a video is picked, so the picker shows.
+                  update(`${prefix}.video`, { videoId: "", file: "" })
+                  // Let the video show: a light tint instead of a solid band.
+                  if (surface.opacity > 0.35) update(`${prefix}.opacity`, 0.25)
+                }
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -119,11 +132,48 @@ export function SurfaceControls({
               <SelectContent>
                 <SelectItem value="color">Solid Color</SelectItem>
                 <SelectItem value="image">Image</SelectItem>
+                {canVideo && <SelectItem value="video">Video (loops)</SelectItem>}
               </SelectContent>
             </Select>
           </div>
 
-          {image ? (
+          {video ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-medium text-muted-foreground">Video</label>
+                <div className="rounded-md border">
+                  <BackgroundPicker
+                    videoId={video.videoId || null}
+                    onChoose={async (videoId) => {
+                      const chosen = useVideosStore.getState().videos.find((v) => v.id === videoId)
+                      update(
+                        `${prefix}.video`,
+                        chosen
+                          ? {
+                              videoId: chosen.id,
+                              file: chosen.path.split(/[\\/]/).pop() ?? "",
+                              poster: chosen.poster_path ? libraryFileUrl(chosen.poster_path) : undefined,
+                            }
+                          : null
+                      )
+                    }}
+                  />
+                </div>
+              </div>
+              <p className="text-[0.625rem] text-muted-foreground">
+                A short clip loops silently in the band. Import clips in the Videos tab.
+              </p>
+              <label className="text-xs font-medium text-muted-foreground">Tint</label>
+              <ColorRow
+                hex={colorHex}
+                opacity={Math.round(surface.opacity * 100)}
+                onChange={(hex, opacity) => {
+                  update(`${prefix}.color`, hex)
+                  update(`${prefix}.opacity`, opacity / 100)
+                }}
+              />
+            </div>
+          ) : image ? (
             <>
               <Button
                 variant="outline"

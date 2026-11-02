@@ -84,6 +84,20 @@ export function LoopingVideo({ url, poster, playing, className, style, elementRe
       watch()
     }
 
+    // WebKit sends no frame callbacks while a video isn't painted (e.g. a
+    // hidden Lower Thirds band), so the swap above can miss the end: then
+    // the copy on screen just starts over, rather than freezing on its last
+    // frame. (A visible loop never gets here.)
+    const onEnded = (event: Event) => {
+      if (stopped || event.target !== active || swapping) return
+      active.currentTime = 0
+      void active.play().catch(() => {})
+      active.cancelVideoFrameCallback(handle)
+      watch()
+    }
+    a.addEventListener("ended", onEnded)
+    b.addEventListener("ended", onEnded)
+
     if (playing) {
       void active.play().catch(() => {})
       watch()
@@ -91,6 +105,8 @@ export function LoopingVideo({ url, poster, playing, className, style, elementRe
       active.pause()
     }
     return () => {
+      a.removeEventListener("ended", onEnded)
+      b.removeEventListener("ended", onEnded)
       stopped = true
       active.cancelVideoFrameCallback(handle)
       active.pause()
@@ -102,14 +118,15 @@ export function LoopingVideo({ url, poster, playing, className, style, elementRe
   const copy = (ref: RefObject<HTMLVideoElement | null>) => (
     <video
       ref={ref}
+      // The media server is another origin; without CORS, copying frames to
+      // a canvas for NDI would taint it. Before `src`: React sets attributes
+      // in order, and a load that starts before this is a no-CORS load.
+      crossOrigin="anonymous"
       src={url}
       poster={poster}
       muted
       playsInline
       preload="auto"
-      // The media server is another origin; without CORS, copying frames to
-      // a canvas for NDI would taint it.
-      crossOrigin="anonymous"
       disablePictureInPicture
       style={layer}
     />

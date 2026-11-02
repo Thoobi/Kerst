@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react"
-import { CheckIcon, EyeOffIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon, RotateCcwIcon } from "lucide-react"
+import { CheckIcon, EyeOffIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon, RotateCcwIcon, SaveIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { BackgroundPicker } from "@/components/panels/background-picker"
+import { CameraPicker } from "@/components/panels/camera-picker"
 import { isTypingOrHandled } from "@/lib/operator-keys"
 import { themeForContent } from "@/lib/verse-renderer"
 import { cn } from "@/lib/utils"
@@ -209,13 +210,59 @@ export function TimerPanel() {
 function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
   const style = useTimerStore((s) => s.style)
   const backgroundVideoId = useTimerStore((s) => s.backgroundVideoId)
-  const { setStyle, setBackgroundVideo } = useTimerStore.getState()
+  const savedStyle = useTimerStore((s) => s.savedStyle)
+  const savedBackgroundVideoId = useTimerStore((s) => s.savedBackgroundVideoId)
+  const { setStyle, setBackgroundVideo, saveLook, resetLook, lookUnsaved } = useTimerStore.getState()
   const [choosingVideo, setChoosingVideo] = useState(false)
-  const backgroundMode = backgroundVideoId || choosingVideo ? "video" : style.backgroundColor ? "colour" : "theme"
+  const [choosingCamera, setChoosingCamera] = useState(false)
+  const backgroundMode =
+    backgroundVideoId || choosingVideo
+      ? "video"
+      : style.backgroundCamera?.url || choosingCamera
+        ? "camera"
+        : style.backgroundColor
+          ? "colour"
+          : "theme"
+  // Re-read when the look or the saved look changes.
+  void savedStyle
+  void savedBackgroundVideoId
+  const unsaved = lookUnsaved()
   const words = theme ? themeForContent(theme, { reference: "", segments: [], style: "lyrics" }) : undefined
 
   return (
     <div className="flex flex-col gap-4 border-t border-border pt-4">
+      <div className="-mb-1 flex items-center justify-between">
+        <span className="text-xs font-semibold">Look</span>
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground"
+            disabled={!unsaved}
+            onClick={() => {
+              setChoosingVideo(false)
+              setChoosingCamera(false)
+              resetLook()
+            }}
+            title="Go back to the saved look"
+          >
+            <RotateCcwIcon />
+            Reset
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            className={unsaved ? "text-primary" : "text-muted-foreground"}
+            disabled={!unsaved}
+            onClick={saveLook}
+            title="Keep this look as the timer's default"
+          >
+            <SaveIcon />
+            Save
+            {unsaved && <span aria-label="Unsaved changes" className="size-1.5 rounded-full bg-primary" />}
+          </Button>
+        </div>
+      </div>
       <Field label={`Size · ${style.size}%`}>
         <Slider
           min={100}
@@ -260,6 +307,7 @@ function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
               ["theme", "Theme"],
               ["colour", "Colour"],
               ["video", "Video"],
+              ["camera", "Camera"],
             ] as const
           ).map(([mode, label]) => (
             <button
@@ -269,9 +317,15 @@ function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
               aria-checked={backgroundMode === mode}
               onClick={() => {
                 setChoosingVideo(mode === "video")
+                setChoosingCamera(mode === "camera")
                 if (mode === "video") return
                 if (backgroundVideoId) setBackgroundVideo(null)
+                if (mode === "camera") {
+                  setStyle({ backgroundColor: undefined })
+                  return
+                }
                 setStyle({
+                  backgroundCamera: undefined,
                   backgroundColor:
                     mode === "colour" ? (style.backgroundColor ?? theme?.background.color.slice(0, 7) ?? "#000000") : undefined,
                 })
@@ -290,8 +344,20 @@ function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
             videoId={backgroundVideoId}
             onChoose={async (videoId) => {
               setBackgroundVideo(videoId)
-              if (videoId) setStyle({ backgroundColor: undefined })
+              if (videoId) setStyle({ backgroundColor: undefined, backgroundCamera: undefined })
               else setChoosingVideo(false)
+            }}
+          />
+        )}
+        {backgroundMode === "camera" && (
+          <CameraPicker
+            feed={style.backgroundCamera}
+            onChoose={(feed) => {
+              if (feed) setStyle({ backgroundCamera: feed, backgroundColor: undefined })
+              else {
+                setStyle({ backgroundCamera: undefined })
+                setChoosingCamera(false)
+              }
             }}
           />
         )}

@@ -5,6 +5,7 @@ import { TextProperties } from "@/components/broadcast/text-properties"
 import { BackgroundProperties } from "@/components/broadcast/background-properties"
 import { LayoutProperties } from "@/components/broadcast/layout-properties"
 import { LogoProperties } from "@/components/broadcast/logo-properties"
+import { TransitionProperties } from "@/components/broadcast/transition-properties"
 
 export function PropertiesPanel() {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
@@ -52,7 +53,10 @@ export function PropertiesPanel() {
             <BackgroundProperties />
           </TabsContent>
           <TabsContent value="layout" className="mt-0 p-4">
-            <LayoutProperties />
+            <div className="flex flex-col gap-4">
+              <LayoutProperties />
+              <TransitionProperties />
+            </div>
           </TabsContent>
           <TabsContent value="logo" className="mt-0 p-4">
             <LogoProperties />

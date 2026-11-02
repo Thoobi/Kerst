@@ -5,6 +5,7 @@ import type {
   BroadcastOutput,
   BroadcastOutputStatus,
   BroadcastTheme,
+  CameraFeed,
   LyricsStyle,
   ScriptureStyle,
   StreamStatus,
@@ -14,6 +15,7 @@ import type {
 import { MAIN_OUTPUT_ID, defaultNdiSettings, defaultStreamSettings, normalizeOutput, outputWindowLabel } from "@/types"
 import { BUILTIN_THEMES, LOWER_THIRDS, CLASSIC_DARK } from "@/lib/builtin-themes"
 import { normalizeTheme } from "@/lib/theme-migrations"
+import { isLowerThird } from "@/lib/lower-third"
 
 type SelectedElement = "verse" | "reference" | null
 
@@ -44,6 +46,12 @@ interface BroadcastState {
    */
   timerVerse: VerseRenderData | null
   timerOutputIds: string[]
+  /**
+   * The lower-third band is taken off the outputs whose theme is a lower
+   * third, while staying on air: the live content is kept, ready to reveal.
+   * Not persisted; going off air brings it back for next time.
+   */
+  lowerThirdHidden: boolean
 
   // Designer state
   isDesignerOpen: boolean
@@ -66,6 +74,8 @@ interface BroadcastState {
   setAutoLive: (auto: boolean) => void
   /** Show `verse` (a timer) on `outputIds`; null or no ids hands them back to the live content. */
   setTimerOverlay: (verse: VerseRenderData | null, outputIds: string[]) => void
+  /** Hide (true) or reveal the band on lower-third outputs; it slides out and in. */
+  setLowerThirdHidden: (hidden: boolean) => void
   syncBroadcastOutput: () => void
   /**
    * Change how songs and texts look on the main output's theme (null resets
@@ -75,6 +85,15 @@ interface BroadcastState {
   updateLyricsStyle: (patch: Partial<LyricsStyle> | null) => void
   /** The same for Bible verses: their text, reference and background. */
   updateScriptureStyle: (patch: Partial<ScriptureStyle> | null) => void
+  /**
+   * Make the current song and text (or Bible) style the theme's saved
+   * default: Reset (`update…Style(null)`) then goes back to it.
+   */
+  saveTextStyle: (kind: TextStyleKind) => void
+  /** Drop the style and its saved default: back to the theme's own look. */
+  restoreThemeOriginalStyle: (kind: TextStyleKind) => void
+  /** A saved camera's address changed: point every theme that shows it there. */
+  retargetCamera: (cameraId: string, url: string) => void
   syncBroadcastOutputFor: (outputId: string) => void
 
   // Output management
@@ -133,6 +152,47 @@ function editMainTheme(
   get().saveTheme({ ...theme, ...change(theme), updatedAt: Date.now() })
 }
 
+export type TextStyleKind = "lyrics" | "scripture"
+
+/** A feed pointed at `url` if it is that camera's; the same object otherwise. */
+export function retargetFeed<T extends CameraFeed | null | undefined>(feed: T, cameraId: string, url: string): T {
+  return feed && feed.cameraId === cameraId && feed.url !== url ? ({ ...feed, url } as T) : feed
+}
+
+/** The theme with every feed from `cameraId` moved to `url`; the same object if none. */
+function retargetThemeCamera(theme: BroadcastTheme, cameraId: string, url: string): BroadcastTheme {
+  const bgCamera = retargetFeed(theme.background.camera, cameraId, url)
+  const styles = (["scriptureText", "savedScriptureText"] as const).map((key) => {
+    const style = theme[key]
+    const camera = retargetFeed(style?.backgroundCamera, cameraId, url)
+    return camera === style?.backgroundCamera ? undefined : ([key, { ...style, backgroundCamera: camera }] as const)
+  })
+  if (bgCamera === theme.background.camera && styles.every((s) => !s)) return theme
+  return {
+    ...theme,
+    background: { ...theme.background, camera: bgCamera },
+    ...Object.fromEntries(styles.filter((s) => s !== undefined)),
+  }
+}
+
+/** A copy of a style with its unset keys dropped; undefined when nothing is set. */
+function cloneStyle<T extends object>(style: T | undefined): T | undefined {
+  if (!style) return undefined
+  const entries = Object.entries(style).filter(([, value]) => value !== undefined)
+  return entries.length ? (structuredClone(Object.fromEntries(entries)) as T) : undefined
+}
+
+/** Whether two styles set the same things (unset and undefined count as equal). */
+export function sameTextStyle(a: object | undefined, b: object | undefined): boolean {
+  const norm = (style: object | undefined) =>
+    JSON.stringify(
+      Object.entries(style ?? {})
+        .filter(([, value]) => value !== undefined)
+        .sort(([x], [y]) => x.localeCompare(y))
+    )
+  return norm(a) === norm(b)
+}
+
 function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
   const keys = path.split(".")
   const isIndex = (key: string) => /^\d+$/.test(key)
@@ -163,13 +223,24 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: unkno
   return result
 }
 
-/** What one output shows: the timer if it was sent there, else the live content. */
+/**
+ * What one output shows: the timer if it was sent there, else the live
+ * content, unless the lower third is hidden and the output's theme (`theme`,
+ * or the one it is set to) is one.
+ */
 export function outputVerse(
-  state: Pick<BroadcastState, "isLive" | "liveVerse" | "timerVerse" | "timerOutputIds">,
-  outputId: string
+  state: Pick<BroadcastState, "isLive" | "liveVerse" | "timerVerse" | "timerOutputIds"> &
+    Partial<Pick<BroadcastState, "lowerThirdHidden" | "outputs" | "themes">>,
+  outputId: string,
+  theme?: BroadcastTheme
 ): VerseRenderData | null {
   if (!state.isLive) return null
   if (state.timerVerse && state.timerOutputIds.includes(outputId)) return state.timerVerse
+  if (state.lowerThirdHidden) {
+    const themeId = state.outputs?.find((o) => o.id === outputId)?.themeId
+    const shown = theme ?? state.themes?.find((t) => t.id === themeId)
+    if (isLowerThird(shown)) return null
+  }
   return state.liveVerse
 }
 
@@ -179,7 +250,7 @@ function emitDraftToBroadcast(state: BroadcastState): void {
     if (output.themeId !== state.editingThemeId) continue
     void emitTo(outputWindowLabel(output.id), "broadcast:verse-update", {
       theme: state.draftTheme,
-      verse: outputVerse(state, output.id),
+      verse: outputVerse(state, output.id, state.draftTheme),
     }).catch(() => {})
   }
 }
@@ -237,6 +308,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   autoLive: true,
   timerVerse: null,
   timerOutputIds: [],
+  lowerThirdHidden: false,
   isDesignerOpen: false,
   editingThemeId: null,
   renamingThemeId: null,
@@ -331,7 +403,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
 
     void emitTo(outputWindowLabel(outputId), "broadcast:verse-update", {
       theme,
-      verse: outputVerse(s, outputId),
+      verse: outputVerse(s, outputId, theme),
     }).catch(() => {})
   },
   syncBroadcastOutput: () => {
@@ -341,13 +413,38 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   },
   updateLyricsStyle: (patch) => {
     editMainTheme(get, set, (theme) => ({
-      lyricsText: patch === null ? undefined : { ...theme.lyricsText, ...patch },
+      lyricsText: patch === null ? cloneStyle(theme.savedLyricsText) : { ...theme.lyricsText, ...patch },
     }))
   },
   updateScriptureStyle: (patch) => {
     editMainTheme(get, set, (theme) => ({
-      scriptureText: patch === null ? undefined : { ...theme.scriptureText, ...patch },
+      scriptureText: patch === null ? cloneStyle(theme.savedScriptureText) : { ...theme.scriptureText, ...patch },
     }))
+  },
+  saveTextStyle: (kind) => {
+    editMainTheme(get, set, (theme) =>
+      kind === "lyrics"
+        ? { savedLyricsText: cloneStyle(theme.lyricsText) }
+        : { savedScriptureText: cloneStyle(theme.scriptureText) }
+    )
+  },
+  retargetCamera: (cameraId, url) => {
+    for (const theme of get().themes) {
+      const next = retargetThemeCamera(theme, cameraId, url)
+      if (next !== theme) get().saveTheme({ ...next, updatedAt: Date.now() })
+    }
+    const draft = get().draftTheme
+    if (draft) {
+      const next = retargetThemeCamera(draft, cameraId, url)
+      if (next !== draft) set({ draftTheme: next })
+    }
+  },
+  restoreThemeOriginalStyle: (kind) => {
+    editMainTheme(get, set, () =>
+      kind === "lyrics"
+        ? { lyricsText: undefined, savedLyricsText: undefined }
+        : { scriptureText: undefined, savedScriptureText: undefined }
+    )
   },
   setActiveTheme: (activeThemeId) => {
     get().setOutputTheme(MAIN_OUTPUT_ID, activeThemeId)
@@ -432,7 +529,8 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
       return { outputStatus: { ...s.outputStatus, [id]: status } }
     }),
   setLive: (isLive) => {
-    set({ isLive })
+    // Off air, a hidden lower third is shown again next time.
+    set(isLive ? { isLive } : { isLive, lowerThirdHidden: false })
     get().syncBroadcastOutput()
   },
   setLiveVerse: (liveVerse, source = null) => {
@@ -440,6 +538,11 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     get().syncBroadcastOutput()
   },
   setAutoLive: (autoLive) => set({ autoLive }),
+  setLowerThirdHidden: (lowerThirdHidden) => {
+    if (get().lowerThirdHidden === lowerThirdHidden) return
+    set({ lowerThirdHidden })
+    get().syncBroadcastOutput()
+  },
   setTimerOverlay: (timerVerse, timerOutputIds) => {
     set({ timerVerse: timerOutputIds.length > 0 ? timerVerse : null, timerOutputIds })
     get().syncBroadcastOutput()

@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client"
 import { useRef, useEffect, useCallback, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import { backgroundRegion, logoRect, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
+import { activeCamera, backgroundRegion, computeVerseLayoutMetrics, logoRect, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { isAnimatedGif } from "@/lib/gif-frames"
 import { LogoCanvas } from "@/components/broadcast/logo-canvas"
@@ -10,10 +10,20 @@ import { normalizeTheme } from "@/lib/theme-migrations"
 import { fitFrame, renderScale } from "@/lib/output-frame"
 import { SyncedVideo } from "@/components/ui/synced-video"
 import { LoopingVideo } from "@/components/ui/looping-video"
+import { CameraLayer } from "@/components/ui/camera-layer"
+import { BandVideo } from "@/components/ui/band-video"
+import { bandReady, placeBand } from "@/lib/band-layout"
+import { latestCameraFrame } from "@/lib/mjpeg-reader"
+import {
+  shouldTransition,
+  transitionProgress,
+  TransitionRenderer,
+  type ActiveTransition,
+} from "@/lib/frame-transition"
 import { forwardConsoleToLog } from "@/lib/console-to-log"
 import { timerText } from "@/lib/timer"
 import "./broadcast-fonts.css"
-import type { BroadcastTheme, ThemeLogo, TimerClock, VerseRenderData, VideoPlayback } from "@/types/broadcast"
+import type { BroadcastTheme, CameraFeed, SurfaceVideo, ThemeLogo, TimerClock, VerseRenderData, VideoPlayback } from "@/types/broadcast"
 import type { CaptureConfigEventPayload } from "@/types"
 
 interface BackgroundBox {
@@ -64,6 +74,10 @@ function BroadcastCanvas() {
   const [background, setBackground] = useState<VideoPlayback | null>(null)
   const backgroundRef = useRef<HTMLVideoElement | null>(null)
   const [backgroundBox, setBackgroundBox] = useState<BackgroundBox | null>(null)
+  // A live camera in place of the theme's background, shown behind the canvas.
+  const [camera, setCamera] = useState<CameraFeed | null>(null)
+  // The same, for NDI frames drawn outside React.
+  const cameraRef = useRef<CameraFeed | null>(null)
   // The theme's logo sits over the canvas and any video in its own small
   // canvas, so a GIF animates without redrawing the frame; NDI draws it
   // into its own frames.
@@ -71,6 +85,17 @@ function BroadcastCanvas() {
   const [logoBox, setLogoBox] = useState<BackgroundBox | null>(null)
   // A running timer draws itself: each window reads the clock.
   const [timer, setTimer] = useState<TimerClock | null>(null)
+  // The theme's transition from the last content to the new, while it runs.
+  const transitionRef = useRef<ActiveTransition | null>(null)
+  const [transitioning, setTransitioning] = useState(false)
+  const screenTransitions = useRef(new TransitionRenderer())
+  const ndiTransitions = useRef(new TransitionRenderer())
+  // A Lower Thirds band's looping video: a <video> behind the canvas, which
+  // leaves the band clear for it. During a transition, and for NDI, its
+  // frames are drawn into the band instead, so the band moves as one.
+  const [band, setBand] = useState<SurfaceVideo | null>(null)
+  const bandRef = useRef<HTMLVideoElement | null>(null)
+  const bandBoxRef = useRef<HTMLDivElement | null>(null)
 
   const logDebug = useCallback((message: string, meta?: unknown) => {
     if (!import.meta.env.DEV) return
@@ -114,13 +139,36 @@ function BroadcastCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
     }
     const scale = renderScale(theme.resolution, frame)
-    const result = renderVerse(ctx, theme, verse, {
+    const transition = transitionRef.current
+    const progress = transition ? transitionProgress(transition, performance.now()) : 1
+    const transitioningNow = transition !== null && progress < 1
+    // The band's video shows through the canvas when it's playing and still.
+    const bandVideo = theme.textBox.enabled && theme.textBox.video?.videoId ? theme.textBox.video : null
+    const bandBehind =
+      !!bandVideo && !transitioningNow && !!verse && !verse.image && !verse.video && bandReady(bandRef.current)
+    if (bandBehind) {
+      const metrics = computeVerseLayoutMetrics(ctx, theme, verse, { scale })
+      placeBand(bandBoxRef.current, metrics.textBoxRect, metrics.scaledTheme.textBox.borderRadius, dpr)
+    } else {
+      placeBand(bandBoxRef.current, null, 0, dpr)
+    }
+    const renderOptions = {
       scale,
       imageCache: themeImageCache(),
       video: videoRef.current,
       backgroundBehind: true,
       logoAbove: true,
-    })
+      bandVideo: bandRef.current,
+      bandBehind,
+    }
+    let drew: boolean
+    if (transition && progress < 1) {
+      screenTransitions.current.draw(ctx, transition.from, data, progress, transition.spec, renderOptions)
+      drew = true
+    } else {
+      transitionRef.current = null
+      drew = renderVerse(ctx, theme, verse, renderOptions) !== null
+    }
     const region = backgroundRegion(themeForContent(theme, verse), scale)
     const box = {
       left: region.x / dpr,
@@ -137,7 +185,7 @@ function BroadcastCanvas() {
       height: logoRegion.height / dpr,
     }
     setLogoBox((prev) => (sameBox(prev, logoAt) ? prev : logoAt))
-    if (!result) {
+    if (!drew) {
       ctx.fillStyle = "#000"
       ctx.fillRect(0, 0, canvas.width, canvas.height)
       logDebug("renderVerse returned null; drew fallback frame")
@@ -173,14 +221,24 @@ function BroadcastCanvas() {
       const sourceCtx = ndiCanvas.getContext("2d", { willReadFrequently: true })
       if (!sourceCtx) return
       const data = latestData.current
-      const rendered =
-        data &&
-        renderVerse(sourceCtx, data.theme, data.verse, {
-          scale: renderScale(data.theme.resolution, { width: sourceWidth, height: sourceHeight }),
-          imageCache: themeImageCache(),
-          video: videoRef.current,
-          backgroundVideo: backgroundRef.current,
-        })
+      const ndiOptions = data && {
+        scale: renderScale(data.theme.resolution, { width: sourceWidth, height: sourceHeight }),
+        imageCache: themeImageCache(),
+        video: videoRef.current,
+        backgroundVideo: backgroundRef.current,
+        cameraImage: latestCameraFrame(cameraRef.current?.url),
+        bandVideo: bandRef.current,
+      }
+      const transition = transitionRef.current
+      const progress = transition ? transitionProgress(transition, performance.now()) : 1
+      let rendered: unknown = null
+      if (data && ndiOptions && transition && progress < 1) {
+        sourceCtx.clearRect(0, 0, sourceWidth, sourceHeight)
+        ndiTransitions.current.draw(sourceCtx, transition.from, data, progress, transition.spec, ndiOptions)
+        rendered = true
+      } else if (data && ndiOptions) {
+        rendered = renderVerse(sourceCtx, data.theme, data.verse, ndiOptions)
+      }
       if (!rendered) {
         sourceCtx.fillStyle = "#000"
         sourceCtx.fillRect(0, 0, sourceWidth, sourceHeight)
@@ -231,12 +289,35 @@ function BroadcastCanvas() {
     const currentWindow = getCurrentWebviewWindow()
     logDebug("Listener registration started", { label: currentWindow.label })
     const unlisten = currentWindow.listen<BroadcastPayload>("broadcast:verse-update", (event) => {
+      const previous = latestData.current
       latestData.current = {
         ...event.payload,
         theme: normalizeTheme(event.payload.theme),
       }
+      // New words: go over to them the theme's way. A theme edit or a
+      // video's play/pause keeps the words and just redraws.
+      if (shouldTransition(previous, latestData.current)) {
+        transitionRef.current = {
+          from: previous!,
+          start: performance.now(),
+          spec: latestData.current.theme.transition,
+        }
+        setTransitioning(true)
+      }
       setVideo(event.payload.verse?.video ?? null)
       setBackground(event.payload.verse?.background ?? null)
+      {
+        const next = activeCamera(latestData.current.theme, event.payload.verse)
+        cameraRef.current = next
+        setCamera((prev) => (prev?.url === next?.url && prev?.fit === next?.fit ? prev : next))
+        const textBox = latestData.current.theme.textBox
+        const nextBand = textBox.enabled && textBox.video?.videoId ? textBox.video : null
+        setBand((prev) =>
+          prev?.videoId === nextBand?.videoId && prev?.file === nextBand?.file && prev?.poster === nextBand?.poster
+            ? prev
+            : nextBand
+        )
+      }
       setLogo(event.payload.theme.logo ?? null)
       setTimer(event.payload.verse?.timer ?? null)
       preloadFrameAssets(event.payload)
@@ -306,6 +387,8 @@ function BroadcastCanvas() {
   const moving =
     (video?.playing ?? false) ||
     (background?.playing ?? false) ||
+    camera !== null ||
+    band !== null ||
     (logo !== null && logoBox !== null && isAnimatedGif(logo.url))
   useEffect(() => {
     if (!moving) return
@@ -313,6 +396,22 @@ function BroadcastCanvas() {
     const timer = setInterval(() => void pushNdiFrame(), 1000 / fps)
     return () => clearInterval(timer)
   }, [moving, pushNdiFrame])
+
+  // Animate a transition: redraw and send NDI and the stream every frame
+  // until it ends. A timer, not requestAnimationFrame: a window used only
+  // for NDI may be hidden, and hidden windows get no animation frames.
+  useEffect(() => {
+    if (!transitioning) return
+    const id = setInterval(() => {
+      draw()
+      void pushNdiFrame()
+      if (!transitionRef.current) {
+        clearInterval(id)
+        setTransitioning(false)
+      }
+    }, 1000 / 60)
+    return () => clearInterval(id)
+  }, [transitioning, draw, pushNdiFrame])
 
   // Redraw a running timer each time its reading changes, and send NDI and
   // the stream that frame.
@@ -359,6 +458,14 @@ function BroadcastCanvas() {
             style={{ position: "absolute", ...backgroundBox }}
           />
         )}
+        {camera && backgroundBox && (
+          <CameraLayer
+            url={camera.url}
+            fit={camera.fit ?? "cover"}
+            style={{ position: "absolute", ...backgroundBox }}
+          />
+        )}
+        {band && <BandVideo video={band} boxRef={bandBoxRef} elementRef={bandRef} onReady={draw} />}
         <canvas ref={canvasRef} style={{ display: "block", position: "relative" }} />
         {video && (
           <SyncedVideo

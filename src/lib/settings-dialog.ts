@@ -5,6 +5,7 @@ type SettingsSection =
   | "speech"
   | "bible"
   | "display"
+  | "cameras"
   | "api-keys"
   | "remote"
   | "diagnostics"

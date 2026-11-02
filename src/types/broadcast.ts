@@ -74,6 +74,24 @@ export interface TimerStyle {
   captionColor?: string
   /** A solid colour in place of the theme's background. */
   backgroundColor?: string
+  /** A live camera in place of the theme's background; wins over `backgroundColor`. */
+  backgroundCamera?: CameraFeed | null
+}
+
+/**
+ * A network camera's live picture, e.g. a phone running IP Webcam
+ * (`http://<phone>:8080/video`): an MJPEG stream every window loads itself.
+ */
+export interface CameraFeed {
+  /**
+   * The saved camera (Settings → Cameras) this came from. A phone's Wi-Fi
+   * address changes from day to day; editing the camera's address updates
+   * every feed with its id.
+   */
+  cameraId?: string
+  url: string
+  /** "cover" (default) crops to fill; "contain" shows the whole picture. */
+  fit?: "cover" | "contain"
 }
 
 /**
@@ -106,6 +124,30 @@ export interface RenderOptions {
   video?: HTMLVideoElement | null
   /** A window's own copy of the background video, likewise. */
   backgroundVideo?: HTMLVideoElement | null
+  /**
+   * Draw part of the frame, for transitions (default: all of it):
+   * - "base": the background, the plates (the band) and the logo;
+   * - "text": only the words, reference and credit;
+   * - "backdrop": only the background and the logo;
+   * - "content": the plates and the words, e.g. a Lower Thirds band coming
+   *   on with its words.
+   * A full-frame slide or video counts as background.
+   */
+  layer?: "all" | "base" | "text" | "backdrop" | "content"
+  /**
+   * The text box's video fill, playing in a <video>: drawn into the band
+   * where the canvas must hold the pixels (NDI, transitions). With
+   * `bandBehind` it shows through a hole in the canvas instead.
+   */
+  bandVideo?: HTMLVideoElement | null
+  /** A <video> behind this canvas shows the band's video: leave the band clear. */
+  bandBehind?: boolean
+  /**
+   * The camera picture for a camera background, for canvases that must hold
+   * the pixels (NDI, the stream). With `backgroundBehind` a camera layer
+   * shows it behind the canvas instead.
+   */
+  cameraImage?: CanvasImageSource | null
   /**
    * An <img> over this canvas shows the theme's logo, so don't draw it:
    * the browser animates a GIF in an <img> for free, and the logo must sit
@@ -153,6 +195,23 @@ export interface SurfaceFill {
   padding: number
   /** When set, fills the surface, clipped to `borderRadius`. */
   image: ThemeImageFill | null
+  /**
+   * A short library video looped silently as the fill, e.g. moving artwork
+   * in a Lower Thirds band; wins over `image`. `color` at `opacity` tints it.
+   */
+  video?: SurfaceVideo | null
+}
+
+/**
+ * A library video used as a fill. Stored by id and file name, not URL: the
+ * local media server's address changes every run, so each window builds
+ * the URL from its own `media_base_url`.
+ */
+export interface SurfaceVideo {
+  videoId: string
+  file: string
+  /** Shown until the video has a frame, and in the theme editor. */
+  poster?: string
 }
 
 export type LogoCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right"
@@ -210,9 +269,11 @@ export interface ScriptureStyle extends LyricsStyle {
   referenceColor?: string
   /** A solid colour in place of the theme's background. */
   backgroundColor?: string
+  /** A live camera behind verses in place of the theme's background; wins over `backgroundColor`. */
+  backgroundCamera?: CameraFeed | null
   /**
    * A library video looped behind verses in place of the theme's
-   * background; wins over `backgroundColor`. Resolved into the verse's
+   * background; wins over `backgroundColor` and `backgroundCamera`. Resolved into the verse's
    * `background` when it is presented.
    */
   backgroundVideoId?: string | null
@@ -227,8 +288,10 @@ export interface BroadcastTheme {
   updatedAt: number
   resolution: { width: number; height: number }
   background: {
-    type: "solid" | "gradient" | "image" | "transparent"
+    type: "solid" | "gradient" | "image" | "transparent" | "camera"
     color: string
+    /** The live camera when `type` is "camera". */
+    camera?: CameraFeed | null
     gradient: {
       type: "linear" | "radial"
       angle: number
@@ -269,6 +332,13 @@ export interface BroadcastTheme {
   lyricsText?: LyricsStyle
   /** Bible verses styled apart from the theme; see `ScriptureStyle`. */
   scriptureText?: ScriptureStyle
+  /**
+   * The song and text style last saved from its panel: Reset goes back to
+   * it rather than to the theme's own look.
+   */
+  savedLyricsText?: LyricsStyle
+  /** Likewise for the Bible style. */
+  savedScriptureText?: ScriptureStyle
   verseNumbers: {
     visible: boolean
     fontSize: number

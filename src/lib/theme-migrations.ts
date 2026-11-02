@@ -86,6 +86,7 @@ export function normalizeTheme(theme: BroadcastTheme): BroadcastTheme {
       surface: normalizeSurface(theme.reference?.surface),
     },
     layout,
+    transition: theme.transition ?? { type: "fade", duration: 400, easing: "ease-out", direction: "up" },
   }
 }
 

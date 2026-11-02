@@ -2,7 +2,7 @@ import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { secondsUntil, timerSeconds, withTimerText } from "@/lib/timer"
 import { DEFAULT_TIMER_SIZE } from "@/lib/verse-renderer"
-import { useBroadcastStore } from "./broadcast-store"
+import { retargetFeed, sameTextStyle, useBroadcastStore } from "./broadcast-store"
 import { backgroundPlayback } from "./videos-store"
 import type {
   TimerClock,
@@ -25,6 +25,9 @@ interface TimerState {
   style: TimerStyle
   /** A library video looped behind the timer, or null for the theme's background. */
   backgroundVideoId: string | null
+  /** The look last saved from the timer panel; Reset goes back to it. */
+  savedStyle: TimerStyle
+  savedBackgroundVideoId: string | null
   clock: TimerClock
   /** The outputs showing the timer in place of the live content. */
   outputIds: string[]
@@ -37,6 +40,14 @@ interface TimerState {
   /** Change how the timer looks; unset fields follow each output's theme. */
   setStyle: (patch: Partial<TimerStyle>) => void
   setBackgroundVideo: (videoId: string | null) => void
+  /** Keep the current size, colours and background as the timer's default look. */
+  saveLook: () => void
+  /** Go back to the saved look. */
+  resetLook: () => void
+  /** Whether the look differs from the saved one. */
+  lookUnsaved: () => boolean
+  /** A saved camera's address changed: follow it. */
+  retargetCamera: (cameraId: string, url: string) => void
   start: () => void
   pause: () => void
   /** Stop and go back to the start: the full length, the time left until, or zero. */
@@ -60,6 +71,8 @@ type Settings = Pick<
   | "endText"
   | "style"
   | "backgroundVideoId"
+  | "savedStyle"
+  | "savedBackgroundVideoId"
 >
 
 /** The clock as it stands before it is started. */
@@ -112,6 +125,8 @@ const DEFAULTS: Settings = {
   endText: "",
   style: { size: DEFAULT_TIMER_SIZE },
   backgroundVideoId: null,
+  savedStyle: { size: DEFAULT_TIMER_SIZE },
+  savedBackgroundVideoId: null,
 }
 
 export const useTimerStore = create<TimerState>()(
@@ -190,6 +205,32 @@ export const useTimerStore = create<TimerState>()(
           publish()
         },
 
+        saveLook: () => {
+          const { style, backgroundVideoId } = get()
+          set({ savedStyle: structuredClone(style), savedBackgroundVideoId: backgroundVideoId })
+        },
+
+        resetLook: () => {
+          const style = structuredClone(get().savedStyle)
+          set({ style, backgroundVideoId: get().savedBackgroundVideoId })
+          setClock({ ...get().clock, style })
+        },
+
+        lookUnsaved: () => {
+          const { style, savedStyle, backgroundVideoId, savedBackgroundVideoId } = get()
+          return backgroundVideoId !== savedBackgroundVideoId || !sameTextStyle(style, savedStyle)
+        },
+
+        retargetCamera: (cameraId, url) => {
+          const { style, savedStyle } = get()
+          const camera = retargetFeed(style.backgroundCamera, cameraId, url)
+          const savedCamera = retargetFeed(savedStyle.backgroundCamera, cameraId, url)
+          if (savedCamera !== savedStyle.backgroundCamera) {
+            set({ savedStyle: { ...savedStyle, backgroundCamera: savedCamera } })
+          }
+          if (camera !== style.backgroundCamera) get().setStyle({ backgroundCamera: camera })
+        },
+
         background: () => currentBackground(),
 
         start: () => {
@@ -252,7 +293,20 @@ export const useTimerStore = create<TimerState>()(
         endText: s.endText,
         style: s.style,
         backgroundVideoId: s.backgroundVideoId,
+        savedStyle: s.savedStyle,
+        savedBackgroundVideoId: s.savedBackgroundVideoId,
       }),
+      // Saved before the look could be saved: the look they had is the saved one.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<Settings>
+        return {
+          ...current,
+          ...p,
+          savedStyle: p.savedStyle ?? p.style ?? current.savedStyle,
+          savedBackgroundVideoId:
+            p.savedBackgroundVideoId !== undefined ? p.savedBackgroundVideoId : (p.backgroundVideoId ?? null),
+        }
+      },
       // The clock is never saved: start from the saved settings.
       onRehydrateStorage: () => (state) => state?.reset(),
     }

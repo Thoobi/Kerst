@@ -178,14 +178,15 @@ export function SyncedVideo({
   return (
     <video
       ref={setRef}
+      // The media server is another origin; without CORS, copying frames to
+      // a canvas for NDI would taint it. Before `src`: React sets attributes
+      // in order, and a load that starts before this is a no-CORS load.
+      crossOrigin="anonymous"
       src={playback.url}
       poster={playback.poster}
       muted={muted}
       playsInline
       preload="auto"
-      // The media server is another origin; without CORS, copying frames to
-      // a canvas for NDI would taint it.
-      crossOrigin="anonymous"
       disablePictureInPicture
       onLoadedMetadata={sync}
       onLoadedData={onFrame}

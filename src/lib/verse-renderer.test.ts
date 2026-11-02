@@ -57,7 +57,7 @@ vi.mock("@chenglou/pretext/rich-inline", () => {
   }
 })
 
-import { computeVerseLayoutMetrics, fitVerseText, logoRect, measureVerseHeight, renderVerse, themeForContent } from "./verse-renderer"
+import { computeVerseLayoutMetrics, fitVerseText, logoRect, measureVerseHeight, renderVerse, themeForContent, activeCamera } from "./verse-renderer"
 import { BUILTIN_THEMES } from "./builtin-themes"
 
 function stubCtx(): CanvasRenderingContext2D {
@@ -868,5 +868,32 @@ describe("logoRect", () => {
   it("is absent with no logo or before its picture loads", () => {
     expect(logoRect({ ...withLogo(), logo: null }, null, 1, cache)).toBeNull()
     expect(logoRect(withLogo(), null, 1, new Map())).toBeNull()
+  })
+})
+
+describe("camera backgrounds", () => {
+  const feed = { cameraId: "phone", url: "http://10.0.0.5:8080/video" }
+  const base = BUILTIN_THEMES[0]
+  const verse: VerseRenderData = { ...VERSE, style: "scripture" }
+
+  it("a Bible style camera wins over its colour and stands in for the theme's background", () => {
+    const theme: BroadcastTheme = { ...base, scriptureText: { backgroundCamera: feed, backgroundColor: "#112233" } }
+    expect(themeForContent(theme, verse).background).toMatchObject({ type: "camera", camera: feed })
+    expect(activeCamera(theme, verse)).toEqual(feed)
+    // Songs keep the theme's own background.
+    expect(activeCamera(theme, { ...VERSE, style: "lyrics" })).toBeNull()
+  })
+
+  it("a theme's camera background shows unless a motion background, slide or video covers it", () => {
+    const theme: BroadcastTheme = { ...base, background: { ...base.background, type: "camera", camera: feed } }
+    expect(activeCamera(theme, VERSE)).toEqual(feed)
+    expect(activeCamera(theme, null)).toEqual(feed)
+    expect(activeCamera(theme, { ...VERSE, image: { url: "slide.png" } })).toBeNull()
+    expect(
+      activeCamera(theme, {
+        ...VERSE,
+        background: { id: "v", url: "v.mp4", duration: 1, loop: true, playing: true, position: 0, anchor: 0 },
+      })
+    ).toBeNull()
   })
 })
