@@ -225,3 +225,27 @@ describe("remoteActions.toggleOnAir", () => {
     expect(useBroadcastStore.getState().isLive).toBe(false)
   })
 })
+
+describe("lower third from the remote", () => {
+  beforeEach(() => {
+    useBroadcastStore.setState({ isLive: true, lowerThirdHidden: false })
+  })
+
+  it("hides, shows and toggles the band while on air", () => {
+    remoteActions.setLowerThirdVisible(false)
+    expect(useBroadcastStore.getState().lowerThirdHidden).toBe(true)
+    remoteActions.toggleLowerThird()
+    expect(useBroadcastStore.getState().lowerThirdHidden).toBe(false)
+    remoteActions.toggleLowerThird()
+    expect(useBroadcastStore.getState().lowerThirdHidden).toBe(true)
+    remoteActions.setLowerThirdVisible(true)
+    expect(useBroadcastStore.getState().lowerThirdHidden).toBe(false)
+  })
+
+  it("does nothing off air, like the Live panel's button", () => {
+    useBroadcastStore.setState({ isLive: false })
+    remoteActions.setLowerThirdVisible(false)
+    remoteActions.toggleLowerThird()
+    expect(useBroadcastStore.getState().lowerThirdHidden).toBe(false)
+  })
+})

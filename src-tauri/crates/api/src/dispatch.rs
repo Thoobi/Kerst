@@ -17,7 +17,8 @@ pub trait CommandSink: Send + Sync {
 /// Routes `RemoteCommand` variants to the correct sink method.
 ///
 /// Frontend-bound (`emit_event`): Next, Prev, Theme, Opacity, `OnAir`,
-/// `SendToLive`, `BibleNext`, `BiblePrev`, `AddToQueue`
+/// `SendToLive`, `BibleNext`, `BiblePrev`, `AddToQueue`, `LowerThird`,
+/// `ToggleLowerThird`
 /// Backend-bound (`invoke_backend`): Show, Hide, Confidence
 pub struct CommandDispatcher;
 
@@ -45,6 +46,11 @@ impl CommandDispatcher {
             RemoteCommand::BibleNext => sink.emit_event("remote:bible_next", "{}"),
             RemoteCommand::BiblePrev => sink.emit_event("remote:bible_prev", "{}"),
             RemoteCommand::AddToQueue => sink.emit_event("remote:add_to_queue", "{}"),
+            RemoteCommand::LowerThird(visible) => {
+                let payload = serde_json::json!({ "visible": visible }).to_string();
+                sink.emit_event("remote:lower_third", &payload)
+            }
+            RemoteCommand::ToggleLowerThird => sink.emit_event("remote:toggle_lower_third", "{}"),
             RemoteCommand::Show => sink.invoke_backend("show_broadcast", "{}"),
             RemoteCommand::Hide => sink.invoke_backend("hide_broadcast", "{}"),
             RemoteCommand::Confidence(val) => {
@@ -207,6 +213,20 @@ mod tests {
     }
 
     #[test]
+    fn dispatch_lower_third_emits_events() {
+        let sink = MockSink::new();
+        CommandDispatcher::dispatch(&RemoteCommand::LowerThird(false), &sink).unwrap();
+        let (event, payload) = sink.last_event();
+        assert_eq!(event, "remote:lower_third");
+        assert!(payload.contains("\"visible\":false"));
+
+        CommandDispatcher::dispatch(&RemoteCommand::ToggleLowerThird, &sink).unwrap();
+        assert_eq!(sink.last_event().0, "remote:toggle_lower_third");
+        assert_eq!(sink.event_count(), 2);
+        assert_eq!(sink.backend_count(), 0);
+    }
+
+    #[test]
     fn dispatch_add_to_queue_emits_event() {
         let sink = MockSink::new();
         CommandDispatcher::dispatch(&RemoteCommand::AddToQueue, &sink).unwrap();
@@ -260,6 +280,8 @@ mod tests {
             RemoteCommand::BibleNext,
             RemoteCommand::BiblePrev,
             RemoteCommand::AddToQueue,
+            RemoteCommand::LowerThird(true),
+            RemoteCommand::ToggleLowerThird,
         ];
 
         for cmd in &frontend_cmds {

@@ -24,6 +24,8 @@ export const REMOTE_EVENTS = {
   bible_next: "remote:bible_next",
   bible_prev: "remote:bible_prev",
   add_to_queue: "remote:add_to_queue",
+  lower_third: "remote:lower_third",
+  toggle_lower_third: "remote:toggle_lower_third",
 } as const
 
 export type RemoteEventName = (typeof REMOTE_EVENTS)[keyof typeof REMOTE_EVENTS]

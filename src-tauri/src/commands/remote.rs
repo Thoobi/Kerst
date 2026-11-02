@@ -240,6 +240,7 @@ pub async fn update_remote_status(
     live_verse: Option<String>,
     queue_length: Option<usize>,
     confidence_threshold: Option<f32>,
+    lower_third_hidden: Option<bool>,
 ) -> Result<(), String> {
     let status = {
         let runtime = state.lock().map_err(|e| e.to_string())?;
@@ -261,6 +262,9 @@ pub async fn update_remote_status(
     }
     if let Some(v) = confidence_threshold {
         snapshot.confidence_threshold = v;
+    }
+    if let Some(v) = lower_third_hidden {
+        snapshot.lower_third_hidden = v;
     }
 
     Ok(())

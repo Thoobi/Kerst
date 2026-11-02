@@ -279,8 +279,46 @@ curl -X POST http://localhost:8080/api/v1/command \
   -d '{"command":"add_to_queue"}'
 ```
 
-> **Note on arguments:** `send_to_live`, `bible_next`, `bible_prev` and `add_to_queue` take no
-> arguments.
+### 13. **lower_third** — Show or Hide the Lower-Third Band
+
+Takes the lower-third band off the outputs whose theme is a lower third (a transparent or live
+camera background), or brings it back, without going off air — the Live panel's **Hide band**
+button (and its **H** key). The band slides away and back with the theme's transition; the
+live verse is kept, and full-screen outputs are unaffected. `true` shows the band, `false`
+hides it. Off air it does nothing, and going off air shows the band again next time.
+
+**OSC:**
+```
+/litdeck/lower_third false
+/litdeck/lower_third true
+```
+
+**HTTP:**
+```bash
+curl -X POST http://localhost:8080/api/v1/command \
+  -H "Content-Type: application/json" \
+  -d '{"command":"lower_third","value":false}'
+```
+
+### 14. **toggle_lower_third** — Hide or Show the Band, One Button
+
+Hides the band if it's showing and shows it if it's hidden — for a single Stream Deck key.
+`lower_third_hidden` in `/api/v1/status` tells a controller which way it is.
+
+**OSC:**
+```
+/litdeck/toggle_lower_third
+```
+
+**HTTP:**
+```bash
+curl -X POST http://localhost:8080/api/v1/command \
+  -H "Content-Type: application/json" \
+  -d '{"command":"toggle_lower_third"}'
+```
+
+> **Note on arguments:** `send_to_live`, `bible_next`, `bible_prev`, `add_to_queue` and
+> `toggle_lower_third` take no arguments.
 >
 > Over **OSC** this is forgiving: controllers that send a value with every button press
 > (TouchOSC and Companion both do) work fine — the extra argument is ignored. Verified with
@@ -311,7 +349,8 @@ curl http://localhost:8080/api/v1/status
   "active_theme": "Classic Dark",
   "live_verse": "John 3:16",
   "queue_length": 12,
-  "confidence_threshold": 0.75
+  "confidence_threshold": 0.75,
+  "lower_third_hidden": false
 }
 ```
 
@@ -362,6 +401,7 @@ A rejected command returns `500` with the reason attached:
    - **Show Output**: OSC path `/litdeck/show`
    - **Hide Output**: OSC path `/litdeck/hide`
    - **Go Live**: OSC path `/litdeck/on_air` with argument `true`
+   - **Hide / Show Band**: OSC path `/litdeck/toggle_lower_third`
 
 A useful three-button layout for reading through a passage the AI has not detected:
 `bible_next` / `bible_prev` to move, `send_to_live` to push the verse you land on.

@@ -89,13 +89,15 @@ pub fn coerce_string(arg: &OscType) -> Result<String, CommandError> {
 
 /// Parse an OSC address + arguments into a `RemoteCommand`.
 ///
-/// Handles all 12 Litdeck OSC addresses:
+/// Handles all 14 Litdeck OSC addresses:
 /// - `/litdeck/next`, `/litdeck/prev`, `/litdeck/show`, `/litdeck/hide` (no arguments)
 /// - `/litdeck/send_to_live`, `/litdeck/bible_next`, `/litdeck/bible_prev`,
 ///   `/litdeck/add_to_queue` (no arguments)
 /// - `/litdeck/theme` (string argument)
 /// - `/litdeck/opacity`, `/litdeck/confidence` (float argument, normalized to [0.0, 1.0])
 /// - `/litdeck/on_air` (bool argument)
+/// - `/litdeck/lower_third` (bool argument: show the band or hide it)
+/// - `/litdeck/toggle_lower_third` (no arguments)
 ///
 /// Every address also answers under `/light/` and `/rhema/`, the app's
 /// former names, so controllers set up before the renames keep working.
@@ -114,6 +116,13 @@ pub fn parse_osc(address: &str, args: &[OscType]) -> Result<RemoteCommand, Comma
         "bible_next" => Ok(RemoteCommand::BibleNext),
         "bible_prev" => Ok(RemoteCommand::BiblePrev),
         "add_to_queue" => Ok(RemoteCommand::AddToQueue),
+        "toggle_lower_third" => Ok(RemoteCommand::ToggleLowerThird),
+        "lower_third" => {
+            let arg = args.first().ok_or_else(|| CommandError::MissingArgument {
+                address: address.into(),
+            })?;
+            Ok(RemoteCommand::LowerThird(coerce_bool(arg)?))
+        }
         "theme" => {
             let arg = args.first().ok_or_else(|| CommandError::MissingArgument {
                 address: address.into(),
@@ -316,6 +325,23 @@ mod tests {
             parse_osc("/litdeck/bible_prev", &[]).unwrap(),
             RemoteCommand::BiblePrev
         );
+    }
+
+    #[test]
+    fn parse_osc_lower_third() {
+        assert_eq!(
+            parse_osc("/litdeck/lower_third", &[OscType::Int(0)]).unwrap(),
+            RemoteCommand::LowerThird(false)
+        );
+        assert_eq!(
+            parse_osc("/litdeck/lower_third", &[OscType::Bool(true)]).unwrap(),
+            RemoteCommand::LowerThird(true)
+        );
+        assert_eq!(
+            parse_osc("/litdeck/toggle_lower_third", &[]).unwrap(),
+            RemoteCommand::ToggleLowerThird
+        );
+        assert!(parse_osc("/litdeck/lower_third", &[]).is_err());
     }
 
     #[test]

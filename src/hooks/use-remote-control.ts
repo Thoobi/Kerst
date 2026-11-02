@@ -36,6 +36,17 @@ export function useRemoteControl() {
       await register(REMOTE_EVENTS.bible_prev, remoteActions.biblePrev)
       await register(REMOTE_EVENTS.show, () => remoteActions.toggleOnAir(true))
       await register(REMOTE_EVENTS.hide, () => remoteActions.toggleOnAir(false))
+      await register(REMOTE_EVENTS.toggle_lower_third, remoteActions.toggleLowerThird)
+
+      // remote:lower_third — show (visible: true) or hide the lower-third band
+      unlisteners.push(
+        await listen<string>(REMOTE_EVENTS.lower_third, (event) => {
+          if (cancelled) return
+          const visible = parsePayload(event.payload)?.visible
+          if (typeof visible !== "boolean") return
+          remoteActions.setLowerThirdVisible(visible)
+        }),
+      )
 
       // remote:theme — switch active theme by name
       const u3 = await listen<string>(REMOTE_EVENTS.theme, (event) => {
@@ -121,6 +132,7 @@ function syncStatusSnapshot() {
     liveVerse: broadcast.liveVerse?.reference || broadcast.liveVerse?.credit || null,
     queueLength: queue.items.length,
     confidenceThreshold: settings.confidenceThreshold,
+    lowerThirdHidden: broadcast.lowerThirdHidden,
   }).catch(() => {
     // Silently ignore — HTTP server may not be running
   })

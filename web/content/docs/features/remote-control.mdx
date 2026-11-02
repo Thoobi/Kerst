@@ -48,9 +48,15 @@ option with an explicit opt-in is the next change scheduled here.
 | Set opacity | `/litdeck/opacity 0.75` | `{ "command": "opacity", "value": 0.75 }` |
 | Set confidence threshold | `/litdeck/confidence 0.8` | `{ "command": "confidence", "value": 0.8 }` |
 | Toggle on-air | `/litdeck/on_air true` | `{ "command": "on_air", "value": true }` |
+| Hide / show the lower-third band | `/litdeck/lower_third false` | `{ "command": "lower_third", "value": false }` |
+| Hide or show the band (one button) | `/litdeck/toggle_lower_third` | `{ "command": "toggle_lower_third" }` |
 
-All twelve commands work identically across both protocols, so any
+All fourteen commands work identically across both protocols, so any
 controller you already own (or build) talks the same dialect.
+
+`lower_third` and `toggle_lower_third` do what the Live panel's **Hide band**
+does: the band slides off your lower-third outputs and back while you stay on
+air, so a single Stream Deck key can clear the screen between verses.
 
 `bible_next` and `bible_prev` move the **Bible Text** panel, not the queue —
 that's how you read straight through a passage the AI hasn't picked up yet.

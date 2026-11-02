@@ -21,6 +21,11 @@ pub enum RemoteCommand {
     BibleNext,
     BiblePrev,
     AddToQueue,
+    /// Show (`true`) or hide the lower-third band on lower-third outputs,
+    /// staying on air.
+    LowerThird(bool),
+    /// Hide the lower-third band if it's showing, show it if it's hidden.
+    ToggleLowerThird,
 }
 
 impl fmt::Display for RemoteCommand {
@@ -38,6 +43,8 @@ impl fmt::Display for RemoteCommand {
             RemoteCommand::BibleNext => write!(f, "bible_next"),
             RemoteCommand::BiblePrev => write!(f, "bible_prev"),
             RemoteCommand::AddToQueue => write!(f, "add_to_queue"),
+            RemoteCommand::LowerThird(visible) => write!(f, "lower_third({visible})"),
+            RemoteCommand::ToggleLowerThird => write!(f, "toggle_lower_third"),
         }
     }
 }
@@ -115,6 +122,23 @@ mod tests {
     }
 
     #[test]
+    fn serialize_lower_third() {
+        let json = serde_json::to_value(&RemoteCommand::LowerThird(false)).unwrap();
+        assert_eq!(json, serde_json::json!({"command": "lower_third", "value": false}));
+        let json = serde_json::to_value(&RemoteCommand::ToggleLowerThird).unwrap();
+        assert_eq!(json, serde_json::json!({"command": "toggle_lower_third"}));
+    }
+
+    #[test]
+    fn deserialize_lower_third() {
+        let cmd: RemoteCommand =
+            serde_json::from_str(r#"{"command":"lower_third","value":true}"#).unwrap();
+        assert_eq!(cmd, RemoteCommand::LowerThird(true));
+        let cmd: RemoteCommand = serde_json::from_str(r#"{"command":"toggle_lower_third"}"#).unwrap();
+        assert_eq!(cmd, RemoteCommand::ToggleLowerThird);
+    }
+
+    #[test]
     fn serialize_add_to_queue() {
         let json = serde_json::to_value(&RemoteCommand::AddToQueue).unwrap();
         assert_eq!(json, serde_json::json!({"command": "add_to_queue"}));
@@ -183,6 +207,8 @@ mod tests {
             RemoteCommand::BibleNext,
             RemoteCommand::BiblePrev,
             RemoteCommand::AddToQueue,
+            RemoteCommand::LowerThird(true),
+            RemoteCommand::ToggleLowerThird,
         ];
 
         for cmd in variants {
@@ -254,8 +280,8 @@ mod tests {
     // --- Exhaustive match test ---
 
     #[test]
-    fn enum_has_exactly_12_variants() {
-        // This test ensures all 12 variants are covered.
+    fn enum_has_exactly_14_variants() {
+        // This test ensures all 14 variants are covered.
         // If a new variant is added, this match will fail to compile.
         let cmds: Vec<RemoteCommand> = vec![
             RemoteCommand::Next,
@@ -270,6 +296,8 @@ mod tests {
             RemoteCommand::BibleNext,
             RemoteCommand::BiblePrev,
             RemoteCommand::AddToQueue,
+            RemoteCommand::LowerThird(false),
+            RemoteCommand::ToggleLowerThird,
         ];
 
         for cmd in &cmds {
@@ -286,9 +314,11 @@ mod tests {
                 RemoteCommand::BibleNext => {}
                 RemoteCommand::BiblePrev => {}
                 RemoteCommand::AddToQueue => {}
+                RemoteCommand::LowerThird(_) => {}
+                RemoteCommand::ToggleLowerThird => {}
             }
         }
 
-        assert_eq!(cmds.len(), 12);
+        assert_eq!(cmds.len(), 14);
     }
 }

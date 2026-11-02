@@ -77,6 +77,9 @@ pub struct StatusSnapshot {
     pub live_verse: Option<String>,
     pub queue_length: usize,
     pub confidence_threshold: f32,
+    /// The lower-third band is off the lower-third outputs (still on air).
+    #[serde(default)]
+    pub lower_third_hidden: bool,
 }
 
 /// Shared, thread-safe status snapshot that the frontend pushes updates to.

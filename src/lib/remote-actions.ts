@@ -87,4 +87,19 @@ export const remoteActions = {
   biblePrev: () => stepVerse("prev"),
 
   toggleOnAir: (active: boolean) => useBroadcastStore.getState().setLive(active),
+
+  /**
+   * Show or hide the lower-third band on lower-third outputs, staying on
+   * air — the Live panel's Hide band. Off air it does nothing, as there.
+   */
+  setLowerThirdVisible: (visible: boolean) => {
+    const broadcast = useBroadcastStore.getState()
+    if (!broadcast.isLive) return
+    broadcast.setLowerThirdHidden(!visible)
+  },
+  toggleLowerThird: () => {
+    const broadcast = useBroadcastStore.getState()
+    if (!broadcast.isLive) return
+    broadcast.setLowerThirdHidden(!broadcast.lowerThirdHidden)
+  },
 }
