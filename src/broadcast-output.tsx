@@ -87,7 +87,10 @@ function BroadcastCanvas() {
   const [timer, setTimer] = useState<TimerClock | null>(null)
   // The theme's transition from the last content to the new, while it runs.
   const transitionRef = useRef<ActiveTransition | null>(null)
-  const [transitioning, setTransitioning] = useState(false)
+  // The timer animating it. A ref, not state: a transition ending in the
+  // same moment the next one starts would batch "stopped" and "started"
+  // into no change, and the new one would freeze part-way on screen.
+  const transitionTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const screenTransitions = useRef(new TransitionRenderer())
   const ndiTransitions = useRef(new TransitionRenderer())
   // A Lower Thirds band's looping video: a <video> behind the canvas, which
@@ -275,6 +278,29 @@ function BroadcastCanvas() {
     pushNdiBurstRef.current = pushNdiBurst
   }, [pushNdiBurst])
 
+  // Animate a transition: redraw and send NDI and the stream every frame
+  // until it ends. A timer, not requestAnimationFrame: a window used only
+  // for NDI may be hidden, and hidden windows get no animation frames.
+  const animateTransition = useCallback(() => {
+    if (transitionTimer.current !== null) return
+    transitionTimer.current = setInterval(() => {
+      draw()
+      void pushNdiFrame()
+      if (!transitionRef.current && transitionTimer.current !== null) {
+        clearInterval(transitionTimer.current)
+        transitionTimer.current = null
+      }
+    }, 1000 / 60)
+  }, [draw, pushNdiFrame])
+
+  useEffect(
+    () => () => {
+      if (transitionTimer.current !== null) clearInterval(transitionTimer.current)
+      transitionTimer.current = null
+    },
+    []
+  )
+
   useEffect(() => {
     // Black until the first frame arrives; the page background is black too.
     const canvas = canvasRef.current
@@ -302,7 +328,7 @@ function BroadcastCanvas() {
           start: performance.now(),
           spec: latestData.current.theme.transition,
         }
-        setTransitioning(true)
+        animateTransition()
       }
       setVideo(event.payload.verse?.video ?? null)
       setBackground(event.payload.verse?.background ?? null)
@@ -372,7 +398,7 @@ function BroadcastCanvas() {
       unlisten.then((fn) => fn())
       unlistenNdiConfig.then((fn) => fn())
     }
-  }, [draw, logDebug, preloadFrameAssets, pushNdiFrame, pushNdiBurst])
+  }, [draw, logDebug, preloadFrameAssets, pushNdiFrame, pushNdiBurst, animateTransition])
 
   // Going fullscreen, moving to another monitor or a DPI change all resize
   // the window: redraw at the new pixel size.
@@ -396,22 +422,6 @@ function BroadcastCanvas() {
     const timer = setInterval(() => void pushNdiFrame(), 1000 / fps)
     return () => clearInterval(timer)
   }, [moving, pushNdiFrame])
-
-  // Animate a transition: redraw and send NDI and the stream every frame
-  // until it ends. A timer, not requestAnimationFrame: a window used only
-  // for NDI may be hidden, and hidden windows get no animation frames.
-  useEffect(() => {
-    if (!transitioning) return
-    const id = setInterval(() => {
-      draw()
-      void pushNdiFrame()
-      if (!transitionRef.current) {
-        clearInterval(id)
-        setTransitioning(false)
-      }
-    }, 1000 / 60)
-    return () => clearInterval(id)
-  }, [transitioning, draw, pushNdiFrame])
 
   // Redraw a running timer each time its reading changes, and send NDI and
   // the stream that frame.
