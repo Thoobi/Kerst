@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { MjpegParser, normaliseCameraUrl } from "./mjpeg-reader"
+import { MjpegParser, decodeInterval, normaliseCameraUrl } from "./mjpeg-reader"
 import { candidateUrls } from "./camera-discovery"
 
 const enc = new TextEncoder()
@@ -87,5 +87,18 @@ describe("cameraRelayUrl", () => {
       "http://127.0.0.1:5000/tok/camera?url=http%3A%2F%2F10.0.0.5%3A8080%2Fvideo"
     )
     expect(cameraRelayUrl(null, "http://10.0.0.5:8080/video")).toBe("http://10.0.0.5:8080/video")
+  })
+})
+
+describe("decodeInterval", () => {
+  it("decodes up to 30 pictures a second when decoding is cheap", () => {
+    expect(decodeInterval(0)).toBeCloseTo(1000 / 30)
+    expect(decodeInterval(5)).toBeCloseTo(1000 / 30)
+  })
+
+  it("spaces decodes out when they are expensive, so they take about a third of the time", () => {
+    // A 1080p picture on a dual-core laptop: ~25ms, so ~14 a second, not 26.
+    expect(decodeInterval(25)).toBeCloseTo(25 / 0.35)
+    expect(1000 / decodeInterval(25)).toBeLessThan(15)
   })
 })

@@ -33,6 +33,22 @@ const RETRY_DELAYS = [300, 1000, 2000, 4000]
 /** Give up on a buffer that never yields a frame (not a camera, or garbage). */
 const MAX_BUFFER = 8 * 1024 * 1024
 
+/** The most camera pictures a window decodes a second. */
+const MAX_DECODE_FPS = 30
+/**
+ * The share of a window's time decoding may take. A 1080p phone camera
+ * costs ~25ms a picture on a dual-core laptop: decoding all ~26 a second
+ * left the window too busy to draw, animate or answer clicks, so the band
+ * stuttered and the app felt hung. A slow machine shows fewer camera
+ * pictures a second instead; a fast one still shows them all.
+ */
+const DECODE_BUDGET = 0.35
+
+/** How long to wait between decodes, given what one costs (ms, smoothed). */
+export function decodeInterval(decodeMs: number): number {
+  return Math.max(1000 / MAX_DECODE_FPS, decodeMs / DECODE_BUDGET)
+}
+
 const SOI = [0xff, 0xd8]
 const EOI = [0xff, 0xd9]
 
@@ -104,6 +120,9 @@ class CameraConnection {
   private failures = 0
   private decoding = false
   private pending: Uint8Array | null = null
+  /** When the last decode began (`performance.now()`), and what one costs, smoothed. */
+  private lastDecodeAt = -Infinity
+  private decodeMs = 0
   private lastFrameAt = 0
   private stallTimer: ReturnType<typeof setInterval> | null = null
   private retryTimer: ReturnType<typeof setTimeout> | null = null
@@ -180,15 +199,23 @@ class CameraConnection {
     this.retryTimer = setTimeout(() => void this.connect(), delay)
   }
 
-  /** Decode one JPEG at a time; if the camera outpaces us, skip to the newest. */
+  /**
+   * Decode one JPEG at a time, no more often than this machine can afford
+   * (see `DECODE_BUDGET`); pictures in between are skipped, never queued.
+   */
   private decode(bytes: Uint8Array): void {
     if (this.decoding) {
       this.pending = bytes
       return
     }
+    const started = performance.now()
+    if (started - this.lastDecodeAt < decodeInterval(this.decodeMs)) return
+    this.lastDecodeAt = started
     this.decoding = true
     createImageBitmap(new Blob([bytes as BlobPart], { type: "image/jpeg" }))
       .then((bitmap) => {
+        const cost = performance.now() - started
+        this.decodeMs = this.decodeMs === 0 ? cost : this.decodeMs * 0.8 + cost * 0.2
         if (this.stopped) return bitmap.close()
         const previous = this.latest
         this.latest = bitmap
