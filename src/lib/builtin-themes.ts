@@ -233,7 +233,7 @@ const LOWER_THIRDS: BroadcastTheme = {
     textAreaWidth: 100,
     // Bottom-anchored, so shrinking this lowers the band's top edge and
     // leaves it sitting on the bottom of the frame.
-    textAreaHeight: 32,
+    textAreaHeight: 24,
     referenceGap: 24,
   },
   transition: {

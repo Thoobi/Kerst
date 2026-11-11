@@ -355,10 +355,13 @@ describe("surface fills", () => {
     // artwork's own bounds, the destination is the container.
     const [, sx, sy, sw, sh, , , dw, dh] = draws[0].args as number[]
     expect([sx, sy, sw, sh]).toEqual([0, 0, 1920, 300])
-    // "cover" on a 1920x300 image in the band: scaled to the band's height
-    // and centred horizontally, so it overflows the band's width.
-    expect(dh).toBe(ANCHORED_BAND.height)
-    expect(dw).toBeCloseTo(ANCHORED_BAND.height * (1920 / 300), 5)
+    // "cover" on a 1920x300 image in the band: scaled until it covers both
+    // the band's width and height, whichever needs more.
+    const k = Math.max(ANCHORED_BAND.width / 1920, ANCHORED_BAND.height / 300)
+    expect(dw).toBeCloseTo(1920 * k, 5)
+    expect(dh).toBeCloseTo(300 * k, 5)
+    expect(dw).toBeGreaterThanOrEqual(ANCHORED_BAND.width)
+    expect(dh).toBeGreaterThanOrEqual(ANCHORED_BAND.height)
   })
 
   it("fits the artwork's bounds, ignoring transparent margins", async () => {

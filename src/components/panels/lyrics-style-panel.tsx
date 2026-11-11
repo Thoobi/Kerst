@@ -17,6 +17,7 @@ import { setScriptureBackground, syncLiveScriptureBackground } from "@/hooks/use
 import { CameraPicker } from "@/components/panels/camera-picker"
 import { toRenderData } from "@/lib/slides"
 import { computeVerseLayoutMetrics } from "@/lib/verse-renderer"
+import { isLowerThird } from "@/lib/lower-third"
 import { cn } from "@/lib/utils"
 import { useBibleStore, useBroadcastStore, usePreviewStore } from "@/stores"
 import { sameTextStyle } from "@/stores/broadcast-store"
@@ -318,6 +319,25 @@ function TextStylePanel({ kind }: { kind: Kind }) {
             </div>
           )}
         </Field>
+
+        {isLowerThird(theme) && (
+          <Field
+            label="Band height"
+            aside={<span className="text-xs tabular-nums text-muted-foreground">{theme.layout.textAreaHeight}%</span>}
+          >
+            <Slider
+              min={20}
+              max={60}
+              step={1}
+              value={[theme.layout.textAreaHeight]}
+              onValueChange={([v]) => useBroadcastStore.getState().setBandHeight(v)}
+              aria-label="Band height"
+            />
+            <p className="text-[0.6875rem] text-muted-foreground">
+              Of the screen, for songs, texts and verses alike. Saved to the theme straight away.
+            </p>
+          </Field>
+        )}
 
         <label className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-muted-foreground">Shrink to fit</span>

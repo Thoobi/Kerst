@@ -598,3 +598,27 @@ describe("hiding the lower third", () => {
     expect(useBroadcastStore.getState().lowerThirdHidden).toBe(false)
   })
 })
+
+describe("setBandHeight", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it("sets the lower third's band height on a copy of the built-in theme, within bounds", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { LOWER_THIRDS } = await import("@/lib/builtin-themes")
+    useBroadcastStore.getState().setOutputTheme("main", LOWER_THIRDS.id)
+
+    useBroadcastStore.getState().setBandHeight(20)
+    const state = useBroadcastStore.getState()
+    const theme = state.themes.find((t) => t.id === state.outputs.find((o) => o.id === "main")!.themeId)!
+    expect(theme.builtin).toBe(false)
+    expect(theme.layout.textAreaHeight).toBe(20)
+    expect(state.themes.find((t) => t.id === LOWER_THIRDS.id)!.layout.textAreaHeight).toBe(LOWER_THIRDS.layout.textAreaHeight)
+
+    useBroadcastStore.getState().setBandHeight(500)
+    const again = useBroadcastStore.getState()
+    expect(again.themes.filter((t) => !t.builtin)).toHaveLength(1)
+    expect(again.themes.find((t) => t.id === theme.id)!.layout.textAreaHeight).toBe(100)
+  })
+})

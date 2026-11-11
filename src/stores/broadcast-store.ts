@@ -92,6 +92,11 @@ interface BroadcastState {
   saveTextStyle: (kind: TextStyleKind) => void
   /** Drop the style and its saved default: back to the theme's own look. */
   restoreThemeOriginalStyle: (kind: TextStyleKind) => void
+  /**
+   * How tall the main output theme's text area is, in % of the frame: a
+   * lower third's band. A built-in theme is copied first, as the designer does.
+   */
+  setBandHeight: (percent: number) => void
   /** A saved camera's address changed: point every theme that shows it there. */
   retargetCamera: (cameraId: string, url: string) => void
   syncBroadcastOutputFor: (outputId: string) => void
@@ -427,6 +432,10 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
         ? { savedLyricsText: cloneStyle(theme.lyricsText) }
         : { savedScriptureText: cloneStyle(theme.scriptureText) }
     )
+  },
+  setBandHeight: (percent) => {
+    const height = Math.min(100, Math.max(5, Math.round(percent)))
+    editMainTheme(get, set, (theme) => ({ layout: { ...theme.layout, textAreaHeight: height } }))
   },
   retargetCamera: (cameraId, url) => {
     for (const theme of get().themes) {
