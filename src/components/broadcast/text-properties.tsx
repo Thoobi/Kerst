@@ -128,7 +128,7 @@ function OutlineControl({
   )
 }
 
-function FontFamilyPicker({
+export function FontFamilyPicker({
   value,
   onChange,
 }: {

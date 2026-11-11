@@ -1308,15 +1308,24 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
     // A clock is a few characters: drawn big by default, shrunk to fit the box.
     const style = verse.timer.style
     const styled = theme.lyricsText ? withTextStyle(theme, theme.lyricsText) : theme
+    const font = {
+      ...(style?.fontFamily ? { fontFamily: style.fontFamily } : {}),
+      ...(style?.fontWeight !== undefined ? { fontWeight: style.fontWeight } : {}),
+    }
     return {
       ...styled,
       verseText: {
         ...styled.verseText,
+        ...font,
         fontSize: (styled.verseText.fontSize * (style?.size ?? DEFAULT_TIMER_SIZE)) / 100,
         shrinkToFit: true,
         ...(style?.color ? { color: style.color } : {}),
       },
-      ...(style?.captionColor ? { reference: { ...styled.reference, color: style.captionColor } } : {}),
+      reference: {
+        ...styled.reference,
+        ...font,
+        ...(style?.captionColor ? { color: style.captionColor } : {}),
+      },
       ...backgroundOverride(styled, style?.backgroundCamera, style?.backgroundColor),
     }
   }

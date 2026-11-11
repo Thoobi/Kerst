@@ -903,3 +903,25 @@ describe("camera backgrounds", () => {
     ).toBeNull()
   })
 })
+
+describe("timer font", () => {
+  const theme = BUILTIN_THEMES[0]
+  const timer = (style?: object): VerseRenderData => ({
+    reference: "Service starts in",
+    segments: [],
+    style: "lyrics",
+    timer: { direction: "down", seconds: 300, anchor: 0, running: false, caption: "Service starts in", endText: "", style: { size: 300, ...style } },
+  })
+
+  it("keeps the theme's font when the timer has none", () => {
+    const shown = themeForContent(theme, timer())
+    expect(shown.verseText.fontFamily).toBe(theme.verseText.fontFamily)
+    expect(shown.reference.fontFamily).toBe(theme.reference.fontFamily)
+  })
+
+  it("draws the clock and its caption in the timer's font and weight", () => {
+    const shown = themeForContent(theme, timer({ fontFamily: "Inter", fontWeight: 700, captionColor: "#ff0000" }))
+    expect(shown.verseText).toMatchObject({ fontFamily: "Inter", fontWeight: 700 })
+    expect(shown.reference).toMatchObject({ fontFamily: "Inter", fontWeight: 700, color: "#ff0000" })
+  })
+})

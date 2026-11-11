@@ -6,6 +6,7 @@ import { OrderPanel } from "@/components/panels/order-panel"
 import { ContentPanel } from "@/components/panels/content-panel"
 import { DetectionsPanel } from "@/components/panels/detections-panel"
 import { LyricsStylePanel, ScriptureStylePanel } from "@/components/panels/lyrics-style-panel"
+import { TimerStylePanel } from "@/components/panels/timer-panel"
 import { useContentTabStore } from "@/stores/content-tab-store"
 import { EmbeddingWarningBanner } from "@/components/ui/embedding-warning-banner"
 
@@ -24,7 +25,8 @@ export function Dashboard() {
   const bibleStyleOpen = useContentTabStore((s) => s.bibleStyleOpen)
   const lyricsStyling = contentTab === "songs" || contentTab === "texts"
   const scriptureStyling = contentTab === "bible" && bibleStyleOpen
-  const styling = lyricsStyling || scriptureStyling
+  const timerStyling = contentTab === "timer"
+  const styling = lyricsStyling || scriptureStyling || timerStyling
   return (
     <div className="fixed inset-0 grid grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-background">
       <TransportBar />
@@ -45,11 +47,12 @@ export function Dashboard() {
 
         <div className="flex min-h-0 flex-col gap-2">
           <OrderPanel />
-          {/* Songs and texts get quick text styling here, and the Bible tab
-              on request; detections stay mounted underneath so live
+          {/* Songs and texts get quick text styling here, the timer its
+              properties, and the Bible tab on request; detections stay mounted underneath so live
               detection keeps running. */}
           {lyricsStyling && <LyricsStylePanel />}
           {scriptureStyling && <ScriptureStylePanel />}
+          {timerStyling && <TimerStylePanel />}
           <div className={styling ? "hidden" : "contents"}>
             <DetectionsPanel />
           </div>

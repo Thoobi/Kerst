@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react"
-import { CheckIcon, EyeOffIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon, RotateCcwIcon, SaveIcon } from "lucide-react"
+import { BoldIcon, CheckIcon, EyeOffIcon, MinusIcon, PauseIcon, PlayIcon, PlusIcon, RotateCcwIcon, SaveIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PanelHeader } from "@/components/ui/panel-header"
+import { FontFamilyPicker } from "@/components/broadcast/text-properties"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
@@ -115,7 +117,6 @@ export function TimerPanel() {
               />
             </Field>
           )}
-          <TimerLook theme={previewTheme} />
         </div>
 
         <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-3">
@@ -206,6 +207,30 @@ export function TimerPanel() {
   )
 }
 
+/**
+ * The timer's properties (font, size, colours, background), shown in the
+ * detections' place while the Timer tab is open, as songs and texts get
+ * their style panel. Detections keep running underneath.
+ */
+export function TimerStylePanel() {
+  const outputIds = useTimerStore((s) => s.outputIds)
+  const outputs = useBroadcastStore((s) => s.outputs)
+  const themes = useBroadcastStore((s) => s.themes)
+  const previewOutput = outputs.find((o) => outputIds.includes(o.id)) ?? outputs[0]
+  const previewTheme = themes.find((t) => t.id === previewOutput?.themeId) ?? themes[0]
+  return (
+    <div
+      data-slot="timer-style-panel"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs"
+    >
+      <PanelHeader title="Timer style" />
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3.5 pb-3.5">
+        <TimerLook theme={previewTheme} />
+      </div>
+    </div>
+  )
+}
+
 /** Size, colours and background: the timer's own, over each output's theme. */
 function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
   const style = useTimerStore((s) => s.style)
@@ -228,9 +253,10 @@ function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
   void savedBackgroundVideoId
   const unsaved = lookUnsaved()
   const words = theme ? themeForContent(theme, { reference: "", segments: [], style: "lyrics" }) : undefined
+  const bold = (style.fontWeight ?? words?.verseText.fontWeight ?? 400) >= 600
 
   return (
-    <div className="flex flex-col gap-4 border-t border-border pt-4">
+    <div className="flex flex-col gap-4">
       <div className="-mb-1 flex items-center justify-between">
         <span className="text-xs font-semibold">Look</span>
         <div className="flex items-center gap-0.5">
@@ -262,6 +288,38 @@ function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
             {unsaved && <span aria-label="Unsaved changes" className="size-1.5 rounded-full bg-primary" />}
           </Button>
         </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">Font</span>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <FontFamilyPicker
+              value={style.fontFamily ?? words?.verseText.fontFamily ?? "Geist Variable"}
+              onChange={(fontFamily) => setStyle({ fontFamily })}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-pressed={bold}
+            title={bold ? "Bold (click for regular)" : "Bold"}
+            onClick={() => setStyle({ fontWeight: bold ? 400 : 700 })}
+            className={cn("shrink-0", bold && "border-primary bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary")}
+          >
+            <BoldIcon />
+          </Button>
+        </div>
+        {(style.fontFamily || style.fontWeight !== undefined) && (
+          <Button
+            variant="ghost"
+            size="xs"
+            className="self-start"
+            onClick={() => setStyle({ fontFamily: undefined, fontWeight: undefined })}
+          >
+            Use the theme's font
+          </Button>
+        )}
       </div>
       <Field label={`Size · ${style.size}%`}>
         <Slider

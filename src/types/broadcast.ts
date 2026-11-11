@@ -70,6 +70,9 @@ export interface TimerClock {
 export interface TimerStyle {
   /** The clock's size, in % of the theme's word size. */
   size: number
+  /** The clock's and caption's font, in place of the theme's. */
+  fontFamily?: string
+  fontWeight?: number
   color?: string
   captionColor?: string
   /** A solid colour in place of the theme's background. */
