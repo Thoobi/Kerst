@@ -1084,7 +1084,9 @@ function calculateScaledFontSize(
   // Binary search for optimal font size
   let low = minFontSize
   let high = originalFontSize
-  let bestFit = originalFontSize
+  // When nothing fits, the smallest size overflows least: never fall back
+  // to full size, which shows only the first line or two.
+  let bestFit = minFontSize
 
   while (low <= high) {
     const mid = Math.floor((low + high) / 2)

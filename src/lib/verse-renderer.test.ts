@@ -715,6 +715,12 @@ describe("shrink to fit", () => {
     expect(metrics.fittedVerseFontSize!).toBeLessThan(smallBox.verseText.fontSize)
   })
 
+  it("goes to the smallest size, not back to full size, when even that doesn't fit", () => {
+    const tiny = freeTheme({ verseBox: { x: 10, y: 40, width: 80, height: 0.5 } })
+    const metrics = computeVerseLayoutMetrics(stubCtx(), tiny, VERSE)
+    expect(metrics.fittedVerseFontSize!).toBe(Math.max(8, tiny.verseText.fontSize * 0.3))
+  })
+
   it("uses exactly the set size when turned off, at any canvas size", () => {
     const fixed = { ...smallBox, verseText: { ...smallBox.verseText, shrinkToFit: false } }
     expect(computeVerseLayoutMetrics(stubCtx(), fixed, VERSE).fittedVerseFontSize).toBe(fixed.verseText.fontSize)
