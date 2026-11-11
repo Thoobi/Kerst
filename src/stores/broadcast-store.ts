@@ -117,7 +117,8 @@ interface BroadcastState {
   stopEditing: () => void
   updateDraft: (updates: Partial<BroadcastTheme>) => void
   updateDraftNested: (path: string, value: unknown) => void
-  saveDraft: () => void
+  /** Save the theme being designed; returns the id it was saved under (a copy, for a built-in). */
+  saveDraft: () => string | null
   discardDraft: () => void
   setSelectedElement: (el: SelectedElement) => void
   setRenamingTheme: (id: string | null) => void
@@ -597,7 +598,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   },
   saveDraft: () => {
     const { draftTheme } = get()
-    if (!draftTheme) return
+    if (!draftTheme) return null
     // If editing a builtin, save as a new custom theme
     if (draftTheme.builtin) {
       const customTheme = {
@@ -620,9 +621,10 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
           get().setOutputTheme(output.id, customTheme.id)
         }
       }
-    } else {
-      get().saveTheme(draftTheme)
+      return customTheme.id
     }
+    get().saveTheme(draftTheme)
+    return draftTheme.id
   },
   discardDraft: () => {
     const { editingThemeId } = get()
@@ -682,9 +684,9 @@ export function hydrateBroadcastThemes(): Promise<void> {
         if (saveTimer) clearTimeout(saveTimer)
         saveTimer = setTimeout(() => {
           saveTimer = null
-          pendingSave = pendingSave.then(() =>
-            persistBroadcastThemes(useBroadcastStore.getState())
-          )
+          pendingSave = pendingSave.then(async () => {
+            await persistBroadcastThemes(useBroadcastStore.getState())
+          })
         }, SAVE_DEBOUNCE_MS)
       })
     } catch {
@@ -698,7 +700,22 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null
 let pendingSave: Promise<void> = Promise.resolve()
 const SAVE_DEBOUNCE_MS = 500
 
-async function persistBroadcastThemes(state: BroadcastState): Promise<void> {
+/**
+ * Write the themes and outputs to disk now rather than after the debounce,
+ * resolving once they are: the designer's Save says "Saved" only then.
+ */
+export function flushBroadcastThemes(): Promise<boolean> {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
+  const saved = pendingSave.then(() => persistBroadcastThemes(useBroadcastStore.getState()))
+  pendingSave = saved.then(() => undefined)
+  return saved
+}
+
+/** Whether the write succeeded. */
+async function persistBroadcastThemes(state: BroadcastState): Promise<boolean> {
   try {
     const store = await getThemeStore()
     const customThemes = state.themes.filter((t) => !t.builtin)
@@ -708,7 +725,9 @@ async function persistBroadcastThemes(state: BroadcastState): Promise<void> {
     await store.set("activeThemeId", state.activeThemeId)
     await store.set("autoLive", state.autoLive)
     await store.save()
+    return true
   } catch {
     console.warn("[broadcast] Failed to persist themes")
+    return false
   }
 }

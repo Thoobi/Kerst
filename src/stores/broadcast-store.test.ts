@@ -622,3 +622,29 @@ describe("setBandHeight", () => {
     expect(again.themes.find((t) => t.id === theme.id)!.layout.textAreaHeight).toBe(100)
   })
 })
+
+describe("saveDraft", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it("returns the id it saved under: a new copy for a built-in, the theme's own otherwise", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { LOWER_THIRDS } = await import("@/lib/builtin-themes")
+    const store = useBroadcastStore.getState()
+    store.startEditing(LOWER_THIRDS.id)
+    useBroadcastStore.getState().updateDraftNested("logo", {
+      url: "data:image/png;base64,AAAA", corner: "top-right", size: 10, opacity: 100, margin: 4, overMedia: false,
+    })
+
+    const copyId = useBroadcastStore.getState().saveDraft()
+    expect(copyId).not.toBe(LOWER_THIRDS.id)
+    const copy = useBroadcastStore.getState().themes.find((t) => t.id === copyId)!
+    expect(copy.builtin).toBe(false)
+    expect(copy.logo?.url).toBe("data:image/png;base64,AAAA")
+
+    // Saving again edits the copy, not another copy.
+    expect(useBroadcastStore.getState().saveDraft()).toBe(copyId)
+    expect(useBroadcastStore.getState().themes.filter((t) => t.name === copy.name)).toHaveLength(1)
+  })
+})
