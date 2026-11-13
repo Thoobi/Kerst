@@ -10,6 +10,7 @@ type SettingsSection =
   | "remote"
   | "diagnostics"
   | "help"
+  | "about"
 
 interface SettingsDialogState {
   isOpen: boolean

@@ -41,6 +41,19 @@ export function useAppUpdate() {
   }, [])
 }
 
+/**
+ * Check now, from the About page: the newer version (offered in the same
+ * toast as at launch), or null when this is the latest. Throws when the
+ * check can't be made (offline).
+ */
+export async function checkForUpdateNow(): Promise<string | null> {
+  const update = await check()
+  if (!update) return null
+  logInfo(`Update available: ${update.currentVersion} -> ${update.version}`)
+  offer(update)
+  return update.version
+}
+
 function offer(update: Update) {
   toast(`Litdeck ${update.version} is available`, {
     id: "app-update",
