@@ -2,29 +2,24 @@
  * Find a network camera again after its address changed: a phone on Wi-Fi
  * gets a new address from the router from day to day, usually in the same
  * subnet. Every other address in the old address's /24 is tried on the same
- * port and path, and the first that answers with an MJPEG stream wins.
+ * port and path, and the first camera to answer wins. Asked through the
+ * app's relay, as the pictures are.
  */
+
+import { probeCamera } from "@/lib/mjpeg-reader"
 
 /** How long one address gets to answer, in ms. */
 const PROBE_TIMEOUT_MS = 1500
 /** Addresses tried at once. */
 const CONCURRENCY = 24
 
-/** Whether `url` answers with an MJPEG stream. Only the headers are read. */
-export async function isMjpegStream(url: string, timeoutMs = PROBE_TIMEOUT_MS): Promise<boolean> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const response = await fetch(url, { signal: controller.signal, cache: "no-store" })
-    const type = response.headers.get("content-type") ?? ""
-    return response.ok && /multipart\/x-mixed-replace|image\/jpeg/i.test(type)
-  } catch {
-    return false
-  } finally {
-    clearTimeout(timer)
-    // Stop the stream: only the headers were wanted.
-    controller.abort()
-  }
+/**
+ * Whether the camera answers at `url`: with pictures, or as a busy DroidCam
+ * (it still answers with its page while another viewer has it).
+ */
+export async function cameraAnswers(url: string, timeoutMs = PROBE_TIMEOUT_MS): Promise<boolean> {
+  const probe = await probeCamera(url, timeoutMs)
+  return probe.kind === "live" || (probe.kind === "refused" && /busy/i.test(probe.problem))
 }
 
 /** The addresses to try, nearest to the old one first. */
@@ -67,7 +62,7 @@ export async function findCameraAgain(
   const worker = async () => {
     while (found === null && !signal?.aborted && next < candidates.length) {
       const url = candidates[next++]
-      if (await isMjpegStream(url)) found ??= url
+      if (await cameraAnswers(url)) found ??= url
       tried += 1
       onProgress?.(tried / candidates.length)
     }

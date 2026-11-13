@@ -10,6 +10,7 @@ members = [
     "crates/notes",
     "crates/library",
     "crates/stream",
+    "crates/camera",
 ]
 resolver = "2"
 
@@ -64,6 +65,7 @@ litdeck-library = { path = "crates/library" }
 litdeck-stt = { path = "crates/stt" }
 litdeck-broadcast = { path = "crates/broadcast" }
 litdeck-stream = { path = "crates/stream" }
+litdeck-camera = { path = "crates/camera" }
 litdeck-detection = { path = "crates/detection", features = ["onnx", "vector-search"] }
 litdeck-api = { path = "crates/api" }
 crossbeam-channel = "0.5"

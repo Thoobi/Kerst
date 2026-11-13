@@ -24,7 +24,8 @@ export function cameraRelayUrl(mediaBase: string | null, url: string): string {
 export type CameraState = "connecting" | "live" | "error"
 
 type FrameListener = (frame: ImageBitmap) => void
-type StateListener = (state: CameraState) => void
+/** `problem` says why, in words, while the state is "error" (null when unknown). */
+type StateListener = (state: CameraState, problem: string | null) => void
 
 /** No frame for this long and the stream counts as stalled: reconnect. */
 const STALL_MS = 4000
@@ -113,6 +114,8 @@ export class MjpegParser {
 class CameraConnection {
   latest: ImageBitmap | null = null
   state: CameraState = "connecting"
+  /** Why the last connection failed, as the relay put it. */
+  problem: string | null = null
   private frameListeners = new Set<FrameListener>()
   private stateListeners = new Set<StateListener>()
   private controller: AbortController | null = null
@@ -144,7 +147,7 @@ class CameraConnection {
     if (onFrame) this.frameListeners.add(onFrame)
     if (onState) this.stateListeners.add(onState)
     if (onFrame && this.latest) onFrame(this.latest)
-    onState?.(this.state)
+    onState?.(this.state, this.problem)
     return () => {
       if (onFrame) this.frameListeners.delete(onFrame)
       if (onState) this.stateListeners.delete(onState)
@@ -160,10 +163,12 @@ class CameraConnection {
     this.latest = null
   }
 
-  private setState(state: CameraState): void {
-    if (state === this.state) return
+  private setState(state: CameraState, problem: string | null = this.problem): void {
+    if (state === "live") problem = null
+    if (state === this.state && problem === this.problem) return
     this.state = state
-    for (const listener of this.stateListeners) listener(state)
+    this.problem = problem
+    for (const listener of this.stateListeners) listener(state, problem)
   }
 
   private async connect(): Promise<void> {
@@ -175,7 +180,11 @@ class CameraConnection {
     try {
       const source = cameraRelayUrl(await loadMediaBase(), this.url)
       const response = await fetch(source, { signal: controller.signal, cache: "no-store" })
-      if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`)
+      if (!response.ok || !response.body) {
+        // The relay says why: busy, a login, nothing at the address.
+        this.problem = (await response.text().catch(() => "")).trim() || `HTTP ${response.status}`
+        throw new Error(this.problem)
+      }
       const reader = response.body.getReader()
       this.lastFrameAt = Date.now()
       for (;;) {
@@ -277,7 +286,8 @@ export function latestCameraFrame(url: string | null | undefined): ImageBitmap |
 
 /**
  * What the operator typed, as a camera address. Only the IP is needed: IP
- * Webcam's port and stream path are filled in.
+ * Webcam's port and stream path are filled in (`resolveCameraAddress` asks
+ * the phone whether it's DroidCam instead).
  *   "10.0.0.5"            → "http://10.0.0.5:8080/video"
  *   "10.0.0.5:4747"       → "http://10.0.0.5:4747/video"
  *   "http://cam.local/mjpg" stays as it is.
@@ -295,5 +305,70 @@ export function normaliseCameraUrl(input: string): string {
     return parsed.toString()
   } catch {
     return text
+  }
+}
+
+/** What answered at a camera address: pictures, a camera that refused (busy, a login, a page), or nothing. */
+export type CameraProbe = { kind: "live" } | { kind: "refused"; problem: string } | { kind: "absent" }
+
+/**
+ * Ask the camera at `url`, through the relay (so a camera already being
+ * shown isn't asked twice), without reading any pictures.
+ */
+export async function probeCamera(url: string, timeoutMs = 6000): Promise<CameraProbe> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(cameraRelayUrl(await loadMediaBase(), url), {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+    if (response.ok) return { kind: "live" }
+    // 504: nothing answered at the address. 502: something did, and refused.
+    if (response.status !== 502) return { kind: "absent" }
+    return { kind: "refused", problem: (await response.text()).trim() }
+  } catch {
+    return { kind: "absent" }
+  } finally {
+    clearTimeout(timer)
+    // Only the answer was wanted, not the stream.
+    controller.abort()
+  }
+}
+
+/** Where the phone apps serve MJPEG when given just an IP: DroidCam, then IP Webcam. */
+const PHONE_APP_PORTS = ["4747", "8080"]
+
+/**
+ * What the operator typed, as a camera address, asking the phone when only
+ * an IP was given: DroidCam (port 4747) and IP Webcam (port 8080) both
+ * serve at /video, so whichever answers wins. `found` is false when nothing
+ * answered and the IP Webcam guess was kept.
+ */
+export async function resolveCameraAddress(input: string): Promise<{ url: string; found: boolean }> {
+  const url = normaliseCameraUrl(input)
+  if (!url || !isBareHost(input)) return { url, found: true }
+  const candidates = PHONE_APP_PORTS.map((port) => {
+    const candidate = new URL(url)
+    candidate.port = port
+    return candidate.toString()
+  })
+  const probes = await Promise.all(candidates.map((candidate) => probeCamera(candidate)))
+  const live = probes.findIndex((p) => p.kind === "live")
+  if (live >= 0) return { url: candidates[live], found: true }
+  const refused = probes.findIndex((p) => p.kind === "refused")
+  if (refused >= 0) return { url: candidates[refused], found: true }
+  return { url, found: false }
+}
+
+/** Whether `input` is just a host: no port and no path. */
+export function isBareHost(input: string): boolean {
+  let text = input.trim()
+  if (!/^https?:\/\//i.test(text)) text = `http://${text}`
+  try {
+    const parsed = new URL(text)
+    return !parsed.port && (parsed.pathname === "/" || parsed.pathname === "")
+  } catch {
+    return false
   }
 }

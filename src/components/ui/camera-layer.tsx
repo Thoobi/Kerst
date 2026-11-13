@@ -22,7 +22,7 @@ export function CameraLayer({
   fit?: "cover" | "contain"
   className?: string
   style?: React.CSSProperties
-  onStateChange?: (state: CameraState) => void
+  onStateChange?: (state: CameraState, problem: string | null) => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const onStateRef = useRef(onStateChange)
@@ -43,7 +43,7 @@ export function CameraLayer({
         }
         canvas.getContext("2d")?.drawImage(frame, 0, 0)
       },
-      (state) => onStateRef.current?.(state)
+      (state, problem) => onStateRef.current?.(state, problem)
     )
   }, [url])
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { MjpegParser, decodeInterval, normaliseCameraUrl } from "./mjpeg-reader"
 import { candidateUrls } from "./camera-discovery"
 
@@ -100,5 +100,51 @@ describe("decodeInterval", () => {
     // A 1080p picture on a dual-core laptop: ~25ms, so ~14 a second, not 26.
     expect(decodeInterval(25)).toBeCloseTo(25 / 0.35)
     expect(1000 / decodeInterval(25)).toBeLessThan(15)
+  })
+})
+
+describe("resolveCameraAddress", () => {
+  const relayAnswers = (byPort: Record<string, { status: number; body?: string }>) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        const camera = new URL(decodeURIComponent(String(input).split("url=")[1] ?? String(input)))
+        const answer = byPort[camera.port] ?? { status: 504 }
+        return new Response(answer.body ?? "", { status: answer.status })
+      })
+    )
+  }
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("finds DroidCam on 4747 from just the IP", async () => {
+    relayAnswers({ "4747": { status: 200 } })
+    const { resolveCameraAddress } = await import("./mjpeg-reader")
+    expect(await resolveCameraAddress("192.168.1.214")).toEqual({ url: "http://192.168.1.214:4747/video", found: true })
+  })
+
+  it("still picks DroidCam while it's busy with another viewer", async () => {
+    relayAnswers({ "4747": { status: 502, body: "The camera says: “DroidCam is Busy”" } })
+    const { resolveCameraAddress } = await import("./mjpeg-reader")
+    expect((await resolveCameraAddress("192.168.1.214")).url).toBe("http://192.168.1.214:4747/video")
+  })
+
+  it("finds IP Webcam on 8080", async () => {
+    relayAnswers({ "8080": { status: 200 } })
+    const { resolveCameraAddress } = await import("./mjpeg-reader")
+    expect((await resolveCameraAddress("10.0.0.5")).url).toBe("http://10.0.0.5:8080/video")
+  })
+
+  it("keeps IP Webcam's guess when nothing answers, and says so", async () => {
+    relayAnswers({})
+    const { resolveCameraAddress } = await import("./mjpeg-reader")
+    expect(await resolveCameraAddress("10.0.0.5")).toEqual({ url: "http://10.0.0.5:8080/video", found: false })
+  })
+
+  it("doesn't second-guess a typed port or path", async () => {
+    relayAnswers({})
+    const { resolveCameraAddress } = await import("./mjpeg-reader")
+    expect((await resolveCameraAddress("10.0.0.5:4747")).url).toBe("http://10.0.0.5:4747/video")
+    expect((await resolveCameraAddress("http://cam.local/mjpg")).url).toBe("http://cam.local/mjpg")
   })
 })

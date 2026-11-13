@@ -12,11 +12,11 @@
 //! MJPEG (`multipart/x-mixed-replace`) body to the page from `fetch`, an
 //! `<img>` or XHR, though it loads the headers. Under `/<token>/camera?url=`
 //! the camera's bytes come through unchanged as a plain octet stream, which
-//! the frontend splits into JPEG frames itself.
+//! the frontend splits into JPEG frames itself. Windows reading the same
+//! camera share one connection to it: `DroidCam` serves one viewer at a time.
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
-use std::time::Duration;
 
 use axum::body::Body;
 use axum::extract::Query;
@@ -86,38 +86,26 @@ struct CameraQuery {
     url: String,
 }
 
-/// How long a camera gets to answer before the frontend is told it can't be reached.
-const CAMERA_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
-
-/// Stream a network camera's response body through unchanged, as
-/// `application/octet-stream`. Only http(s) addresses are relayed.
+/// Stream a network camera's bytes through unchanged, as
+/// `application/octet-stream`. Every window reading the same camera shares
+/// one connection to it (see `litdeck_camera`). A camera that can't be shown
+/// answers with the reason in words: 504 when nothing answered at the
+/// address, 502 when something did (busy, a login, a web page).
 async fn relay_camera(Query(query): Query<CameraQuery>) -> Response {
-    let Ok(url) = reqwest::Url::parse(&query.url) else {
-        return (StatusCode::BAD_REQUEST, "not a camera address").into_response();
-    };
-    if !matches!(url.scheme(), "http" | "https") {
-        return (StatusCode::BAD_REQUEST, "only http(s) cameras").into_response();
-    }
-    let client = match reqwest::Client::builder().connect_timeout(CAMERA_CONNECT_TIMEOUT).build() {
-        Ok(client) => client,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    };
-    let response = match client.get(url).send().await.and_then(reqwest::Response::error_for_status) {
-        Ok(response) => response,
-        Err(e) => {
-            // Retried every few seconds while a camera is off: keep it out of the warnings.
-            log::debug!("camera relay: {e}");
-            return (StatusCode::BAD_GATEWAY, "camera unreachable").into_response();
+    match litdeck_camera::subscribe(&query.url).await {
+        Ok(stream) => (
+            [
+                (header::CONTENT_TYPE, "application/octet-stream"),
+                (header::CACHE_CONTROL, "no-store"),
+            ],
+            Body::from_stream(stream),
+        )
+            .into_response(),
+        Err(problem) => {
+            let code = if problem.unreachable { StatusCode::GATEWAY_TIMEOUT } else { StatusCode::BAD_GATEWAY };
+            (code, problem.message).into_response()
         }
-    };
-    (
-        [
-            (header::CONTENT_TYPE, "application/octet-stream"),
-            (header::CACHE_CONTROL, "no-store"),
-        ],
-        Body::from_stream(response.bytes_stream()),
-    )
-        .into_response()
+    }
 }
 
 /// Mark every response readable from any origin. `CorsLayer` only answers

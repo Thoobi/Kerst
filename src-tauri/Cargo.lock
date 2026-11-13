@@ -2594,6 +2594,7 @@ dependencies = [
  "litdeck-audio",
  "litdeck-bible",
  "litdeck-broadcast",
+ "litdeck-camera",
  "litdeck-detection",
  "litdeck-library",
  "litdeck-stream",
@@ -2666,6 +2667,17 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.19",
+]
+
+[[package]]
+name = "litdeck-camera"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures-util",
+ "log",
+ "reqwest 0.12.28",
+ "tokio",
 ]
 
 [[package]]

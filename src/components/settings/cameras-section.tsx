@@ -2,7 +2,7 @@ import { useState } from "react"
 import { PlusIcon, SearchIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 import { findCameraAgain } from "@/lib/camera-discovery"
-import { normaliseCameraUrl } from "@/lib/mjpeg-reader"
+import { resolveCameraAddress } from "@/lib/mjpeg-reader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CameraLayer } from "@/components/ui/camera-layer"
@@ -23,6 +23,8 @@ function moveCamera(cameraId: string, url: string) {
 function CameraRow({ camera }: { camera: SavedCamera }) {
   const { updateCamera, removeCamera } = useSettingsStore.getState()
   const [state, setState] = useState<"connecting" | "live" | "error">("connecting")
+  // Why it can't be shown, as the camera or the relay put it.
+  const [problem, setProblem] = useState<string | null>(null)
   // Share of the subnet searched, while looking for the camera's new address.
   const [searching, setSearching] = useState<number | null>(null)
   // The address as typed; connected to on Enter or leaving the field, not per keystroke.
@@ -37,7 +39,7 @@ function CameraRow({ camera }: { camera: SavedCamera }) {
       toast.success(`Found ${camera.name}`, { description: url })
     } else {
       toast.error(`Couldn't find ${camera.name}`, {
-        description: "Check the phone is on the same Wi-Fi with its camera server started, then enter the address it shows.",
+        description: "Check the phone is on the same Wi-Fi with its camera app open, then enter the address it shows.",
       })
     }
   }
@@ -45,7 +47,10 @@ function CameraRow({ camera }: { camera: SavedCamera }) {
   return (
     <div className="flex gap-3 rounded-lg border p-2.5">
       <div className="relative aspect-video w-36 shrink-0 overflow-hidden rounded-md bg-black">
-        <CameraLayer url={camera.url} fit="cover" onStateChange={setState} className="absolute inset-0 size-full" />
+        <CameraLayer url={camera.url} fit="cover" onStateChange={(next, why) => {
+            setState(next)
+            setProblem(why)
+          }} className="absolute inset-0 size-full" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <Input
@@ -63,14 +68,16 @@ function CameraRow({ camera }: { camera: SavedCamera }) {
           }}
           onBlur={() => {
             if (draft === null) return
-            const url = normaliseCameraUrl(draft)
+            const typed = draft
             setDraft(null)
-            if (url && url !== camera.url) moveCamera(camera.id, url)
+            void resolveCameraAddress(typed).then(({ url }) => {
+              if (url && url !== camera.url) moveCamera(camera.id, url)
+            })
           }}
           className="h-7 font-mono text-xs"
           aria-label="Camera address"
         />
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-2">
           <span
             className={
               state === "live"
@@ -85,10 +92,10 @@ function CameraRow({ camera }: { camera: SavedCamera }) {
               : state === "live"
                 ? "Connected"
                 : state === "error"
-                  ? "Can't reach camera, retrying…"
+                  ? `${problem ?? "Can't reach the camera."} Retrying…`
                   : "Connecting…"}
           </span>
-          <div className="flex items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-0.5">
             {state !== "live" && (
               <Button
                 variant="ghost"
@@ -120,35 +127,49 @@ function CameraRow({ camera }: { camera: SavedCamera }) {
 
 /**
  * Network cameras to use as a background behind themes, the Bible style or
- * the timer: a phone running IP Webcam, or any MJPEG camera on the network.
+ * the timer: a phone running DroidCam or IP Webcam, or any MJPEG camera on the network.
  */
 export function CamerasSection() {
   const cameras = useSettingsStore((s) => s.cameras)
   const [url, setUrl] = useState("")
   const [name, setName] = useState("")
 
-  const add = () => {
-    const normalised = normaliseCameraUrl(url)
-    if (!normalised) return
-    useSettingsStore.getState().addCamera({ name: name.trim() || `Camera ${cameras.length + 1}`, url: normalised })
+  // Asking the phone which app it runs, when only an IP was typed.
+  const [checking, setChecking] = useState(false)
+
+  const add = async () => {
+    if (!url.trim() || checking) return
+    setChecking(true)
+    const resolved = await resolveCameraAddress(url)
+    setChecking(false)
+    if (!resolved.url) return
+    const cameraName = name.trim() || `Camera ${cameras.length + 1}`
+    useSettingsStore.getState().addCamera({ name: cameraName, url: resolved.url })
     setUrl("")
     setName("")
+    if (!resolved.found) {
+      toast.warning(`Nothing answered at that IP yet`, {
+        description: `Saved with IP Webcam's port. If it's DroidCam, change ${cameraName}'s address below to end in :4747.`,
+      })
+    }
   }
 
   return (
     <div className="flex flex-col gap-5">
       <p className="text-sm text-muted-foreground">
-        Use a camera on your network as a background, e.g. behind the Lower Thirds band. With the{" "}
-        <span className="font-medium text-foreground">IP Webcam</span> app on an Android phone, start the server and
-        enter just the IP it shows, like <span className="font-mono text-xs">192.168.1.57</span>; the app connects to
-        it and reconnects on its own if Wi-Fi drops. Other cameras: enter their full MJPEG address.
+        Use a camera on your network as a background, e.g. behind the Lower Thirds band. With{" "}
+        <span className="font-medium text-foreground">DroidCam</span> or{" "}
+        <span className="font-medium text-foreground">IP Webcam</span> on a phone, open the app and enter just the IP
+        it shows, like <span className="font-mono text-xs">192.168.1.57</span>; Litdeck works out which app it is and
+        reconnects on its own if Wi-Fi drops. DroidCam serves one viewer at a time, so close it in any browser or other
+        computer first. Other cameras: enter their full MJPEG address.
       </p>
 
       <form
         className="flex flex-col gap-2 rounded-lg border p-3"
         onSubmit={(e) => {
           e.preventDefault()
-          add()
+          void add()
         }}
       >
         <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Add a camera</label>
@@ -158,12 +179,13 @@ export function CamerasSection() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Phone's IP, e.g. 192.168.1.57"
+            disabled={checking}
             className="flex-1 font-mono text-xs"
             aria-label="Camera address"
           />
-          <Button type="submit" size="sm" disabled={!url.trim()}>
+          <Button type="submit" size="sm" disabled={!url.trim() || checking}>
             <PlusIcon />
-            Add
+            {checking ? "Checking…" : "Add"}
           </Button>
         </div>
       </form>
