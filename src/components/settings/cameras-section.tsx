@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { PlusIcon, SearchIcon, Trash2Icon } from "lucide-react"
+import { invoke } from "@tauri-apps/api/core"
+import { LoaderCircleIcon, PlusIcon, SearchIcon, Trash2Icon, UsbIcon } from "lucide-react"
 import { toast } from "sonner"
 import { findCameraAgain } from "@/lib/camera-discovery"
-import { resolveCameraAddress } from "@/lib/mjpeg-reader"
+import { DEVICE_CAMERA_PREFIX, isDeviceCamera, resolveCameraAddress } from "@/lib/mjpeg-reader"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CameraLayer } from "@/components/ui/camera-layer"
@@ -59,6 +60,12 @@ function CameraRow({ camera }: { camera: SavedCamera }) {
           className="h-7"
           aria-label="Camera name"
         />
+        {isDeviceCamera(camera.url) ? (
+          <p className="flex h-7 items-center gap-1.5 truncate text-xs text-muted-foreground" title={camera.url.slice(DEVICE_CAMERA_PREFIX.length)}>
+            <UsbIcon className="size-3.5 shrink-0" />
+            Attached to this computer
+          </p>
+        ) : (
         <Input
           value={draft ?? camera.url}
           title="When the phone's Wi-Fi address changes, update it here: everything using this camera follows"
@@ -77,6 +84,7 @@ function CameraRow({ camera }: { camera: SavedCamera }) {
           className="h-7 font-mono text-xs"
           aria-label="Camera address"
         />
+        )}
         <div className="flex items-start justify-between gap-2">
           <span
             className={
@@ -96,7 +104,7 @@ function CameraRow({ camera }: { camera: SavedCamera }) {
                   : "Connecting…"}
           </span>
           <div className="flex shrink-0 items-center gap-0.5">
-            {state !== "live" && (
+            {state !== "live" && !isDeviceCamera(camera.url) && (
               <Button
                 variant="ghost"
                 size="xs"
@@ -190,6 +198,8 @@ export function CamerasSection() {
         </div>
       </form>
 
+      <AttachedCameras />
+
       {cameras.length > 0 ? (
         <div className="flex flex-col gap-2">
           {cameras.map((camera) => (
@@ -199,6 +209,77 @@ export function CamerasSection() {
       ) : (
         <p className="text-xs text-muted-foreground">No cameras yet.</p>
       )}
+    </div>
+  )
+}
+
+interface CameraInfo {
+  id: string
+  name: string
+}
+
+/**
+ * Cameras plugged into this computer: USB webcams, capture cards (a real
+ * camera over HDMI), a phone in USB mode. ffmpeg reads them in the app, so
+ * they work like any other camera, with no Wi-Fi in the way.
+ */
+function AttachedCameras() {
+  const cameras = useSettingsStore((s) => s.cameras)
+  const [devices, setDevices] = useState<CameraInfo[] | null>(null)
+  const [looking, setLooking] = useState(false)
+
+  const look = async () => {
+    setLooking(true)
+    try {
+      setDevices(await invoke<CameraInfo[]>("list_stream_cameras"))
+    } catch (error) {
+      toast.error("Couldn't list the cameras", { description: String(error) })
+      setDevices([])
+    } finally {
+      setLooking(false)
+    }
+  }
+
+  const add = (device: CameraInfo) => {
+    useSettingsStore.getState().addCamera({ name: device.name, url: `${DEVICE_CAMERA_PREFIX}${device.id}` })
+    toast.success(`Added ${device.name}`)
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Attached to this computer</p>
+          <p className="text-[0.6875rem] text-muted-foreground">
+            USB webcams, capture cards (a camera over HDMI), or a phone in USB mode: no Wi-Fi drops.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" disabled={looking} onClick={() => void look()}>
+          {looking ? <LoaderCircleIcon className="animate-spin" /> : <UsbIcon />}
+          {devices === null ? "Find cameras" : "Look again"}
+        </Button>
+      </div>
+      {devices !== null &&
+        (devices.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No cameras found. Plug one in, then look again.</p>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {devices.map((device) => {
+              const added = cameras.some((c) => c.url === `${DEVICE_CAMERA_PREFIX}${device.id}`)
+              return (
+                <div key={device.id} className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2 py-1.5">
+                  <span className="truncate text-sm" title={device.id}>
+                    {device.name}
+                  </span>
+                  <Button variant="ghost" size="xs" disabled={added} onClick={() => add(device)}>
+                    <PlusIcon />
+                    {added ? "Added" : "Add"}
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
+        ))}
     </div>
   )
 }

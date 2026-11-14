@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { ThemeDesigner } from "@/components/broadcast/theme-designer"
 import { ThemeChip } from "@/components/panels/theme-chip"
+import { CameraHealthIndicator } from "@/components/controls/camera-health"
 import { BroadcastOutputsDialog } from "@/components/broadcast/broadcast-outputs-dialog"
 import { useAudioStore, useTranscriptStore, useBroadcastStore } from "@/stores"
 import { useTheme } from "@/components/theme-provider"
@@ -85,6 +86,7 @@ export function TransportBar() {
         <div className="mr-1.5 min-w-0">
           <ThemeChip />
         </div>
+        <CameraHealthIndicator />
         <Button
           variant="ghost"
           size="icon-sm"

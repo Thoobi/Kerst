@@ -1,6 +1,7 @@
 pub mod audio;
 pub mod bible;
 pub mod broadcast;
+pub mod camera;
 pub mod detection;
 pub mod diagnostics;
 pub mod fonts;

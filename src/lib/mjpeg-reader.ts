@@ -295,6 +295,7 @@ export function latestCameraFrame(url: string | null | undefined): ImageBitmap |
 export function normaliseCameraUrl(input: string): string {
   let text = input.trim()
   if (!text) return ""
+  if (isDeviceCamera(text)) return text
   const hadScheme = /^https?:\/\//i.test(text)
   if (!hadScheme) text = `http://${text}`
   try {
@@ -347,6 +348,7 @@ const PHONE_APP_PORTS = ["4747", "8080"]
  */
 export async function resolveCameraAddress(input: string): Promise<{ url: string; found: boolean }> {
   const url = normaliseCameraUrl(input)
+  if (isDeviceCamera(url)) return { url, found: true }
   if (!url || !isBareHost(input)) return { url, found: true }
   const candidates = PHONE_APP_PORTS.map((port) => {
     const candidate = new URL(url)
@@ -371,4 +373,12 @@ export function isBareHost(input: string): boolean {
   } catch {
     return false
   }
+}
+
+/** The address prefix of a camera attached to this computer (read by ffmpeg in the app). */
+export const DEVICE_CAMERA_PREFIX = "device:"
+
+/** Whether `url` is a camera attached to this computer rather than one on the network. */
+export function isDeviceCamera(url: string): boolean {
+  return url.startsWith(DEVICE_CAMERA_PREFIX)
 }

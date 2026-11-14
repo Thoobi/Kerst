@@ -10,9 +10,21 @@
 //!
 //! The bytes are passed on unchanged (the frontend splits the MJPEG into
 //! frames); a reader that joins mid-stream starts at the next picture.
+//!
+//! A camera attached to this computer (a USB webcam, a capture card, a phone
+//! over USB) has the address `device:<id>`: ffmpeg reads it and writes the
+//! same MJPEG a phone sends (see [`set_device_source`]). [`health`] says how
+//! every camera in use is doing.
+
+mod device;
+mod health;
+
+pub use device::{set_device_source, DEVICE_SCHEME};
+pub use health::{health, CameraHealth, CameraState};
 
 use std::collections::HashMap;
 use std::convert::Infallible;
+use std::pin::Pin;
 use std::sync::{Arc, LazyLock, Mutex};
 use std::time::Duration;
 
@@ -66,6 +78,15 @@ impl Problem {
 struct Upstream {
     chunks: broadcast::Sender<Bytes>,
     status: watch::Receiver<Status>,
+}
+
+/// A camera's bytes as they arrive, from the network or from ffmpeg.
+type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, String>> + Send>>;
+
+/// How many readers each camera in use has, by address.
+fn readers() -> HashMap<String, usize> {
+    let upstreams = UPSTREAMS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    upstreams.iter().map(|(url, u)| (url.clone(), u.chunks.receiver_count())).collect()
 }
 
 static UPSTREAMS: LazyLock<Mutex<HashMap<String, Arc<Upstream>>>> = LazyLock::new(Mutex::default);
@@ -125,37 +146,55 @@ fn upstream_for(url: &str) -> Arc<Upstream> {
     upstream
 }
 
+/// The camera's bytes: from ffmpeg for a `device:` camera, else over HTTP.
+async fn open(url: &str) -> Result<ByteStream, Problem> {
+    if let Some(id) = url.strip_prefix(DEVICE_SCHEME) {
+        return device::open(id).await;
+    }
+    let response = connect(url).await?;
+    Ok(Box::pin(response.bytes_stream().map(|chunk| chunk.map_err(|e| e.to_string()))))
+}
+
 /// Read the camera into `chunks` until it stops, stalls or nobody reads.
 async fn run(url: &str, chunks: &broadcast::Sender<Bytes>, status: &watch::Sender<Status>) {
-    let response = match connect(url).await {
-        Ok(response) => response,
+    health::connecting(url);
+    let mut body = match open(url).await {
+        Ok(body) => body,
         Err(problem) => {
             // Retried every few seconds while a camera is off: keep it out of the warnings.
             log::debug!("camera {url}: {}", problem.message);
+            health::failed(url, &problem.message);
             let _ = status.send(Status::Failed(problem));
             return;
         }
     };
     let _ = status.send(Status::Streaming);
-    let mut body = response.bytes_stream();
+    health::streaming(url);
     let mut unread_since: Option<Instant> = None;
     loop {
         match timeout(STALL_TIMEOUT, body.next()).await {
             Ok(Some(Ok(chunk))) => {
+                health::data(url, &chunk);
                 let _ = chunks.send(chunk);
             }
             Err(_) => {
                 log::debug!("camera {url}: stalled");
+                health::ended(url, "The camera stopped sending pictures.");
                 return;
             }
             Ok(Some(Err(e))) => {
                 log::debug!("camera {url}: {e}");
+                health::ended(url, "The camera's connection dropped.");
                 return;
             }
-            Ok(None) => return,
+            Ok(None) => {
+                health::ended(url, "The camera stopped sending pictures.");
+                return;
+            }
         }
         if chunks.receiver_count() == 0 {
             if unread_since.get_or_insert_with(Instant::now).elapsed() >= LINGER {
+                health::closed(url);
                 return;
             }
         } else {
@@ -327,6 +366,51 @@ mod tests {
         drop(listener);
         let Err(problem) = subscribe(&format!("http://127.0.0.1:{port}/video")).await else { panic!() };
         assert!(problem.unreachable, "{problem:?}");
+    }
+
+    /// A stand-in for ffmpeg: a shell loop writing MJPEG parts with a 320x240 frame header.
+    #[cfg(unix)]
+    fn fake_device(script: &'static str) -> std::process::Command {
+        let mut cmd = std::process::Command::new("sh");
+        cmd.arg("-c").arg(script);
+        cmd
+    }
+
+    #[cfg(unix)]
+    fn use_fake_devices() {
+        set_device_source(|id| match id {
+            "fake-ok" => Ok(fake_device(
+                r"while true; do printf -- '--ffmpeg\r\nContent-Type: image/jpeg\r\n\r\n\377\330\377\300\000\021\010\000\360\001\100 picture \377\331\r\n'; sleep 0.05; done",
+            )),
+            "fake-busy" => Ok(fake_device("echo '/dev/video9: Device or resource busy' >&2; exit 1")),
+            other => Err(format!("no such camera {other}")),
+        });
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_device_camera_streams_through_ffmpeg_and_reports_its_size() {
+        use_fake_devices();
+        let url = format!("{DEVICE_SCHEME}fake-ok");
+        let mut stream = Box::pin(subscribe(&url).await.expect("device opens"));
+        let chunk = timeout(Duration::from_secs(3), stream.next()).await.unwrap().unwrap().unwrap();
+        assert!(chunk.windows(2).any(|w| w == [0xFF, 0xD8]), "MJPEG passes through");
+        let shown = health().into_iter().find(|h| h.url == url).expect("in use");
+        assert_eq!(shown.state, CameraState::Live);
+        assert_eq!((shown.width, shown.height), (Some(320), Some(240)));
+        assert_eq!(shown.readers, 1);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_device_that_wont_open_says_why() {
+        use_fake_devices();
+        let url = format!("{DEVICE_SCHEME}fake-busy");
+        let Err(problem) = subscribe(&url).await else { panic!("busy device") };
+        assert!(problem.message.contains("Device or resource busy"), "{problem:?}");
+        let shown = health().into_iter().find(|h| h.url == url).expect("tried");
+        assert_eq!(shown.state, CameraState::Down);
+        assert!(shown.problem.unwrap().contains("busy"));
     }
 
     #[test]

@@ -169,6 +169,7 @@ pub fn run() {
             commands::library::update_video,
             commands::library::delete_video,
             media_server::media_base_url,
+            commands::camera::camera_health,
             commands::remote::start_osc,
             commands::remote::stop_osc,
             commands::remote::get_osc_status,
@@ -189,7 +190,10 @@ pub fn run() {
                 let mut ndi = managed_ndi.lock().unwrap();
                 ndi.set_library_search_dirs(vec![resource_dir.clone()]);
                 let managed_streams = app.state::<Mutex<litdeck_stream::StreamRuntime>>();
-                managed_streams.lock().unwrap().set_search_dirs(vec![resource_dir]);
+                managed_streams.lock().unwrap().set_search_dirs(vec![resource_dir.clone()]);
+                commands::camera::register_device_source(vec![resource_dir]);
+            } else {
+                commands::camera::register_device_source(Vec::new());
             }
             commands::stream::spawn_status_emitter(app.handle().clone());
 
