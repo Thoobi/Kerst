@@ -1008,5 +1008,10 @@ describe("speaker names", () => {
     expect(shown.verseNumbers.visible).toBe(false)
     const metrics = computeVerseLayoutMetrics(stubCtx(), shown, content)
     expect(metrics.referenceRect!.y).toBeGreaterThan(metrics.verseRect!.y)
+    // The name keeps the theme's word size in a Lower Thirds band, and the
+    // title is half of it, never bigger than the name.
+    expect(metrics.fittedVerseFontSize).toBe(BUILTIN_THEMES[2].verseText.fontSize)
+    expect(shown.reference.fontSize).toBe(BUILTIN_THEMES[2].verseText.fontSize / 2)
+    expect(shown.verseText.fontWeight).toBeGreaterThanOrEqual(700)
   })
 })

@@ -87,7 +87,7 @@ interface BroadcastState {
   /** Offer `verse` (asking mode, on air only). */
   suggestVerse: (verse: Verse) => void
   clearSuggestion: () => void
-  /** Save the outputs' current themes as a scene called `name`. */
+  /** Save the outputs' current themes as a scene called `name` (updating one already called that). */
   saveScene: (name: string) => Scene
   /** Switch every output in the scene to its theme there. */
   applyScene: (id: string) => void
@@ -632,11 +632,16 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   },
   clearSuggestion: () => set({ verseSuggestion: null }),
   saveScene: (name) => {
-    const scene: Scene = {
-      id: crypto.randomUUID(),
-      name: name.trim() || `Scene ${get().scenes.length + 1}`,
-      themes: Object.fromEntries(get().outputs.map((o) => [o.id, o.themeId])),
+    const themes = Object.fromEntries(get().outputs.map((o) => [o.id, o.themeId]))
+    const label = name.trim() || `Scene ${get().scenes.length + 1}`
+    // The same name again updates that scene rather than adding a twin.
+    const existing = get().scenes.find((sc) => sc.name.toLowerCase() === label.toLowerCase())
+    if (existing) {
+      const updated = { ...existing, themes }
+      set({ scenes: get().scenes.map((sc) => (sc.id === existing.id ? updated : sc)) })
+      return updated
     }
+    const scene: Scene = { id: crypto.randomUUID(), name: label, themes }
     set({ scenes: [...get().scenes, scene] })
     return scene
   },

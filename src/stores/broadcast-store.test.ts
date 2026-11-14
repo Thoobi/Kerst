@@ -749,6 +749,18 @@ describe("scenes", () => {
     expect(outputs.find((o) => o.id === "stream")!.themeId).toBe(CLASSIC_DARK.id)
   })
 
+  it("updates a scene saved again under the same name", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { LOWER_THIRDS, CLASSIC_DARK } = await import("@/lib/builtin-themes")
+    useBroadcastStore.getState().setOutputTheme("main", LOWER_THIRDS.id)
+    const first = useBroadcastStore.getState().saveScene("Sermon")
+    useBroadcastStore.getState().setOutputTheme("main", CLASSIC_DARK.id)
+    const again = useBroadcastStore.getState().saveScene(" sermon ")
+    expect(again.id).toBe(first.id)
+    expect(useBroadcastStore.getState().scenes).toHaveLength(1)
+    expect(useBroadcastStore.getState().scenes[0].themes.main).toBe(CLASSIC_DARK.id)
+  })
+
   it("leaves an output alone when its scene theme was deleted", async () => {
     const { useBroadcastStore } = await import("./broadcast-store")
     const { CLASSIC_DARK } = await import("@/lib/builtin-themes")

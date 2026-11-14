@@ -1358,6 +1358,9 @@ export function backgroundRegion(theme: BroadcastTheme, scale = 1): VerseLayoutR
   return regionFor(buildScaledTheme(theme, scale), 0, 0)
 }
 
+/** A name strap's title size, as a share of the name's. */
+const NAME_TITLE_SCALE = 0.5
+
 /** How much bigger a timer's clock is than the theme's words, in %, unless its style says. */
 export const DEFAULT_TIMER_SIZE = 300
 /** A timer's caption size, in % of the theme's reference size, unless its style says. */
@@ -1407,12 +1410,27 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
     }
   }
   if (verse?.style === "name") {
-    // A person's name, big, with their title under it, smaller: the theme's
-    // words and reference, with no verse number and the reference below.
+    // A name strap: the person's name bold at the theme's word size, their
+    // title half that size just under it, the pair centred in the box. The
+    // theme's own reference is often nearly as big as its words, which in a
+    // short band would shrink the name below its title.
+    const nameSize = theme.verseText.fontSize
     return {
       ...theme,
       verseNumbers: { ...theme.verseNumbers, visible: false },
-      reference: { ...theme.reference, position: "below" },
+      verseText: {
+        ...theme.verseText,
+        fontWeight: Math.max(theme.verseText.fontWeight, 700),
+        lineHeight: 1.15,
+        verticalAlign: "middle",
+      },
+      reference: {
+        ...theme.reference,
+        position: "below",
+        fontSize: Math.round(nameSize * NAME_TITLE_SCALE),
+        verticalAlign: "middle",
+      },
+      layout: { ...theme.layout, referenceGap: Math.round(nameSize * 0.12) },
     }
   }
   if (verse?.style === "lyrics" && theme.lyricsText) return withTextStyle(theme, theme.lyricsText)
