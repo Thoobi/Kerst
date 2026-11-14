@@ -24,7 +24,13 @@ use tokio::time::{timeout, Instant};
 /// How long a camera gets to answer with its headers.
 const ANSWER_TIMEOUT: Duration = Duration::from_secs(5);
 /// No bytes for this long and the camera has stalled: end the upstream.
-const STALL_TIMEOUT: Duration = Duration::from_secs(5);
+/// Generous on purpose: a phone on weak Wi-Fi often goes quiet for several
+/// seconds and then carries on. Hanging up sooner doesn't help: `DroidCam`
+/// keeps the dropped connection as its one viewer for a while and answers a
+/// new one "Busy", so the picture comes back later than if we'd waited.
+/// Readers keep showing the last picture meanwhile, and a reader that
+/// reconnects rejoins this same upstream.
+const STALL_TIMEOUT: Duration = Duration::from_secs(20);
 /// How long an upstream stays open with nobody reading, for a quick switch back.
 const LINGER: Duration = Duration::from_secs(2);
 /// Chunks buffered for a reader that falls behind; past this it skips ahead.
