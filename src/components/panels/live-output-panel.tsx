@@ -1,5 +1,4 @@
 import { useEffect } from "react"
-import { ThemeChip } from "@/components/panels/theme-chip"
 import { toast } from "sonner"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
@@ -110,7 +109,6 @@ export function LiveOutputPanel() {
             }
           />
         </label>
-        <ThemeChip />
         <button
           type="button"
           role="switch"

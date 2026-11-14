@@ -18,8 +18,8 @@ function switcherOrder(themes: BroadcastTheme[]): BroadcastTheme[] {
 }
 
 /**
- * The live theme on the Live bar: its name, and a popover to switch each
- * output's theme with one click or open its style.
+ * The main output's theme in the navbar: its name, and a popover to switch
+ * each output's theme with one click or open its style.
  */
 export function ThemeChip() {
   const themes = useBroadcastStore((s) => s.themes)

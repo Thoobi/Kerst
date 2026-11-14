@@ -4,6 +4,7 @@ import { MicIcon, MicOffIcon, PaletteIcon, CastIcon, SunIcon, MoonIcon } from "l
 import { Button } from "@/components/ui/button"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { ThemeDesigner } from "@/components/broadcast/theme-designer"
+import { ThemeChip } from "@/components/panels/theme-chip"
 import { BroadcastOutputsDialog } from "@/components/broadcast/broadcast-outputs-dialog"
 import { useAudioStore, useTranscriptStore, useBroadcastStore } from "@/stores"
 import { useTheme } from "@/components/theme-provider"
@@ -80,7 +81,10 @@ export function TransportBar() {
         <OnAirStatus />
       </div>
 
-      <div className="flex items-center justify-end gap-0.5">
+      <div className="flex min-w-0 items-center justify-end gap-0.5">
+        <div className="mr-1.5 min-w-0">
+          <ThemeChip />
+        </div>
         <Button
           variant="ghost"
           size="icon-sm"
