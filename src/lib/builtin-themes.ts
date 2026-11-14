@@ -1,3 +1,4 @@
+import { LOWER_THIRD_LOOKS } from "@/lib/lower-third-looks"
 import type { BroadcastTheme } from "@/types/broadcast"
 
 const baseTheme: Omit<BroadcastTheme, "id" | "name" | "background" | "verseText" | "reference" | "layout" | "transition" | "textBox"> = {
@@ -164,8 +165,9 @@ const MODERN_LIGHT: BroadcastTheme = {
 }
 
 // Lower third: transparent background for NDI keying, a text band across the
-// bottom, reference top-left with the verse text underneath it.
-const LOWER_THIRDS: BroadcastTheme = {
+// bottom, reference top-left with the verse text underneath it. Its look is
+// the Floating look (below), as the Lower Third panel sets it.
+const LOWER_THIRDS_BASE: BroadcastTheme = {
   ...baseTheme,
   // Id keeps its original spelling on purpose — it is persisted in every
   // output's themeId and in user themes derived from it, so renaming it would
@@ -242,6 +244,11 @@ const LOWER_THIRDS: BroadcastTheme = {
     easing: "ease-in-out",
     direction: "up",
   },
+}
+
+const LOWER_THIRDS: BroadcastTheme = {
+  ...LOWER_THIRDS_BASE,
+  ...LOWER_THIRD_LOOKS.find((look) => look.id === "floating")!.apply(LOWER_THIRDS_BASE),
 }
 
 // Free-positioning example: reference in a top-left banner, verse block

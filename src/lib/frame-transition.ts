@@ -35,10 +35,22 @@ export function contentKey(verse: VerseRenderData | null): string {
   })
 }
 
-/** Whether going from `from` to `to` should animate, by `to`'s theme. */
+/**
+ * How going from `from` to `to` animates: a Lower Thirds band coming on or
+ * going off air uses its theme's `bandTransition` when it has one, anything
+ * else the theme's `transition` (`to`'s, or `from`'s going off air).
+ */
+export function transitionSpecFor(from: Frame | null, to: Frame): TransitionSpec {
+  const onOrOff = !!from && (from.verse === null) !== (to.verse === null)
+  const theme = to.verse === null && from ? from.theme : to.theme
+  return (onOrOff && theme.bandTransition) || to.theme.transition
+}
+
+/** Whether going from `from` to `to` should animate (see `transitionSpecFor`). */
 export function shouldTransition(from: Frame | null, to: Frame): boolean {
-  const spec = to.theme.transition
-  if (!from || !spec || spec.type === "none" || !(spec.duration > 0)) return false
+  if (!from) return false
+  const spec = transitionSpecFor(from, to)
+  if (!spec || spec.type === "none" || spec.type === "cut" || !(spec.duration > 0)) return false
   return contentKey(from.verse) !== contentKey(to.verse)
 }
 
@@ -75,6 +87,17 @@ const SLIDE_DISTANCE = 0.06
 const BAND_SLIDE_DISTANCE = 0.25
 /** How much the words grow or shrink in a scale. */
 const SCALE_AMOUNT = 0.06
+/** How small a band starts in a pop, before springing to full size. */
+const POP_FROM = 0.86
+/** A wipe's soft edge, as a share of the distance it travels. */
+const WIPE_FEATHER = 0.12
+
+/** 0→1 with a small overshoot past 1 near the end: a spring settling. */
+function backOut(t: number): number {
+  const c = 1.4
+  const x = t - 1
+  return 1 + (c + 1) * x * x * x + c * x * x
+}
 
 /**
  * Draws transition frames onto one canvas. Keeps its own scratch canvases
@@ -171,7 +194,34 @@ export class TransitionRenderer {
     const out = band ? p : Math.min(1, p * 2)
     const into = band ? p : Math.max(0, p * 2 - 1)
 
-    if (spec.type === "fade" || spec.type === "none") {
+    if (spec.type === "wipe") {
+      const area = region ? deviceRect(transform, region) : { x: 0, y: 0, width, height }
+      // Coming in, the band is revealed from the `direction` edge; going
+      // out, it's wiped away from the same edge.
+      const wipe = (source: HTMLCanvasElement, amount: number, mode: "show" | "hide", index: number) => {
+        const whole = mode === "show" ? amount >= 1 : amount <= 0
+        const none = mode === "show" ? amount <= 0 : amount >= 1
+        if (whole) ctx.drawImage(source, 0, 0)
+        if (whole || none) return
+        const scratch = this.layer(index, width, height)
+        if (!scratch) return
+        this.wiped(scratch, source, area, spec.direction, amount, mode)
+        ctx.drawImage(scratch.canvas, 0, 0)
+      }
+      wipe(fromText.canvas, out, "hide", 5)
+      wipe(toText.canvas, into, "show", 6)
+    } else if (spec.type === "pop") {
+      const centre = region
+        ? transform.transformPoint({ x: region.x + region.width / 2, y: region.y + region.height / 2 })
+        : { x: width / 2, y: height / 2 }
+      const scaled = (source: HTMLCanvasElement, k: number, alpha: number) => {
+        ctx.globalAlpha = Math.min(1, Math.max(0, alpha))
+        ctx.drawImage(source, centre.x - centre.x * k, centre.y - centre.y * k, width * k, height * k)
+      }
+      // Out: shrinks a little as it fades. In: springs up from small.
+      scaled(fromText.canvas, 1 - (1 - POP_FROM) * 0.5 * out, 1 - out)
+      scaled(toText.canvas, POP_FROM + (1 - POP_FROM) * backOut(into), into * 1.8)
+    } else if (spec.type === "fade" || spec.type === "none" || spec.type === "cut") {
       ctx.globalAlpha = 1 - out
       ctx.drawImage(fromText.canvas, 0, 0)
       ctx.globalAlpha = into
@@ -202,9 +252,69 @@ export class TransitionRenderer {
     }
     ctx.restore()
   }
+
+  /**
+   * `source` on `scratch` with only part of `area` showing: the first
+   * `amount` of it from the `direction` edge ("show"), or all but that
+   * ("hide"), with a soft edge.
+   */
+  private wiped(
+    scratch: CanvasRenderingContext2D,
+    source: HTMLCanvasElement,
+    area: Rect,
+    direction: TransitionSpec["direction"],
+    amount: number,
+    mode: "show" | "hide"
+  ): void {
+    scratch.setTransform(1, 0, 0, 1, 0, 0)
+    scratch.globalCompositeOperation = "source-over"
+    scratch.globalAlpha = 1
+    scratch.drawImage(source, 0, 0)
+    // The wipe moves from the edge the band enters from: "up" enters from
+    // the bottom, "down" from the top, "left" from the right, "right" from the left.
+    const vertical = direction === "up" || direction === "down"
+    const length = vertical ? area.height : area.width
+    const feather = length * WIPE_FEATHER
+    const travel = (length + feather) * amount
+    const [x0, y0, x1, y1] =
+      direction === "up"
+        ? [0, area.y + area.height, 0, area.y]
+        : direction === "down"
+          ? [0, area.y, 0, area.y + area.height]
+          : direction === "left"
+            ? [area.x + area.width, 0, area.x, 0]
+            : [area.x, 0, area.x + area.width, 0]
+    const dx = Math.sign(x1 - x0)
+    const dy = Math.sign(y1 - y0)
+    // Along the wipe: shown up to `front - feather`, fading out to `front`.
+    const front = travel
+    const gradient = scratch.createLinearGradient(
+      x0 + dx * (front - feather),
+      y0 + dy * (front - feather),
+      x0 + dx * front,
+      y0 + dy * front
+    )
+    const shown = mode === "show" ? "rgba(0,0,0,1)" : "rgba(0,0,0,0)"
+    const hidden = mode === "show" ? "rgba(0,0,0,0)" : "rgba(0,0,0,1)"
+    gradient.addColorStop(0, shown)
+    gradient.addColorStop(1, hidden)
+    scratch.globalCompositeOperation = "destination-in"
+    scratch.fillStyle = gradient
+    scratch.fillRect(0, 0, scratch.canvas.width, scratch.canvas.height)
+    scratch.globalCompositeOperation = "source-over"
+  }
 }
 
 type Metrics = ReturnType<typeof renderVerse>
+
+type Rect = { x: number; y: number; width: number; height: number }
+
+/** `rect` (in the canvas's drawing units) in device pixels under `transform`. */
+function deviceRect(transform: DOMMatrix, rect: Rect): Rect {
+  const a = transform.transformPoint({ x: rect.x, y: rect.y })
+  const b = transform.transformPoint({ x: rect.x + rect.width, y: rect.y + rect.height })
+  return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), height: Math.abs(b.y - a.y) }
+}
 
 /**
  * The band both frames' words sit in (the union of their text boxes, which

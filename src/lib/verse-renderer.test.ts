@@ -82,9 +82,10 @@ function stubCtx(): CanvasRenderingContext2D {
 // proportions doesn't invalidate what these tests actually check: that the
 // backdrop sits at the anchored text area and never follows element boxes.
 const LOWER_THIRDS = BUILTIN_THEMES[2]
+// Centred at the bottom, lifted by the band's inset when it floats.
 const ANCHORED_BAND = {
-  x: 0,
-  y: 1080 - (LOWER_THIRDS.layout.textAreaHeight / 100) * 1080,
+  x: (1920 - (LOWER_THIRDS.layout.textAreaWidth / 100) * 1920) / 2,
+  y: 1080 - (LOWER_THIRDS.layout.textAreaHeight / 100) * 1080 - (LOWER_THIRDS.layout.bandInset ?? 0),
   width: (LOWER_THIRDS.layout.textAreaWidth / 100) * 1920,
   height: (LOWER_THIRDS.layout.textAreaHeight / 100) * 1080,
 }
@@ -252,6 +253,8 @@ function recordingCtx(): {
         if (prop in props) return props[prop]
         return (...args: unknown[]) => {
           calls.push({ method: String(prop), args })
+          // Gradients are filled in by the caller: hand back something that takes stops.
+          if (String(prop).endsWith("Gradient")) return { addColorStop: () => {} }
         }
       },
       set(_target, prop, value) {
@@ -306,15 +309,39 @@ describe("computeVerseLayoutMetrics — text box backdrop", () => {
   it("draws the backdrop at the anchored band, not the verse box", () => {
     const { ctx, calls } = recordingCtx()
     renderVerse(ctx, overlayFreeTheme(), VERSE)
-    // roundRect starts with moveTo(x + radius, y); Lower Thirds radius = 12.
+    // roundRect starts with moveTo(x + radius, y).
     const moveTos = calls.filter((c) => c.method === "moveTo")
     expect(
       moveTos.some(
-        (c) => c.args[0] === ANCHORED_BAND.x + 12 && c.args[1] === ANCHORED_BAND.y
+        (c) => c.args[0] === ANCHORED_BAND.x + LOWER_THIRDS.textBox.borderRadius && c.args[1] === ANCHORED_BAND.y
       )
     ).toBe(
       true
     )
+  })
+})
+
+describe("band gradient and accent", () => {
+  it("fills the band with its gradient edge to edge, then its accent stripe inside it", () => {
+    const { ctx, calls } = recordingCtx()
+    const base = BUILTIN_THEMES[2]
+    const theme: BroadcastTheme = {
+      ...base,
+      layout: { ...base.layout, textAreaWidth: 100, bandInset: 0 },
+      textBox: {
+        ...base.textBox,
+        borderRadius: 0,
+        gradient: { angle: 90, stops: [{ color: "#00000000", position: 0 }, { color: "#000000", position: 100 }] },
+        accent: { color: "#a3e635", width: 10, side: "left" },
+      },
+    }
+    renderVerse(ctx, theme, VERSE)
+    const bandTop = 1080 - (theme.layout.textAreaHeight / 100) * 1080
+    const gradient = calls.find((c) => c.method === "createLinearGradient")!
+    // Top to bottom of the band, through its middle.
+    expect(gradient.args).toEqual([960, bandTop, 960, 1080].map((v, i) => (i === 1 ? expect.closeTo(v, 5) : v)))
+    const stripe = calls.find((c) => c.method === "fillRect" && c.args[2] === 10)
+    expect(stripe?.args.slice(0, 2)).toEqual([0, expect.closeTo(bandTop, 5)])
   })
 })
 
@@ -392,7 +419,7 @@ describe("surface fills", () => {
     const moveTos = calls.filter((c) => c.method === "moveTo")
     expect(
       moveTos.some(
-        (c) => c.args[0] === ANCHORED_BAND.x + 12 && c.args[1] === ANCHORED_BAND.y
+        (c) => c.args[0] === ANCHORED_BAND.x + LOWER_THIRDS.textBox.borderRadius && c.args[1] === ANCHORED_BAND.y
       )
     ).toBe(
       true

@@ -16,6 +16,7 @@ import { MAIN_OUTPUT_ID, defaultNdiSettings, defaultStreamSettings, normalizeOut
 import { BUILTIN_THEMES, LOWER_THIRDS, CLASSIC_DARK } from "@/lib/builtin-themes"
 import { normalizeTheme } from "@/lib/theme-migrations"
 import { isLowerThird } from "@/lib/lower-third"
+import { LOWER_THIRD_LOOKS } from "@/lib/lower-third-looks"
 
 type SelectedElement = "verse" | "reference" | null
 
@@ -93,10 +94,17 @@ interface BroadcastState {
   /** Drop the style and its saved default: back to the theme's own look. */
   restoreThemeOriginalStyle: (kind: TextStyleKind) => void
   /**
-   * How tall the main output theme's text area is, in % of the frame: a
-   * lower third's band. A built-in theme is copied first, as the designer does.
+   * How tall the lower third's band is, in % of the frame (see
+   * `lowerThirdThemeId`). A built-in theme is copied first, as the designer does.
    */
   setBandHeight: (percent: number) => void
+  /**
+   * Change the lower third's theme (see `lowerThirdThemeId`), saved at once
+   * and sent to the outputs on it. A built-in theme is copied first.
+   */
+  updateLowerThird: (change: (theme: BroadcastTheme) => Partial<BroadcastTheme>) => void
+  /** Give the lower third one of `LOWER_THIRD_LOOKS`. */
+  applyLowerThirdLook: (lookId: string) => void
   /** A saved camera's address changed: point every theme that shows it there. */
   retargetCamera: (cameraId: string, url: string) => void
   syncBroadcastOutputFor: (outputId: string) => void
@@ -135,7 +143,33 @@ function editMainTheme(
 ): void {
   const s = get()
   const mainThemeId = s.outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? s.activeThemeId
-  let theme = s.themes.find((t) => t.id === mainThemeId) ?? s.themes[0]
+  editTheme(get, set, mainThemeId, change)
+}
+
+/**
+ * The theme the lower third is on: the main output's when that is a lower
+ * third, else the first output's that is; null when no output has one.
+ */
+export function lowerThirdThemeId(state: Pick<BroadcastState, "outputs" | "themes" | "activeThemeId">): string | null {
+  const themeOf = (id: string | undefined) => state.themes.find((t) => t.id === id)
+  const main = state.outputs.find((o) => o.id === MAIN_OUTPUT_ID)?.themeId ?? state.activeThemeId
+  if (isLowerThird(themeOf(main))) return main
+  return state.outputs.find((o) => isLowerThird(themeOf(o.themeId)))?.themeId ?? null
+}
+
+/**
+ * Save a change to theme `themeId` (or the first theme when it's gone). A
+ * built-in theme is copied first, as the designer does, and the outputs on
+ * it move to the copy.
+ */
+function editTheme(
+  get: () => BroadcastState,
+  set: (fn: (s: BroadcastState) => Partial<BroadcastState>) => void,
+  themeId: string,
+  change: (theme: BroadcastTheme) => Partial<BroadcastTheme>
+): void {
+  const s = get()
+  let theme = s.themes.find((t) => t.id === themeId) ?? s.themes[0]
   if (!theme) return
   if (theme.builtin) {
     const now = Date.now()
@@ -436,7 +470,15 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   },
   setBandHeight: (percent) => {
     const height = Math.min(100, Math.max(5, Math.round(percent)))
-    editMainTheme(get, set, (theme) => ({ layout: { ...theme.layout, textAreaHeight: height } }))
+    get().updateLowerThird((theme) => ({ layout: { ...theme.layout, textAreaHeight: height } }))
+  },
+  updateLowerThird: (change) => {
+    const themeId = lowerThirdThemeId(get())
+    if (themeId) editTheme(get, set, themeId, change)
+  },
+  applyLowerThirdLook: (lookId) => {
+    const look = LOWER_THIRD_LOOKS.find((l) => l.id === lookId)
+    if (look) get().updateLowerThird(look.apply)
   },
   retargetCamera: (cameraId, url) => {
     for (const theme of get().themes) {

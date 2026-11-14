@@ -203,6 +203,39 @@ export interface SurfaceFill {
    * in a Lower Thirds band; wins over `image`. `color` at `opacity` tints it.
    */
   video?: SurfaceVideo | null
+  /**
+   * A gradient in place of `color` (still at `opacity`), e.g. a Lower Thirds
+   * band fading from clear at the top to dark at the bottom. Under any
+   * image or video.
+   */
+  gradient?: SurfaceGradient | null
+  /** A stripe of colour along one edge, e.g. a Lower Thirds band's accent. */
+  accent?: SurfaceAccent | null
+}
+
+/** A linear gradient across a surface; `angle` in degrees as for the background: 0 = left to right, 90 = top to bottom. */
+export interface SurfaceGradient {
+  angle: number
+  /** `position` 0-100 along the gradient. Colours may carry alpha (rgba / #rrggbbaa). */
+  stops: { color: string; position: number }[]
+}
+
+export interface SurfaceAccent {
+  color: string
+  /** Thickness, in theme px. */
+  width: number
+  side: "left" | "top"
+}
+
+/**
+ * How a Lower Thirds band comes on and goes off air (word changes inside
+ * it keep the theme's `transition`).
+ */
+export interface BandTransition {
+  type: "fade" | "slide" | "wipe" | "pop" | "cut"
+  duration: number
+  easing: "linear" | "ease-in" | "ease-out" | "ease-in-out"
+  direction: "up" | "down" | "left" | "right"
 }
 
 /**
@@ -383,13 +416,21 @@ export interface BroadcastTheme {
     textAreaWidth: number
     textAreaHeight: number
     referenceGap?: number
+    /**
+     * Space between the text area (a Lower Thirds band) and the frame edges
+     * it is anchored to, in theme px, without moving the background as
+     * `offsetX`/`offsetY` do: a band floating above the bottom edge.
+     */
+    bandInset?: number
     /** "stacked" (default): reference + verse flow as one block. "free": each is positioned by its box. */
     mode?: "stacked" | "free"
     referenceBox?: ElementBox
     verseBox?: ElementBox
   }
+  /** How a Lower Thirds band comes on and goes off air; absent: `transition`. */
+  bandTransition?: BandTransition
   transition: {
-    type: "fade" | "slide" | "scale" | "none"
+    type: "fade" | "slide" | "scale" | "none" | "wipe" | "pop" | "cut"
     duration: number
     easing: "linear" | "ease-in" | "ease-out" | "ease-in-out"
     direction: "up" | "down" | "left" | "right"

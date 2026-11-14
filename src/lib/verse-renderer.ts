@@ -492,17 +492,7 @@ function drawBackground(
       let grad: CanvasGradient
 
       if (bg.gradient.type === "linear") {
-        const angle = (bg.gradient.angle * Math.PI) / 180
-        const cx = rect.x + rect.width / 2
-        const cy = rect.y + rect.height / 2
-        const len =
-          Math.sqrt(rect.width * rect.width + rect.height * rect.height) / 2
-        grad = ctx.createLinearGradient(
-          cx - Math.cos(angle) * len,
-          cy - Math.sin(angle) * len,
-          cx + Math.cos(angle) * len,
-          cy + Math.sin(angle) * len
-        )
+        grad = linearGradientAcross(ctx, rect, bg.gradient.angle, "diagonal")
       } else {
         grad = ctx.createRadialGradient(
           rect.x + rect.width / 2,
@@ -536,6 +526,34 @@ function drawBackground(
       else drawCameraBackground(ctx, bg.camera?.fit ?? "cover", rect, options?.cameraImage)
       break
   }
+}
+
+/**
+ * A linear gradient through the middle of `rect` at `angleDegrees` (0 = left
+ * to right, 90 = top to bottom). "diagonal" spans the rect's diagonal
+ * whatever the angle (theme backgrounds always have); "edges" spans exactly
+ * edge to edge along the angle, so a short wide band goes from its first
+ * colour at the top to its last at the bottom.
+ */
+function linearGradientAcross(
+  ctx: CanvasRenderingContext2D,
+  rect: VerseLayoutRect,
+  angleDegrees: number,
+  span: "diagonal" | "edges"
+): CanvasGradient {
+  const angle = (angleDegrees * Math.PI) / 180
+  const cx = rect.x + rect.width / 2
+  const cy = rect.y + rect.height / 2
+  const len =
+    span === "diagonal"
+      ? Math.sqrt(rect.width * rect.width + rect.height * rect.height) / 2
+      : (Math.abs(Math.cos(angle)) * rect.width + Math.abs(Math.sin(angle)) * rect.height) / 2
+  return ctx.createLinearGradient(
+    cx - Math.cos(angle) * len,
+    cy - Math.sin(angle) * len,
+    cx + Math.cos(angle) * len,
+    cy + Math.sin(angle) * len
+  )
 }
 
 /** The pixel size of something drawable, or null while it has no picture. */
@@ -697,11 +715,36 @@ function drawSurface(
   }
   ctx.save()
   ctx.globalAlpha = baseOpacity * surface.opacity
-  ctx.fillStyle = surface.color
+  ctx.fillStyle = surface.gradient?.stops.length ? surfaceGradient(ctx, surface.gradient, rect) : surface.color
   fillRoundRect(ctx, rect, surface.borderRadius)
   if (surface.image) {
     drawImageFill(ctx, surface.image, rect, surface.borderRadius, imageCache)
   }
+  ctx.restore()
+  drawAccent(ctx, surface, rect, baseOpacity)
+}
+
+function surfaceGradient(
+  ctx: CanvasRenderingContext2D,
+  gradient: NonNullable<SurfaceFill["gradient"]>,
+  rect: VerseLayoutRect
+): CanvasGradient {
+  const fill = linearGradientAcross(ctx, rect, gradient.angle, "edges")
+  for (const stop of gradient.stops) fill.addColorStop(Math.min(1, Math.max(0, stop.position / 100)), stop.color)
+  return fill
+}
+
+/** A surface's accent stripe along its edge, inside its rounded corners, at full strength. */
+function drawAccent(ctx: CanvasRenderingContext2D, surface: SurfaceFill, rect: VerseLayoutRect, baseOpacity: number): void {
+  const accent = surface.accent
+  if (!accent || !(accent.width > 0)) return
+  ctx.save()
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, surface.borderRadius)
+  ctx.clip()
+  ctx.globalAlpha = baseOpacity
+  ctx.fillStyle = accent.color
+  if (accent.side === "top") ctx.fillRect(rect.x, rect.y, rect.width, accent.width)
+  else ctx.fillRect(rect.x, rect.y, accent.width, rect.height)
   ctx.restore()
 }
 
@@ -743,10 +786,11 @@ function drawVideoSurface(
   }
   if (surface.opacity > 0) {
     ctx.globalAlpha = baseOpacity * surface.opacity
-    ctx.fillStyle = surface.color
+    ctx.fillStyle = surface.gradient?.stops.length ? surfaceGradient(ctx, surface.gradient, rect) : surface.color
     ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
   }
   ctx.restore()
+  drawAccent(ctx, surface, rect, baseOpacity)
 }
 
 /**
@@ -952,6 +996,7 @@ function buildScaledTheme(
     ...theme.layout,
     offsetX: theme.layout.offsetX * scale,
     offsetY: theme.layout.offsetY * scale,
+    bandInset: (theme.layout.bandInset ?? 0) * scale,
     padding: {
       top: theme.layout.padding.top * scale,
       right: theme.layout.padding.right * scale,
@@ -1022,6 +1067,7 @@ function scaleSurface(
     ...surface,
     borderRadius: surface.borderRadius * scale,
     padding: surface.padding * scale,
+    accent: surface.accent ? { ...surface.accent, width: surface.accent.width * scale } : surface.accent,
     image: surface.image
       ? { ...surface.image, blur: surface.image.blur * scale }
       : null,
@@ -1265,6 +1311,14 @@ function rectForAlignedText(
   }
 }
 
+/** How far `bandInset` moves the text area away from the edges it's anchored to. */
+function bandInsetOffset(anchor: BroadcastTheme["layout"]["anchor"], inset: number): { x: number; y: number } {
+  if (!(inset > 0)) return { x: 0, y: 0 }
+  const y = anchor.startsWith("top") ? inset : anchor.startsWith("bottom") ? -inset : 0
+  const x = anchor.endsWith("left") ? inset : anchor.endsWith("right") ? -inset : 0
+  return { x, y }
+}
+
 /** The anchored background region of an already-scaled theme. */
 function regionFor(scaledTheme: BroadcastTheme, offsetX: number, offsetY: number): VerseLayoutRect {
   const { layout, resolution } = scaledTheme
@@ -1453,7 +1507,8 @@ function layoutVerse(
   // applied to the region itself). At 100% × 100% this matches anchoring to
   // the canvas directly.
   const innerPos = anchorPosition(layout.anchor, textAreaW, textAreaH, bgW, bgH, 0, 0)
-  const pos = { x: bgPos.x + innerPos.x, y: bgPos.y + innerPos.y }
+  const inset = bandInsetOffset(layout.anchor, layout.bandInset ?? 0)
+  const pos = { x: bgPos.x + innerPos.x + inset.x, y: bgPos.y + innerPos.y + inset.y }
 
   const pad = layout.padding
   // The container's own padding insets the text too, so content wraps inside

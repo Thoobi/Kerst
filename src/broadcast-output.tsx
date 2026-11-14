@@ -16,6 +16,7 @@ import { bandReady, placeBand } from "@/lib/band-layout"
 import { latestCameraFrame } from "@/lib/mjpeg-reader"
 import {
   shouldTransition,
+  transitionSpecFor,
   transitionProgress,
   TransitionRenderer,
   type ActiveTransition,
@@ -326,7 +327,7 @@ function BroadcastCanvas() {
         transitionRef.current = {
           from: previous!,
           start: performance.now(),
-          spec: latestData.current.theme.transition,
+          spec: transitionSpecFor(previous!, latestData.current),
         }
         animateTransition()
       }

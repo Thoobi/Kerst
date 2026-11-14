@@ -623,6 +623,50 @@ describe("setBandHeight", () => {
   })
 })
 
+describe("styling the lower third", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it("edits the lower third's theme even when the main output is full screen", async () => {
+    const { useBroadcastStore, lowerThirdThemeId } = await import("./broadcast-store")
+    const { LOWER_THIRDS, CLASSIC_DARK } = await import("@/lib/builtin-themes")
+    const main = useBroadcastStore.getState().outputs[0]
+    useBroadcastStore.setState({
+      outputs: [
+        { ...main, id: "main", themeId: CLASSIC_DARK.id },
+        { ...main, id: "stream", themeId: LOWER_THIRDS.id },
+      ],
+    })
+    expect(lowerThirdThemeId(useBroadcastStore.getState())).toBe(LOWER_THIRDS.id)
+
+    useBroadcastStore.getState().applyLowerThirdLook("accent-bar")
+    const s = useBroadcastStore.getState()
+    const copyId = s.outputs.find((o) => o.id === "stream")!.themeId
+    const copy = s.themes.find((t) => t.id === copyId)!
+    expect(copy.builtin).toBe(false)
+    expect(copy.textBox.accent?.side).toBe("left")
+    expect(copy.bandTransition?.type).toBe("wipe")
+    // The full-screen output and the built-ins are untouched.
+    expect(s.outputs.find((o) => o.id === "main")!.themeId).toBe(CLASSIC_DARK.id)
+    expect(s.themes.find((t) => t.id === LOWER_THIRDS.id)!.textBox.accent?.side).toBe("top")
+
+    useBroadcastStore.getState().updateLowerThird((t) => ({ bandTransition: { ...t.bandTransition!, type: "cut" } }))
+    const again = useBroadcastStore.getState()
+    expect(again.themes.filter((t) => !t.builtin)).toHaveLength(1)
+    expect(again.themes.find((t) => t.id === copyId)!.bandTransition?.type).toBe("cut")
+  })
+
+  it("does nothing when no output has a lower third", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { CLASSIC_DARK } = await import("@/lib/builtin-themes")
+    useBroadcastStore.getState().setOutputTheme("main", CLASSIC_DARK.id)
+    const before = useBroadcastStore.getState().themes
+    useBroadcastStore.getState().applyLowerThirdLook("classic")
+    expect(useBroadcastStore.getState().themes).toBe(before)
+  })
+})
+
 describe("saveDraft", () => {
   beforeEach(() => {
     vi.resetModules()

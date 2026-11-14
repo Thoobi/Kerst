@@ -7,6 +7,7 @@ import { ContentPanel } from "@/components/panels/content-panel"
 import { DetectionsPanel } from "@/components/panels/detections-panel"
 import { LyricsStylePanel, ScriptureStylePanel } from "@/components/panels/lyrics-style-panel"
 import { TimerStylePanel } from "@/components/panels/timer-panel"
+import { LowerThirdPanel } from "@/components/panels/lower-third-panel"
 import { useContentTabStore } from "@/stores/content-tab-store"
 import { EmbeddingWarningBanner } from "@/components/ui/embedding-warning-banner"
 
@@ -23,10 +24,13 @@ import { EmbeddingWarningBanner } from "@/components/ui/embedding-warning-banner
 export function Dashboard() {
   const contentTab = useContentTabStore((s) => s.tab)
   const bibleStyleOpen = useContentTabStore((s) => s.bibleStyleOpen)
-  const lyricsStyling = contentTab === "songs" || contentTab === "texts"
-  const scriptureStyling = contentTab === "bible" && bibleStyleOpen
-  const timerStyling = contentTab === "timer"
-  const styling = lyricsStyling || scriptureStyling || timerStyling
+  const lyricsTab = contentTab === "songs" || contentTab === "texts"
+  const lowerThirdStyling = useContentTabStore((s) => s.lowerThirdStyleOpen)
+  // The Lower Third panel, when open, takes the place of the tab's own panel.
+  const lyricsStyling = !lowerThirdStyling && lyricsTab
+  const scriptureStyling = !lowerThirdStyling && contentTab === "bible" && bibleStyleOpen
+  const timerStyling = !lowerThirdStyling && contentTab === "timer"
+  const styling = lowerThirdStyling || lyricsStyling || scriptureStyling || timerStyling
   return (
     <div className="fixed inset-0 grid grid-rows-[auto_auto_minmax(0,1fr)] overflow-hidden bg-background">
       <TransportBar />
@@ -50,6 +54,7 @@ export function Dashboard() {
           {/* Songs and texts get quick text styling here, the timer its
               properties, and the Bible tab on request; detections stay mounted underneath so live
               detection keeps running. */}
+          {lowerThirdStyling && <LowerThirdPanel />}
           {lyricsStyling && <LyricsStylePanel />}
           {scriptureStyling && <ScriptureStylePanel />}
           {timerStyling && <TimerStylePanel />}

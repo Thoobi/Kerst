@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { contentKey, ease, shouldTransition, transitionProgress } from "./frame-transition"
+import { contentKey, ease, shouldTransition, transitionProgress, transitionSpecFor } from "./frame-transition"
 import { BUILTIN_THEMES } from "./builtin-themes"
 import type { BroadcastTheme, VerseRenderData } from "@/types/broadcast"
 
@@ -60,5 +60,32 @@ describe("easing", () => {
     const transition = { from: { theme, verse: null }, start: 1000, spec: theme.transition }
     expect(transitionProgress(transition, 1200)).toBeCloseTo(0.5)
     expect(transitionProgress(transition, 1400)).toBe(1)
+  })
+})
+
+describe("transitionSpecFor", () => {
+  const band = { type: "pop" as const, duration: 450, easing: "ease-out" as const, direction: "up" as const }
+  const lowerThird: BroadcastTheme = { ...theme, bandTransition: band }
+
+  it("uses the band transition coming on and going off air", () => {
+    expect(transitionSpecFor({ theme: lowerThird, verse: null }, { theme: lowerThird, verse: verse("a") })).toEqual(band)
+    expect(transitionSpecFor({ theme: lowerThird, verse: verse("a") }, { theme: lowerThird, verse: null })).toEqual(band)
+  })
+
+  it("keeps the theme's transition for new words in the band", () => {
+    expect(
+      transitionSpecFor({ theme: lowerThird, verse: verse("a") }, { theme: lowerThird, verse: verse("b") })
+    ).toEqual(theme.transition)
+  })
+
+  it("falls back to the theme's transition without a band transition", () => {
+    expect(transitionSpecFor({ theme, verse: null }, { theme, verse: verse("a") })).toEqual(theme.transition)
+  })
+
+  it("doesn't animate a cut", () => {
+    const cut: BroadcastTheme = { ...theme, bandTransition: { ...band, type: "cut" } }
+    expect(shouldTransition({ theme: cut, verse: null }, { theme: cut, verse: verse("a") })).toBe(false)
+    // New words still use the theme's own transition.
+    expect(shouldTransition({ theme: cut, verse: verse("a") }, { theme: cut, verse: verse("b") })).toBe(true)
   })
 })

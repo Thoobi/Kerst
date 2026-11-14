@@ -10,6 +10,7 @@ import type { BroadcastTheme, VerseRenderData } from "@/types"
 import { cn } from "@/lib/utils"
 import {
   shouldTransition,
+  transitionSpecFor,
   transitionProgress,
   TransitionRenderer,
   type ActiveTransition,
@@ -91,7 +92,7 @@ export const CanvasVerse = memo(function CanvasVerse({
     const frame: Frame = { theme, verse }
     const shown = shownRef.current
     if (animate && shown && shown.verse !== verse && shouldTransition(shown, frame)) {
-      transitionRef.current = { from: shown, start: performance.now(), spec: theme.transition }
+      transitionRef.current = { from: shown, start: performance.now(), spec: transitionSpecFor(shown, frame) }
     }
     shownRef.current = frame
 
