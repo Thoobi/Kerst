@@ -75,7 +75,12 @@ export function ThemeChip() {
           <ChevronDownIcon className="size-3 shrink-0 opacity-70" />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[26rem] max-w-[calc(100vw-2rem)] p-0">
+      <PopoverContent
+        align="end"
+        className="w-[26rem] max-w-[calc(100vw-2rem)] p-0"
+        // Don't focus the first thumbnail on open: its focus ring reads as "selected".
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto p-3">
           {outputs.map((output) => {
             const current = output.themeId ?? activeThemeId
@@ -86,7 +91,7 @@ export function ThemeChip() {
                     {output.name}
                   </span>
                 )}
-                <div role="radiogroup" aria-label={`${output.name} theme`} className="flex gap-2 overflow-x-auto pb-1">
+                <div role="radiogroup" aria-label={`${output.name} theme`} className="grid grid-cols-4 gap-2">
                   {ordered.map((theme) => {
                     const on = theme.id === current
                     return (
@@ -97,7 +102,7 @@ export function ThemeChip() {
                         aria-checked={on}
                         title={on ? `${theme.name}: on ${output.name}` : `Show ${theme.name} on ${output.name}`}
                         onClick={() => useBroadcastStore.getState().setOutputTheme(output.id, theme.id)}
-                        className="group flex w-24 shrink-0 flex-col gap-1 text-left outline-none"
+                        className="group flex min-w-0 flex-col gap-1 text-left outline-none"
                       >
                         <div
                           className={cn(
