@@ -1406,6 +1406,15 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
       ...backgroundOverride(styled, style?.backgroundCamera, style?.backgroundColor),
     }
   }
+  if (verse?.style === "name") {
+    // A person's name, big, with their title under it, smaller: the theme's
+    // words and reference, with no verse number and the reference below.
+    return {
+      ...theme,
+      verseNumbers: { ...theme.verseNumbers, visible: false },
+      reference: { ...theme.reference, position: "below" },
+    }
+  }
   if (verse?.style === "lyrics" && theme.lyricsText) return withTextStyle(theme, theme.lyricsText)
   if (verse?.style === "scripture" && theme.scriptureText) {
     const { referenceFontSize, referenceColor, backgroundColor, backgroundCamera } = theme.scriptureText

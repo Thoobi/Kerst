@@ -15,6 +15,14 @@ export function recommendedWhisperModel(): WhisperModel {
 }
 
 /** A network camera the operator added, e.g. a phone running IP Webcam. */
+/** A person to show by name, e.g. a guest speaker: "Jane Doe", "Lead Pastor". */
+export interface SpeakerName {
+  id: string
+  name: string
+  /** Their role, shown smaller under the name; may be empty. */
+  title: string
+}
+
 export interface SavedCamera {
   id: string
   name: string
@@ -34,6 +42,8 @@ interface SettingsState {
   sttProvider: SttProvider
   whisperModel: WhisperModel
   cameras: SavedCamera[]
+  /** People to show by name (the Names tab), in the operator's order. */
+  speakers: SpeakerName[]
 
   setDeepgramApiKey: (key: string | null) => void
   setOpenaiApiKey: (key: string | null) => void
@@ -49,6 +59,9 @@ interface SettingsState {
   addCamera: (camera: Omit<SavedCamera, "id">) => SavedCamera
   updateCamera: (id: string, patch: Partial<Omit<SavedCamera, "id">>) => void
   removeCamera: (id: string) => void
+  addSpeaker: (speaker: Omit<SpeakerName, "id">) => SpeakerName
+  updateSpeaker: (id: string, patch: Partial<Omit<SpeakerName, "id">>) => void
+  removeSpeaker: (id: string) => void
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -64,6 +77,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   sttProvider: "deepgram",
   whisperModel: recommendedWhisperModel(),
   cameras: [],
+  speakers: [],
 
   setDeepgramApiKey: (deepgramApiKey) => set({ deepgramApiKey }),
   setOpenaiApiKey: (openaiApiKey) => set({ openaiApiKey }),
@@ -83,6 +97,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
   updateCamera: (id, patch) => set({ cameras: get().cameras.map((c) => (c.id === id ? { ...c, ...patch } : c)) }),
   removeCamera: (id) => set({ cameras: get().cameras.filter((c) => c.id !== id) }),
+  addSpeaker: (speaker) => {
+    const added = { ...speaker, id: crypto.randomUUID() }
+    set({ speakers: [...get().speakers, added] })
+    return added
+  },
+  updateSpeaker: (id, patch) => set({ speakers: get().speakers.map((s) => (s.id === id ? { ...s, ...patch } : s)) }),
+  removeSpeaker: (id) => set({ speakers: get().speakers.filter((s) => s.id !== id) }),
 }))
 
 const PERSISTED_KEYS = [
@@ -98,6 +119,7 @@ const PERSISTED_KEYS = [
   "sttProvider",
   "whisperModel",
   "cameras",
+  "speakers",
 ] as const satisfies readonly (keyof SettingsState)[]
 
 let tauriStore: Store | null = null

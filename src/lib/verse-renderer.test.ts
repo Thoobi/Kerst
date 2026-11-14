@@ -997,3 +997,16 @@ describe("timer font", () => {
     expect(metrics.verseRect!.y + metrics.verseRect!.height).toBeLessThanOrEqual(ref.y)
   })
 })
+
+describe("speaker names", () => {
+  it("shows the name big with the title under it, and no verse number", async () => {
+    const { nameRenderData } = await import("./speaker-names")
+    const content = nameRenderData({ name: " Jane Doe ", title: "Lead Pastor" })
+    expect(content).toEqual({ style: "name", reference: "Lead Pastor", segments: [{ text: "Jane Doe" }] })
+    const shown = themeForContent(BUILTIN_THEMES[2], content)
+    expect(shown.reference.position).toBe("below")
+    expect(shown.verseNumbers.visible).toBe(false)
+    const metrics = computeVerseLayoutMetrics(stubCtx(), shown, content)
+    expect(metrics.referenceRect!.y).toBeGreaterThan(metrics.verseRect!.y)
+  })
+})

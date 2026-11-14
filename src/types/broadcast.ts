@@ -27,7 +27,7 @@ export interface VerseRenderData {
    * Lyrics and texts set "lyrics", so the theme's song and text style
    * applies; Bible verses set "scripture" for its Bible style.
    */
-  style?: "lyrics" | "scripture"
+  style?: "lyrics" | "scripture" | "name"
   /**
    * A small credit line in the bottom-right corner, e.g. a song's title and
    * author, kept off the main text so only the words are big on screen.

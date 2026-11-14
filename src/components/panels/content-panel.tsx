@@ -1,4 +1,4 @@
-import { BookOpenIcon, FilmIcon, MegaphoneIcon, MusicIcon, PaletteIcon, PresentationIcon, TimerIcon } from "lucide-react"
+import { BookOpenIcon, FilmIcon, MegaphoneIcon, MusicIcon, PaletteIcon, PresentationIcon, TimerIcon, UserRoundIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SearchPanel } from "@/components/panels/search-panel"
 import { SlidesPanel } from "@/components/panels/slides-panel"
@@ -6,6 +6,7 @@ import { SongsPanel } from "@/components/panels/songs-panel"
 import { VideosPanel } from "@/components/panels/videos-panel"
 import { TextsPanel } from "@/components/panels/texts-panel"
 import { TimerPanel } from "@/components/panels/timer-panel"
+import { NamesPanel } from "@/components/panels/names-panel"
 import { useContentTabStore, type ContentTab } from "@/stores/content-tab-store"
 import { cn } from "@/lib/utils"
 
@@ -16,6 +17,7 @@ const TABS: { id: ContentTab; label: string; icon: typeof BookOpenIcon }[] = [
   { id: "slides", label: "Slides", icon: PresentationIcon },
   { id: "videos", label: "Videos", icon: FilmIcon },
   { id: "texts", label: "Texts", icon: MegaphoneIcon },
+  { id: "names", label: "Names", icon: UserRoundIcon },
   { id: "timer", label: "Timer", icon: TimerIcon },
 ]
 
@@ -78,6 +80,9 @@ export function ContentPanel() {
       </div>
       <div className={cn("flex min-h-0 flex-1 flex-col", tab !== "texts" && "hidden")}>
         <TextsPanel />
+      </div>
+      <div className={cn("flex min-h-0 flex-1 flex-col", tab !== "names" && "hidden")}>
+        <NamesPanel />
       </div>
       <div className={cn("flex min-h-0 flex-1 flex-col", tab !== "timer" && "hidden")}>
         <TimerPanel />
