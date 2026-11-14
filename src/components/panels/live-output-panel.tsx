@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { EyeIcon, EyeOffIcon, PaletteIcon } from "lucide-react"
+import { EyeOffIcon, PaletteIcon } from "lucide-react"
 import { useContentTabStore } from "@/stores/content-tab-store"
 import { toast } from "sonner"
 import { PanelHeader } from "@/components/ui/panel-header"
@@ -115,31 +115,13 @@ export function LiveOutputPanel() {
         {hasLowerThird && (
           <button
             type="button"
-            aria-pressed={lowerThirdHidden}
-            disabled={!isLive}
-            onClick={() => useBroadcastStore.getState().setLowerThirdHidden(!lowerThirdHidden)}
-            title={
-              lowerThirdHidden
-                ? "Bring the lower third back on screen (H)"
-                : "Take the lower third off screen, staying on air (H)"
-            }
-            className={cn(
-              "flex h-6 items-center gap-1 rounded-full px-2 text-xs font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-40",
-              lowerThirdHidden
-                ? "bg-amber-500/20 text-amber-600 hover:bg-amber-500/30 dark:text-amber-400"
-                : "border border-border text-foreground hover:bg-muted"
-            )}
-          >
-            {lowerThirdHidden ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
-            {lowerThirdHidden ? "Show band" : "Hide band"}
-          </button>
-        )}
-        {hasLowerThird && (
-          <button
-            type="button"
             aria-pressed={lowerThirdStyleOpen}
             onClick={() => useContentTabStore.getState().setLowerThirdStyleOpen(!lowerThirdStyleOpen)}
-            title="The lower third's look: background, text and transition"
+            title={
+              lowerThirdHidden
+                ? "The band is hidden. Show it again, and style it, in the Lower third panel (or press H)"
+                : "Hide or show the band, and style it: background, text and transition"
+            }
             className={cn(
               "flex h-6 items-center gap-1 rounded-full px-2 text-xs font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
               lowerThirdStyleOpen
@@ -147,7 +129,7 @@ export function LiveOutputPanel() {
                 : "border border-border text-foreground hover:bg-muted"
             )}
           >
-            <PaletteIcon className="size-3.5" />
+            {lowerThirdHidden ? <EyeOffIcon className="size-3.5 text-amber-500" /> : <PaletteIcon className="size-3.5" />}
             Lower third
           </button>
         )}

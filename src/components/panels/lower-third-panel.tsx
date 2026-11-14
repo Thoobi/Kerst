@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { ImageIcon, PlayIcon, XIcon } from "lucide-react"
+import { EyeIcon, EyeOffIcon, ImageIcon, PlayIcon, XIcon } from "lucide-react"
 import { toast } from "sonner"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { Button } from "@/components/ui/button"
@@ -103,6 +103,8 @@ export function LowerThirdPanel() {
   const themes = useBroadcastStore((s) => s.themes)
   const outputs = useBroadcastStore((s) => s.outputs)
   const activeThemeId = useBroadcastStore((s) => s.activeThemeId)
+  const isLive = useBroadcastStore((s) => s.isLive)
+  const bandHidden = useBroadcastStore((s) => s.lowerThirdHidden)
   const preview = usePreviewStore((s) => s.content)
   const themeId = lowerThirdThemeId({ themes, outputs, activeThemeId })
   const theme = themes.find((t) => t.id === themeId)
@@ -219,6 +221,28 @@ export function LowerThirdPanel() {
       </PanelHeader>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+          <span
+            className={cn(
+              "size-2 shrink-0 rounded-full",
+              !isLive ? "bg-muted-foreground/40" : bandHidden ? "bg-amber-500" : "bg-live-pulse"
+            )}
+          />
+          <span className="min-w-0 flex-1 text-xs text-muted-foreground">
+            {!isLive ? "Off air: go live to show the band" : bandHidden ? "Band hidden, still on air" : "Band on screen"}
+          </span>
+          <Button
+            variant={bandHidden ? "default" : "outline"}
+            size="sm"
+            disabled={!isLive}
+            aria-pressed={bandHidden}
+            onClick={() => useBroadcastStore.getState().setLowerThirdHidden(!bandHidden)}
+            title={bandHidden ? "Bring the band back on screen (H)" : "Take the band off screen, staying on air (H)"}
+          >
+            {bandHidden ? <EyeIcon /> : <EyeOffIcon />}
+            {bandHidden ? "Show band" : "Hide band"}
+          </Button>
+        </div>
         <div className="px-3 pt-3">
           <div className={cn("relative overflow-hidden rounded-md", CHECKER)}>
             <CanvasVerse theme={theme} verse={sampleShown ? words : null} animate />
