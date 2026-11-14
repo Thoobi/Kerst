@@ -43,8 +43,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Pinned: Rust 1.100 moved build scripts' output a folder deeper, and
+      # ort-sys 2.0.0-rc.13 finds where to put the Windows DirectML DLLs by
+      # counting folders up from it, so the Windows build fails ("cannot
+      # find the path specified" in its dynamic_link.rs). Move up once ort
+      # handles the new layout.
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.99.1
         with:
           targets: ${{ matrix.target }}
 
