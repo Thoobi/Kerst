@@ -3,7 +3,7 @@ import { toast } from "sonner"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
 import { SyncedVideo } from "@/components/ui/synced-video"
-import { Switch } from "@/components/ui/switch"
+import { VerseSuggestion } from "@/components/panels/verse-suggestion"
 import { LiveVideoTransport } from "@/components/controls/video-transport"
 import { useVideosStore } from "@/stores/videos-store"
 import { cn } from "@/lib/utils"
@@ -16,6 +16,7 @@ import { isTypingOrHandled } from "@/lib/operator-keys"
 export function LiveOutputPanel() {
   const isLive = useBroadcastStore((s) => s.isLive)
   const autoLive = useBroadcastStore((s) => s.autoLive)
+  const askLive = useBroadcastStore((s) => s.askLive)
   const liveVerse = useBroadcastStore((s) => s.liveVerse)
   const themes = useBroadcastStore((s) => s.themes)
   const activeThemeId = useBroadcastStore((s) => s.activeThemeId)
@@ -90,25 +91,37 @@ export function LiveOutputPanel() {
       )}
     >
       <PanelHeader title="Live">
-        <label
-          className="flex cursor-pointer items-center gap-1.5"
-          title="When on, detected verses are presented to the live display automatically. Turn off for manual control."
+        <div
+          role="radiogroup"
+          aria-label="Detected verses"
+          className="flex items-center rounded-full bg-muted p-0.5"
+          title="Verses the detector hears: Off shows them in the preview only, Ask offers each one over the Live view for one click, Auto puts them on air"
         >
-          <span
-            className={cn(
-              "text-xs transition-colors",
-              autoLive ? "text-foreground" : "text-muted-foreground"
-            )}
-          >
-            Auto
-          </span>
-          <Switch
-            checked={autoLive}
-            onCheckedChange={(checked) =>
-              useBroadcastStore.getState().setAutoLive(checked)
-            }
-          />
-        </label>
+          {(
+            [
+              ["manual", "Off"],
+              ["ask", "Ask"],
+              ["auto", "Auto"],
+            ] as const
+          ).map(([mode, label]) => {
+            const on = (autoLive ? "auto" : askLive ? "ask" : "manual") === mode
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => useBroadcastStore.getState().setVerseMode(mode)}
+                className={cn(
+                  "h-5 rounded-full px-2 text-[0.6875rem] font-medium transition-colors",
+                  on ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
         <button
           type="button"
           role="switch"
@@ -152,6 +165,7 @@ export function LiveOutputPanel() {
               className="absolute inset-1.5 size-[calc(100%-0.75rem)] rounded-md bg-black object-contain"
             />
           )}
+          <VerseSuggestion />
           {isLive && bandHidden && (
             <div className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex justify-center pb-2">
               <span className="rounded-full bg-black/60 px-2.5 py-1 text-[0.6875rem] font-medium tracking-wide text-amber-300">

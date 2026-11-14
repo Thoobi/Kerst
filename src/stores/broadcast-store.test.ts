@@ -691,6 +691,74 @@ describe("styling the lower third", () => {
   })
 })
 
+describe("detected verses: off, ask, auto", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  const verse = { id: 1, translation_id: 1, book_number: 43, book_name: "John", book_abbreviation: "", chapter: 3, verse: 16, text: "For God so loved" }
+
+  it("offers a heard verse only when asking and on air", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const store = useBroadcastStore.getState()
+    store.setVerseMode("ask")
+    expect(useBroadcastStore.getState()).toMatchObject({ askLive: true, autoLive: false })
+
+    useBroadcastStore.getState().suggestVerse(verse)
+    expect(useBroadcastStore.getState().verseSuggestion).toBeNull() // off air
+
+    useBroadcastStore.setState({ isLive: true })
+    useBroadcastStore.getState().suggestVerse(verse)
+    expect(useBroadcastStore.getState().verseSuggestion?.verse).toEqual(verse)
+
+    // Going off air, or changing mode, drops it.
+    useBroadcastStore.getState().setLive(false)
+    expect(useBroadcastStore.getState().verseSuggestion).toBeNull()
+    useBroadcastStore.setState({ isLive: true })
+    useBroadcastStore.getState().suggestVerse(verse)
+    useBroadcastStore.getState().setVerseMode("auto")
+    expect(useBroadcastStore.getState()).toMatchObject({ askLive: false, autoLive: true, verseSuggestion: null })
+    useBroadcastStore.getState().suggestVerse(verse)
+    expect(useBroadcastStore.getState().verseSuggestion).toBeNull()
+  })
+})
+
+describe("scenes", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it("saves every output's theme and switches them all back in one go", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { LOWER_THIRDS, CLASSIC_DARK } = await import("@/lib/builtin-themes")
+    const main = useBroadcastStore.getState().outputs[0]
+    useBroadcastStore.setState({
+      outputs: [
+        { ...main, id: "main", themeId: LOWER_THIRDS.id },
+        { ...main, id: "stream", themeId: CLASSIC_DARK.id },
+      ],
+    })
+    const sermon = useBroadcastStore.getState().saveScene("Sermon")
+    expect(sermon.themes).toEqual({ main: LOWER_THIRDS.id, stream: CLASSIC_DARK.id })
+
+    useBroadcastStore.getState().setOutputTheme("main", CLASSIC_DARK.id)
+    useBroadcastStore.getState().setOutputTheme("stream", LOWER_THIRDS.id)
+    useBroadcastStore.getState().applyScene(sermon.id)
+    const outputs = useBroadcastStore.getState().outputs
+    expect(outputs.find((o) => o.id === "main")!.themeId).toBe(LOWER_THIRDS.id)
+    expect(outputs.find((o) => o.id === "stream")!.themeId).toBe(CLASSIC_DARK.id)
+  })
+
+  it("leaves an output alone when its scene theme was deleted", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { CLASSIC_DARK } = await import("@/lib/builtin-themes")
+    useBroadcastStore.getState().setOutputTheme("main", CLASSIC_DARK.id)
+    useBroadcastStore.setState({ scenes: [{ id: "s", name: "Old", themes: { main: "gone" } }] })
+    useBroadcastStore.getState().applyScene("s")
+    expect(useBroadcastStore.getState().outputs.find((o) => o.id === "main")!.themeId).toBe(CLASSIC_DARK.id)
+  })
+})
+
 describe("saveDraft", () => {
   beforeEach(() => {
     vi.resetModules()

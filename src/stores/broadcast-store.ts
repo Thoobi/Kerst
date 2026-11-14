@@ -42,6 +42,15 @@ interface BroadcastState {
   // output only changes via explicit presents (manual operator control).
   autoLive: boolean
   /**
+   * With auto-live off, detections are offered instead: the operator sees
+   * the verse heard (`verseSuggestion`) and shows it with one click.
+   */
+  askLive: boolean
+  /** A detected verse waiting for the operator's click, while asking. Not persisted. */
+  verseSuggestion: { verse: Verse; heardAt: number } | null
+  /** Saved sets of which theme each output uses, switched in one click. */
+  scenes: Scene[]
+  /**
    * A timer shown on some outputs in place of the live content, so one
    * screen can count down while another carries the Bible. Not persisted.
    */
@@ -73,6 +82,17 @@ interface BroadcastState {
   setLive: (live: boolean) => void
   setLiveVerse: (verse: VerseRenderData | null, source?: Verse | null) => void
   setAutoLive: (auto: boolean) => void
+  /** Detected verses: shown in the preview only, offered, or put on air. */
+  setVerseMode: (mode: VerseMode) => void
+  /** Offer `verse` (asking mode, on air only). */
+  suggestVerse: (verse: Verse) => void
+  clearSuggestion: () => void
+  /** Save the outputs' current themes as a scene called `name`. */
+  saveScene: (name: string) => Scene
+  /** Switch every output in the scene to its theme there. */
+  applyScene: (id: string) => void
+  renameScene: (id: string, name: string) => void
+  deleteScene: (id: string) => void
   /** Show `verse` (a timer) on `outputIds`; null or no ids hands them back to the live content. */
   setTimerOverlay: (verse: VerseRenderData | null, outputIds: string[]) => void
   /** Hide (true) or reveal the band on lower-third outputs; it slides out and in. */
@@ -193,6 +213,17 @@ function editTheme(
 }
 
 export type TextStyleKind = "lyrics" | "scripture"
+
+/** What happens to a verse the detector hears. */
+export type VerseMode = "manual" | "ask" | "auto"
+
+/** A saved set of which theme each output uses, e.g. "Sermon" or "Worship". */
+export interface Scene {
+  id: string
+  name: string
+  /** Theme id by output id. */
+  themes: Record<string, string>
+}
 
 /** A feed pointed at `url` if it is that camera's; the same object otherwise. */
 export function retargetFeed<T extends CameraFeed | null | undefined>(feed: T, cameraId: string, url: string): T {
@@ -346,6 +377,9 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   liveVerse: null,
   liveSourceVerse: null,
   autoLive: true,
+  askLive: false,
+  verseSuggestion: null,
+  scenes: [],
   timerVerse: null,
   timerOutputIds: [],
   lowerThirdHidden: false,
@@ -582,7 +616,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     }),
   setLive: (isLive) => {
     // Off air, a hidden lower third is shown again next time.
-    set(isLive ? { isLive } : { isLive, lowerThirdHidden: false })
+    set(isLive ? { isLive } : { isLive, lowerThirdHidden: false, verseSuggestion: null })
     get().syncBroadcastOutput()
   },
   setLiveVerse: (liveVerse, source = null) => {
@@ -590,6 +624,36 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     get().syncBroadcastOutput()
   },
   setAutoLive: (autoLive) => set({ autoLive }),
+  setVerseMode: (mode) => set({ autoLive: mode === "auto", askLive: mode === "ask", verseSuggestion: null }),
+  suggestVerse: (verse) => {
+    const s = get()
+    if (!s.askLive || s.autoLive || !s.isLive) return
+    set({ verseSuggestion: { verse, heardAt: Date.now() } })
+  },
+  clearSuggestion: () => set({ verseSuggestion: null }),
+  saveScene: (name) => {
+    const scene: Scene = {
+      id: crypto.randomUUID(),
+      name: name.trim() || `Scene ${get().scenes.length + 1}`,
+      themes: Object.fromEntries(get().outputs.map((o) => [o.id, o.themeId])),
+    }
+    set({ scenes: [...get().scenes, scene] })
+    return scene
+  },
+  applyScene: (id) => {
+    const scene = get().scenes.find((sc) => sc.id === id)
+    if (!scene) return
+    for (const output of get().outputs) {
+      const themeId = scene.themes[output.id]
+      // A theme deleted since, or an output added since: leave it as it is.
+      if (themeId && themeId !== output.themeId && get().themes.some((t) => t.id === themeId)) {
+        get().setOutputTheme(output.id, themeId)
+      }
+    }
+  },
+  renameScene: (id, name) =>
+    set({ scenes: get().scenes.map((sc) => (sc.id === id && name.trim() ? { ...sc, name: name.trim() } : sc)) }),
+  deleteScene: (id) => set({ scenes: get().scenes.filter((sc) => sc.id !== id) }),
   setLowerThirdHidden: (lowerThirdHidden) => {
     if (get().lowerThirdHidden === lowerThirdHidden) return
     set({ lowerThirdHidden })
@@ -700,6 +764,8 @@ export function hydrateBroadcastThemes(): Promise<void> {
       const activeId = (await store.get("activeThemeId")) as string | undefined
       const altActiveId = (await store.get("altActiveThemeId")) as string | undefined
       const autoLive = (await store.get("autoLive")) as boolean | undefined
+      const askLive = (await store.get("askLive")) as boolean | undefined
+      const scenes = (await store.get("scenes")) as Scene[] | undefined
 
       const patch: Partial<BroadcastState> = {}
       if (customThemes && Array.isArray(customThemes) && customThemes.length > 0) {
@@ -712,6 +778,8 @@ export function hydrateBroadcastThemes(): Promise<void> {
       const main = patch.outputs.find((o) => o.id === MAIN_OUTPUT_ID)
       if (main) patch.activeThemeId = main.themeId
       if (typeof autoLive === "boolean") patch.autoLive = autoLive
+      if (typeof askLive === "boolean") patch.askLive = askLive
+      if (Array.isArray(scenes)) patch.scenes = scenes
 
       useBroadcastStore.setState(patch)
 
@@ -721,7 +789,9 @@ export function hydrateBroadcastThemes(): Promise<void> {
           state.themes !== prevState.themes ||
           state.activeThemeId !== prevState.activeThemeId ||
           state.outputs !== prevState.outputs ||
-          state.autoLive !== prevState.autoLive
+          state.autoLive !== prevState.autoLive ||
+          state.askLive !== prevState.askLive ||
+          state.scenes !== prevState.scenes
         if (!changed) return
         if (saveTimer) clearTimeout(saveTimer)
         saveTimer = setTimeout(() => {
@@ -766,6 +836,8 @@ async function persistBroadcastThemes(state: BroadcastState): Promise<boolean> {
     // Legacy mirror of the main output's theme; older builds still read it.
     await store.set("activeThemeId", state.activeThemeId)
     await store.set("autoLive", state.autoLive)
+    await store.set("askLive", state.askLive)
+    await store.set("scenes", state.scenes)
     await store.save()
     return true
   } catch {

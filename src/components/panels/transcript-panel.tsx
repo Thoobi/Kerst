@@ -114,6 +114,8 @@ export function TranscriptPanel() {
         void presentVerse(detectedVerse)
       } else {
         bibleActions.selectVerse(detectedVerse)
+        // Asking: offer it over the Live view, one click from air.
+        useBroadcastStore.getState().suggestVerse(detectedVerse)
       }
       // Navigate book search panel to this verse
       useBibleStore
