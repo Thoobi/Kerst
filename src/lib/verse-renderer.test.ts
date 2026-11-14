@@ -515,10 +515,10 @@ describe("computeVerseLayoutMetrics — background region", () => {
   })
 
   it("bounds the background to its dimensions at the anchor", () => {
-    const base = BUILTIN_THEMES[2] // bottom-center
+    const base = BUILTIN_THEMES[0] // a full-screen theme
     const theme: BroadcastTheme = {
       ...base,
-      layout: { ...base.layout, backgroundWidth: 100, backgroundHeight: 30 },
+      layout: { ...base.layout, anchor: "bottom-center", offsetX: 0, offsetY: 0, backgroundWidth: 100, backgroundHeight: 30 },
     }
     const metrics = computeVerseLayoutMetrics(stubCtx(), theme, VERSE)
     expect(metrics.backgroundRect).toEqual({
@@ -530,13 +530,28 @@ describe("computeVerseLayoutMetrics — background region", () => {
   })
 
   it("keeps the text area inside the bounded background", () => {
-    const base = BUILTIN_THEMES[2]
+    const base = BUILTIN_THEMES[0]
     const theme: BroadcastTheme = {
       ...base,
-      layout: { ...base.layout, backgroundWidth: 80, backgroundHeight: 30 },
+      layout: { ...base.layout, anchor: "bottom-center", backgroundWidth: 80, backgroundHeight: 30 },
     }
     const metrics = computeVerseLayoutMetrics(stubCtx(), theme, VERSE)
     expect(within(metrics.textAreaRect, metrics.backgroundRect)).toBe(true)
+  })
+
+  it("keeps a lower third's background the whole frame, whatever its dimensions say", () => {
+    const base = BUILTIN_THEMES[2] // Lower Thirds: transparent
+    for (const background of [base.background, { ...base.background, type: "camera" as const }]) {
+      const theme: BroadcastTheme = {
+        ...base,
+        background,
+        layout: { ...base.layout, backgroundWidth: 60, backgroundHeight: 30 },
+      }
+      const metrics = computeVerseLayoutMetrics(stubCtx(), theme, VERSE)
+      expect(metrics.backgroundRect).toEqual({ x: 0, y: 0, width: 1920, height: 1080 })
+      // The band still sits at the bottom of the frame, as when the dimensions are 100%.
+      expect(metrics.textBoxRect).toEqual(ANCHORED_BAND)
+    }
   })
 
   it("fills a solid background only within the background rect", () => {

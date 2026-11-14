@@ -9,6 +9,7 @@ import {
   type RichInlineLine,
 } from "@chenglou/pretext/rich-inline"
 import { gifFrameAt } from "@/lib/gif-frames"
+import { isLowerThird } from "@/lib/lower-third"
 import { drawImageSmooth } from "@/lib/image-scaling"
 import { imageContentBox } from "@/lib/theme-image-cache"
 import { withTimerText } from "@/lib/timer"
@@ -1319,11 +1320,22 @@ function bandInsetOffset(anchor: BroadcastTheme["layout"]["anchor"], inset: numb
   return { x, y }
 }
 
+/**
+ * The background's width and height, in % of the frame. A lower third's is
+ * always the whole frame: it's the picture the band sits over (see-through
+ * for keying, or the camera), not a box of the theme's own.
+ */
+export function backgroundSize(theme: Pick<BroadcastTheme, "background" | "layout">): { width: number; height: number } {
+  if (isLowerThird(theme)) return { width: 100, height: 100 }
+  return { width: theme.layout.backgroundWidth, height: theme.layout.backgroundHeight }
+}
+
 /** The anchored background region of an already-scaled theme. */
 function regionFor(scaledTheme: BroadcastTheme, offsetX: number, offsetY: number): VerseLayoutRect {
   const { layout, resolution } = scaledTheme
-  const width = (layout.backgroundWidth / 100) * resolution.width
-  const height = (layout.backgroundHeight / 100) * resolution.height
+  const size = backgroundSize(scaledTheme)
+  const width = (size.width / 100) * resolution.width
+  const height = (size.height / 100) * resolution.height
   const { x, y } = anchorPosition(
     layout.anchor,
     width,

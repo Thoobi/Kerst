@@ -9,6 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { seedFreeBoxesForTheme } from "@/lib/theme-migrations"
+import { isLowerThird } from "@/lib/lower-third"
+import { backgroundSize } from "@/lib/verse-renderer"
 import { HorizontalAlignButtons, VerticalAlignButtons } from "@/components/broadcast/align-buttons"
 import type { BroadcastTheme, ElementBox } from "@/types/broadcast"
 
@@ -109,8 +111,11 @@ export function LayoutProperties() {
   const referenceGap = layout.referenceGap ?? Math.max(16, Math.round(draftTheme.reference.fontSize * 0.5))
   const freeMode = layout.mode === "free"
 
-  const bgWidthPx = Math.round((layout.backgroundWidth / 100) * resolution.width)
-  const bgHeightPx = Math.round((layout.backgroundHeight / 100) * resolution.height)
+  // A lower third's background is always the whole frame (see `backgroundSize`).
+  const lowerThird = isLowerThird(draftTheme)
+  const background = backgroundSize(draftTheme)
+  const bgWidthPx = Math.round((background.width / 100) * resolution.width)
+  const bgHeightPx = Math.round((background.height / 100) * resolution.height)
   // The text area is a percentage of the background region, not of the frame
   // (verse-renderer.ts computes it against bgW/bgH), so the readout has to
   // nest the same way or it lies whenever the background is not full-bleed.
@@ -172,44 +177,57 @@ export function LayoutProperties() {
         </div>
       )}
 
-      {/* Background Dimensions */}
-      <div className="flex flex-col gap-0.5 border-t pt-3 pb-1">
-        <h4 className="text-xs font-semibold">Background Dimensions</h4>
-      </div>
-
-      {/* Width */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-muted-foreground">Width</label>
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {layout.backgroundWidth}% ({bgWidthPx}px)
-          </span>
+      {/* Background Dimensions: not for a lower third, whose background is the whole frame */}
+      {lowerThird ? (
+        <div className="flex flex-col gap-0.5 border-t pt-3 pb-1">
+          <h4 className="text-xs font-semibold">Background Dimensions</h4>
+          <p className="text-[0.6875rem] text-muted-foreground">
+            A lower third&apos;s background is always the whole frame. Size the band with the text area below, or in
+            the Lower third panel.
+          </p>
         </div>
-        <Slider
-          min={10}
-          max={100}
-          step={1}
-          value={[layout.backgroundWidth]}
-          onValueChange={([v]) => update("layout.backgroundWidth", v)}
-        />
-      </div>
-
-      {/* Height */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-muted-foreground">Height</label>
-          <span className="text-xs tabular-nums text-muted-foreground">
-            {layout.backgroundHeight}% ({bgHeightPx}px)
-          </span>
+      ) : (
+        <>
+        {/* Background Dimensions */}
+        <div className="flex flex-col gap-0.5 border-t pt-3 pb-1">
+          <h4 className="text-xs font-semibold">Background Dimensions</h4>
         </div>
-        <Slider
-          min={10}
-          max={100}
-          step={1}
-          value={[layout.backgroundHeight]}
-          onValueChange={([v]) => update("layout.backgroundHeight", v)}
-        />
-      </div>
+
+        {/* Width */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground">Width</label>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {layout.backgroundWidth}% ({bgWidthPx}px)
+            </span>
+          </div>
+          <Slider
+            min={10}
+            max={100}
+            step={1}
+            value={[layout.backgroundWidth]}
+            onValueChange={([v]) => update("layout.backgroundWidth", v)}
+          />
+        </div>
+
+        {/* Height */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground">Height</label>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {layout.backgroundHeight}% ({bgHeightPx}px)
+            </span>
+          </div>
+          <Slider
+            min={10}
+            max={100}
+            step={1}
+            value={[layout.backgroundHeight]}
+            onValueChange={([v]) => update("layout.backgroundHeight", v)}
+          />
+        </div>
+        </>
+      )}
 
       {/* Text Area Dimensions */}
       <div className="flex flex-col gap-0.5 border-t pt-3 pb-1">
