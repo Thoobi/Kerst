@@ -121,6 +121,32 @@ describe("service store", () => {
     expect(videos.getState().focusedId).toBe("v1")
   })
 
+  it("switches to an item's scene when it opens, and saves the scene with the item", async () => {
+    const { useServiceStore, itemSceneId } = await stores()
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { LOWER_THIRDS, CLASSIC_DARK } = await import("@/lib/builtin-themes")
+    await useServiceStore.getState().loadServices()
+    await useServiceStore.getState().addItem({
+      kind: "scripture",
+      title: "John 3:16",
+      payload: { bookNumber: 43, chapter: 3, verse: 16 },
+    })
+    useBroadcastStore.getState().setOutputTheme("main", LOWER_THIRDS.id)
+    const sermon = useBroadcastStore.getState().saveScene("Sermon")
+    const [item] = useServiceStore.getState().active!.items
+    await useServiceStore.getState().setItemScene(item.id, sermon.id)
+    const saved = api.saveSchedule.mock.calls.at(-1)![0].items[0]
+    expect(saved.payload).toMatchObject({ bookNumber: 43, sceneId: sermon.id })
+    expect(itemSceneId(useServiceStore.getState().active!.items[0])).toBe(sermon.id)
+
+    useBroadcastStore.getState().setOutputTheme("main", CLASSIC_DARK.id)
+    await useServiceStore.getState().openItem(item.id)
+    expect(useBroadcastStore.getState().outputs.find((o) => o.id === "main")!.themeId).toBe(LOWER_THIRDS.id)
+
+    await useServiceStore.getState().setItemScene(item.id, null)
+    expect(itemSceneId(useServiceStore.getState().active!.items[0])).toBeNull()
+  })
+
   it("says so when a text in the service was deleted from the library", async () => {
     const { useServiceStore } = await stores()
     api.listTexts.mockResolvedValue([])

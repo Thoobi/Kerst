@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { ChevronDownIcon, EyeOffIcon, PaletteIcon, PencilIcon, PinIcon } from "lucide-react"
+import { ChevronDownIcon, EyeOffIcon, LayersIcon, PaletteIcon, PencilIcon, PinIcon, PlusIcon, XIcon } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
@@ -82,6 +83,7 @@ export function ThemeChip() {
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto p-3">
+          <Scenes />
           {outputs.map((output) => {
             const current = output.themeId ?? activeThemeId
             return (
@@ -140,5 +142,100 @@ export function ThemeChip() {
         </div>
       </PopoverContent>
     </Popover>
+  )
+}
+
+/**
+ * Saved sets of every output's theme ("Sermon", "Worship"): one click
+ * switches them all. The scene that matches what's on now is marked.
+ */
+function Scenes() {
+  const scenes = useBroadcastStore((s) => s.scenes)
+  const outputs = useBroadcastStore((s) => s.outputs)
+  const [naming, setNaming] = useState<string | null>(null)
+  const current = scenes.find((scene) => outputs.every((o) => !scene.themes[o.id] || scene.themes[o.id] === o.themeId))
+  const save = () => {
+    if (naming === null) return
+    useBroadcastStore.getState().saveScene(naming)
+    setNaming(null)
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Scenes</span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {scenes.map((scene) => (
+          <span key={scene.id} className="group relative">
+            <button
+              type="button"
+              onClick={() => useBroadcastStore.getState().applyScene(scene.id)}
+              title={`Switch every output to ${scene.name}`}
+              aria-pressed={current?.id === scene.id}
+              className={cn(
+                "flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                current?.id === scene.id
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-border hover:bg-muted"
+              )}
+            >
+              <LayersIcon className="size-3" />
+              {scene.name}
+            </button>
+            <button
+              type="button"
+              onClick={() => useBroadcastStore.getState().deleteScene(scene.id)}
+              aria-label={`Delete ${scene.name}`}
+              title="Delete this scene"
+              className="absolute -top-1.5 -right-1.5 hidden size-4 items-center justify-center rounded-full bg-muted text-muted-foreground shadow ring-1 ring-border group-hover:flex hover:text-foreground"
+            >
+              <XIcon className="size-2.5" />
+            </button>
+          </span>
+        ))}
+        {naming === null ? (
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-muted-foreground"
+            onClick={() => setNaming("")}
+            title="Save which theme each output uses now, to switch back in one click"
+          >
+            <PlusIcon />
+            Save current…
+          </Button>
+        ) : (
+          <form
+            className="flex items-center gap-1"
+            onSubmit={(e) => {
+              e.preventDefault()
+              save()
+            }}
+          >
+            <Input
+              autoFocus
+              value={naming}
+              onChange={(e) => setNaming(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.stopPropagation()
+                  setNaming(null)
+                }
+              }}
+              placeholder="e.g. Sermon"
+              className="h-7 w-32 text-xs"
+              aria-label="Scene name"
+            />
+            <Button type="submit" size="xs">
+              Save
+            </Button>
+          </form>
+        )}
+      </div>
+      {scenes.length === 0 && naming === null && (
+        <p className="text-[0.6875rem] text-muted-foreground">
+          Set each output&apos;s theme below, then save it as a scene, e.g. Sermon or Worship.
+        </p>
+      )}
+    </div>
   )
 }

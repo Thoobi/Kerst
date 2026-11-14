@@ -7,7 +7,9 @@ import {
   BookOpenIcon,
   CalendarIcon,
   FilmIcon,
+  CheckIcon,
   GripVerticalIcon,
+  LayersIcon,
   ListOrderedIcon,
   MegaphoneIcon,
   MoreHorizontalIcon,
@@ -30,7 +32,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AddServiceItemDialog } from "@/components/panels/add-service-item-dialog"
 import { ADDABLE, type AddableKind } from "@/lib/service-items"
 import { cn } from "@/lib/utils"
-import { todayIso, useServiceStore } from "@/stores/service-store"
+import { itemSceneId, todayIso, useServiceStore } from "@/stores/service-store"
+import { useBroadcastStore } from "@/stores/broadcast-store"
 import type { ScheduleItem } from "@/types"
 
 /** "Sun 12 Oct" for a YYYY-MM-DD date. */
@@ -257,6 +260,7 @@ function ServiceRow({
       <span className={cn("flex-1 truncate text-sm", active ? "font-semibold" : "font-medium text-foreground/90")}>
         {item.title}
       </span>
+      <SceneMenu item={item} />
       <Button
         variant="ghost"
         size="icon-xs"
@@ -328,5 +332,62 @@ function ServiceDetailsForm({ mode, onClose }: { mode: "new" | "edit"; onClose: 
         </Button>
       </div>
     </form>
+  )
+}
+
+/**
+ * The scene an item switches to when opened: a small tag with its name, and
+ * a menu (on hover) to pick one or none.
+ */
+function SceneMenu({ item }: { item: ScheduleItem }) {
+  const scenes = useBroadcastStore((s) => s.scenes)
+  const sceneId = itemSceneId(item)
+  const scene = scenes.find((sc) => sc.id === sceneId)
+  const choose = (id: string | null) => {
+    void useServiceStore
+      .getState()
+      .setItemScene(item.id, id)
+      .catch((error) => toast.error("Could not save the scene", { description: String(error) }))
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          title={scene ? `Opens on the ${scene.name} scene` : "Switch to a scene when this opens"}
+          className={cn(
+            "flex shrink-0 items-center gap-1 rounded-full text-[0.6875rem] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            scene
+              ? "max-w-24 bg-primary/10 px-1.5 py-0.5 text-primary hover:bg-primary/20"
+              : "hidden size-6 justify-center text-muted-foreground group-hover:flex hover:bg-muted"
+          )}
+        >
+          <LayersIcon className="size-3 shrink-0" />
+          {scene && <span className="truncate">{scene.name}</span>}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
+        {scenes.length === 0 ? (
+          <p className="px-2 py-1.5 text-xs text-muted-foreground">
+            No scenes yet. Save one from the theme switcher in the top bar.
+          </p>
+        ) : (
+          <>
+            {scenes.map((sc) => (
+              <DropdownMenuItem key={sc.id} onSelect={() => choose(sc.id)}>
+                {sc.id === sceneId ? <CheckIcon /> : <LayersIcon />}
+                {sc.name}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={!sceneId} onSelect={() => choose(null)}>
+              <XIcon />
+              No scene
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

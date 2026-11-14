@@ -6,6 +6,7 @@ import { useSlidesStore } from "./slides-store"
 import { useSongsStore } from "./songs-store"
 import { useTextsStore } from "./texts-store"
 import { useVideosStore } from "./videos-store"
+import { useBroadcastStore } from "./broadcast-store"
 import type { Schedule, ScheduleItem, ScheduleItemKind, ScheduleSummary } from "@/types"
 
 /** What each kind of service item stores to find its content again. */
@@ -78,6 +79,14 @@ interface ServiceState {
   reorder: (from: number, to: number) => Promise<void>
   /** Open an item in its content tab, ready to present. */
   openItem: (itemId: string) => Promise<void>
+  /** Switch to `sceneId` whenever this item is opened (null: leave the themes as they are). */
+  setItemScene: (itemId: string, sceneId: string | null) => Promise<void>
+}
+
+/** The scene a service item switches to when opened, if any. */
+export function itemSceneId(item: ScheduleItem): string | null {
+  const id = (item.payload as { sceneId?: unknown } | null)?.sceneId
+  return typeof id === "string" ? id : null
 }
 
 // Saves run one after another so a quick reorder can't overwrite a newer one.
@@ -172,10 +181,26 @@ export const useServiceStore = create<ServiceState>((set, get) => {
       await commit({ ...active, items: moveItem(active.items, from, to) })
     },
 
+    setItemScene: async (itemId, sceneId) => {
+      const active = get().active
+      if (!active) return
+      await commit({
+        ...active,
+        items: active.items.map((item) =>
+          item.id === itemId
+            ? { ...item, payload: { ...(item.payload as Record<string, unknown>), sceneId: sceneId ?? undefined } }
+            : item
+        ),
+      })
+    },
+
     openItem: async (itemId) => {
       const item = get().active?.items.find((i) => i.id === itemId)
       if (!item) return
       set({ activeItemId: itemId })
+      // Its scene first, so its content comes up on the right themes.
+      const sceneId = itemSceneId(item)
+      if (sceneId) useBroadcastStore.getState().applyScene(sceneId)
       const payload = item.payload as Partial<Record<string, unknown>>
       const setTab = useContentTabStore.getState().setTab
       switch (item.kind) {
