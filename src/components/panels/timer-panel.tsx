@@ -9,11 +9,12 @@ import { Slider } from "@/components/ui/slider"
 import { BackgroundPicker } from "@/components/panels/background-picker"
 import { CameraPicker } from "@/components/panels/camera-picker"
 import { isTypingOrHandled } from "@/lib/operator-keys"
-import { themeForContent } from "@/lib/verse-renderer"
+import { DEFAULT_TIMER_CAPTION_SIZE, themeForContent } from "@/lib/verse-renderer"
 import { cn } from "@/lib/utils"
 import { useBroadcastStore } from "@/stores"
 import { timerFrame, useTimerStore, type TimerMode } from "@/stores/timer-store"
 import type { BroadcastTheme } from "@/types"
+import type { TimerPosition } from "@/types/broadcast"
 
 const MODES: { id: TimerMode; label: string }[] = [
   { id: "countdown", label: "Countdown" },
@@ -231,6 +232,11 @@ export function TimerStylePanel() {
   )
 }
 
+/** The nine places a timer can be put on screen, in reading order. */
+const TIMER_SPOTS: TimerPosition[] = (["top", "middle", "bottom"] as const).flatMap((vertical) =>
+  (["left", "center", "right"] as const).map((horizontal) => ({ horizontal, vertical }))
+)
+
 /** Size, colours and background: the timer's own, over each output's theme. */
 function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
   const style = useTimerStore((s) => s.style)
@@ -321,15 +327,91 @@ function TimerLook({ theme }: { theme: BroadcastTheme | undefined }) {
           </Button>
         )}
       </div>
-      <Field label={`Size · ${style.size}%`}>
+      <Field label={`Time size · ${style.size}%`}>
         <Slider
           min={100}
           max={600}
           step={10}
           value={[style.size]}
           onValueChange={([size]) => setStyle({ size })}
-          aria-label="Size"
+          aria-label="Time size"
         />
+      </Field>
+      <Field label={`Caption size · ${style.captionSize ?? DEFAULT_TIMER_CAPTION_SIZE}%`}>
+        <Slider
+          min={50}
+          max={400}
+          step={10}
+          value={[style.captionSize ?? DEFAULT_TIMER_CAPTION_SIZE]}
+          onValueChange={([captionSize]) => setStyle({ captionSize })}
+          aria-label="Caption size"
+        />
+      </Field>
+      <Field label="Position">
+        <div className="flex items-start gap-3">
+          <div role="radiogroup" aria-label="Timer position" className="grid shrink-0 grid-cols-3 gap-1 rounded-md bg-muted p-1">
+            {TIMER_SPOTS.map((spot) => {
+              const on = style.position?.horizontal === spot.horizontal && style.position?.vertical === spot.vertical
+              return (
+                <button
+                  key={`${spot.vertical}-${spot.horizontal}`}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  aria-label={`${spot.vertical} ${spot.horizontal}`}
+                  title={`Put the timer ${spot.vertical === "middle" && spot.horizontal === "center" ? "in the middle" : `${spot.vertical} ${spot.horizontal}`}`}
+                  onClick={() => setStyle({ position: spot })}
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-[5px] transition-colors",
+                    on ? "bg-primary text-primary-foreground" : "bg-card hover:bg-background"
+                  )}
+                >
+                  <span className={cn("size-1.5 rounded-full", on ? "bg-primary-foreground" : "bg-muted-foreground/60")} />
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <Button
+              variant={style.position ? "outline" : "secondary"}
+              size="xs"
+              aria-pressed={!style.position}
+              onClick={() => setStyle({ position: null })}
+              title="Where the theme puts its words"
+            >
+              Theme&apos;s box
+            </Button>
+            <p className="text-[0.6875rem] text-muted-foreground">
+              {style.position ? "Placed on the whole screen." : "Pick a spot to place it anywhere on screen."}
+            </p>
+          </div>
+        </div>
+      </Field>
+      <Field label="Caption">
+        <div role="radiogroup" aria-label="Caption place" className="flex rounded-md bg-muted p-0.5">
+          {(
+            [
+              [false, "Above the time"],
+              [true, "Below the time"],
+            ] as const
+          ).map(([below, text]) => (
+            <button
+              key={text}
+              type="button"
+              role="radio"
+              aria-checked={!!style.captionBelow === below}
+              onClick={() => setStyle({ captionBelow: below })}
+              className={cn(
+                "h-7 flex-1 rounded-[5px] text-xs transition-colors",
+                !!style.captionBelow === below
+                  ? "bg-card font-medium text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
       </Field>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Time colour">

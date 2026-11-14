@@ -232,7 +232,8 @@ export function prepareVerseInline(
     : effectiveFontSize
   const wordFont = `${vt.fontWeight} ${effectiveFontSize}px "${vt.fontFamily}", serif`
   const verseNumFont = `${vt.fontWeight} ${verseNumFontSize}px "${vt.fontFamily}", serif`
-  const letterSpacing = vt.letterSpacing > 0 ? vt.letterSpacing : undefined
+  // Negative tightens the words, positive spreads them.
+  const letterSpacing = vt.letterSpacing ? vt.letterSpacing : undefined
 
   const paragraphs: VerseParagraph[] = []
   let items: RichInlineItem[] = []
@@ -857,7 +858,7 @@ function drawReference(
   ctx.fillStyle = ref.color
   ctx.textBaseline = "top"
 
-  if (ref.letterSpacing > 0) {
+  if (ref.letterSpacing) {
     try {
       ctx.letterSpacing = `${ref.letterSpacing}px`
     } catch {
@@ -913,7 +914,7 @@ function drawVerseText(
   ctx.textBaseline = "top"
   ctx.textAlign = "left"
 
-  if (vt.letterSpacing > 0) {
+  if (vt.letterSpacing) {
     try {
       ctx.letterSpacing = `${vt.letterSpacing}px`
     } catch {
@@ -1359,6 +1360,8 @@ export function backgroundRegion(theme: BroadcastTheme, scale = 1): VerseLayoutR
 
 /** How much bigger a timer's clock is than the theme's words, in %, unless its style says. */
 export const DEFAULT_TIMER_SIZE = 300
+/** A timer's caption size, in % of the theme's reference size, unless its style says. */
+export const DEFAULT_TIMER_CAPTION_SIZE = 100
 
 /** Margin around the words when songs and texts use the whole screen, as % of each side. */
 const SCREEN_AREA_MARGIN = 5
@@ -1373,7 +1376,12 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
   if (verse?.timer) {
     // A clock is a few characters: drawn big by default, shrunk to fit the box.
     const style = verse.timer.style
-    const styled = theme.lyricsText ? withTextStyle(theme, theme.lyricsText) : theme
+    const themed = theme.lyricsText ? withTextStyle(theme, theme.lyricsText) : theme
+    // Placed by the timer: the whole screen, aligned to where it was put.
+    const position = style?.position
+    const styled = position
+      ? withTextStyle(themed, { area: "screen", horizontalAlign: position.horizontal, verticalAlign: position.vertical })
+      : themed
     const font = {
       ...(style?.fontFamily ? { fontFamily: style.fontFamily } : {}),
       ...(style?.fontWeight !== undefined ? { fontWeight: style.fontWeight } : {}),
@@ -1390,6 +1398,9 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
       reference: {
         ...styled.reference,
         ...font,
+        fontSize: (styled.reference.fontSize * (style?.captionSize ?? DEFAULT_TIMER_CAPTION_SIZE)) / 100,
+        ...(position ? { horizontalAlign: position.horizontal } : {}),
+        ...(style?.captionBelow ? { position: "below" as const } : {}),
         ...(style?.captionColor ? { color: style.captionColor } : {}),
       },
       ...backgroundOverride(styled, style?.backgroundCamera, style?.backgroundColor),
@@ -1444,6 +1455,7 @@ const TEXT_STYLE_KEYS = [
   "verticalAlign",
   "shrinkToFit",
   "outline",
+  "letterSpacing",
 ] as const satisfies readonly (keyof LyricsStyle)[]
 
 function withTextStyle(theme: BroadcastTheme, style: LyricsStyle): BroadcastTheme {

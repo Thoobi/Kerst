@@ -141,6 +141,7 @@ function TextStylePanel({ kind }: { kind: Kind }) {
   const fontSize = style.fontSize ?? base.fontSize
   const fontWeight = style.fontWeight ?? base.fontWeight
   const lineHeight = style.lineHeight ?? base.lineHeight
+  const letterSpacing = style.letterSpacing ?? base.letterSpacing ?? 0
   const color = style.color ?? base.color
   const shrinkToFit = (style.shrinkToFit ?? base.shrinkToFit) !== false
   const outline = style.outline === undefined ? base.outline : style.outline
@@ -319,6 +320,25 @@ function TextStylePanel({ kind }: { kind: Kind }) {
               aria-label="Line spacing"
             />
           </div>
+        </Field>
+
+        <Field
+          label="Letter spacing"
+          aside={
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {letterSpacing > 0 ? "+" : ""}
+              {letterSpacing}px
+            </span>
+          }
+        >
+          <Slider
+            min={-6}
+            max={12}
+            step={0.5}
+            value={[letterSpacing]}
+            onValueChange={([v]) => update({ letterSpacing: v })}
+            aria-label="Letter spacing"
+          />
         </Field>
 
         <Field label="Alignment">

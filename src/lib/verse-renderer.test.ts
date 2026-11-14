@@ -969,4 +969,31 @@ describe("timer font", () => {
     expect(shown.verseText).toMatchObject({ fontFamily: "Inter", fontWeight: 700 })
     expect(shown.reference).toMatchObject({ fontFamily: "Inter", fontWeight: 700, color: "#ff0000" })
   })
+
+  it("sizes the caption by its own %, the way the clock is sized", () => {
+    expect(themeForContent(theme, timer()).reference.fontSize).toBe(theme.reference.fontSize)
+    expect(themeForContent(theme, timer({ captionSize: 250 })).reference.fontSize).toBe(theme.reference.fontSize * 2.5)
+    // The clock keeps its own size.
+    expect(themeForContent(theme, timer({ captionSize: 250 })).verseText.fontSize).toBe(theme.verseText.fontSize * 3)
+  })
+
+  it("stays in the theme's box until placed", () => {
+    const shown = themeForContent(theme, timer())
+    expect(shown.layout).toEqual(theme.layout)
+    expect(shown.reference.position).toBe(theme.reference.position)
+  })
+
+  it("goes where it's put on the whole screen, caption and all", () => {
+    const shown = themeForContent(theme, timer({ position: { horizontal: "right", vertical: "bottom" }, captionBelow: true }))
+    expect(shown.layout).toMatchObject({ anchor: "center", backgroundWidth: 100, textAreaWidth: 90, textAreaHeight: 90 })
+    expect(shown.verseText).toMatchObject({ horizontalAlign: "right", verticalAlign: "bottom" })
+    expect(shown.reference).toMatchObject({ horizontalAlign: "right", verticalAlign: "bottom", position: "below" })
+
+    const metrics = computeVerseLayoutMetrics(stubCtx(), shown, { ...timer(), segments: [{ text: "5:00" }] })
+    // The caption ends in the bottom right of the frame, the time just above it.
+    const ref = metrics.referenceRect!
+    expect(ref.y + ref.height).toBeGreaterThan(1000)
+    expect(ref.x + ref.width).toBeGreaterThan(1800)
+    expect(metrics.verseRect!.y + metrics.verseRect!.height).toBeLessThanOrEqual(ref.y)
+  })
 })

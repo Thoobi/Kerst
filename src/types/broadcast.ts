@@ -70,6 +70,15 @@ export interface TimerClock {
 export interface TimerStyle {
   /** The clock's size, in % of the theme's word size. */
   size: number
+  /** The caption's size, in % of the theme's reference size (100 when unset). */
+  captionSize?: number
+  /**
+   * Where on screen the clock and caption sit, anywhere on the whole screen
+   * (inside a small margin); unset keeps the theme's text box.
+   */
+  position?: TimerPosition | null
+  /** The caption under the time instead of above it. */
+  captionBelow?: boolean
   /** The clock's and caption's font, in place of the theme's. */
   fontFamily?: string
   fontWeight?: number
@@ -79,6 +88,11 @@ export interface TimerStyle {
   backgroundColor?: string
   /** A live camera in place of the theme's background; wins over `backgroundColor`. */
   backgroundCamera?: CameraFeed | null
+}
+
+export interface TimerPosition {
+  horizontal: "left" | "center" | "right"
+  vertical: "top" | "middle" | "bottom"
 }
 
 /**
@@ -288,6 +302,8 @@ export interface LyricsStyle {
   verticalAlign?: TextVerticalAlign
   shrinkToFit?: boolean
   outline?: { color: string; width: number } | null
+  /** Extra space between letters, in theme px: below 0 tightens them. */
+  letterSpacing?: number
   /**
    * "screen": the words use the whole frame (with a margin), whatever size
    * the theme's verse box is. "theme" or unset: the theme's text area.
