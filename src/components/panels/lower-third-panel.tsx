@@ -112,7 +112,7 @@ export function LowerThirdPanel() {
   const [sampleShown, setSampleShown] = useState(true)
   // "Video" picked, but no video chosen from the list yet.
   const [choosingVideo, setChoosingVideo] = useState(false)
-  const close = () => useContentTabStore.getState().setLowerThirdStyleOpen(false)
+  const close = () => useContentTabStore.getState().setThemeStyleOpen(false)
 
   const words = useMemo<VerseRenderData>(
     () => (preview && !preview.image && !preview.video && !preview.timer && preview.segments.length ? preview : SAMPLE),

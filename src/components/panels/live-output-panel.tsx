@@ -1,6 +1,5 @@
 import { useEffect } from "react"
-import { EyeOffIcon, PaletteIcon } from "lucide-react"
-import { useContentTabStore } from "@/stores/content-tab-store"
+import { ThemeChip } from "@/components/panels/theme-chip"
 import { toast } from "sonner"
 import { PanelHeader } from "@/components/ui/panel-header"
 import { CanvasVerse } from "@/components/ui/canvas-verse"
@@ -26,7 +25,6 @@ export function LiveOutputPanel() {
   const muted = useVideosStore((s) => s.muted)
 
   const lowerThirdHidden = useBroadcastStore((s) => s.lowerThirdHidden)
-  const lowerThirdStyleOpen = useContentTabStore((s) => s.lowerThirdStyleOpen)
   const outputs = useBroadcastStore((s) => s.outputs)
 
   const activeTheme = themes.find((t) => t.id === activeThemeId) ?? themes[0]
@@ -112,27 +110,7 @@ export function LiveOutputPanel() {
             }
           />
         </label>
-        {hasLowerThird && (
-          <button
-            type="button"
-            aria-pressed={lowerThirdStyleOpen}
-            onClick={() => useContentTabStore.getState().setLowerThirdStyleOpen(!lowerThirdStyleOpen)}
-            title={
-              lowerThirdHidden
-                ? "The band is hidden. Show it again, and style it, in the Lower third panel (or press H)"
-                : "Hide or show the band, and style it: background, text and transition"
-            }
-            className={cn(
-              "flex h-6 items-center gap-1 rounded-full px-2 text-xs font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-              lowerThirdStyleOpen
-                ? "bg-primary/15 text-primary hover:bg-primary/25"
-                : "border border-border text-foreground hover:bg-muted"
-            )}
-          >
-            {lowerThirdHidden ? <EyeOffIcon className="size-3.5 text-amber-500" /> : <PaletteIcon className="size-3.5" />}
-            Lower third
-          </button>
-        )}
+        <ThemeChip />
         <button
           type="button"
           role="switch"

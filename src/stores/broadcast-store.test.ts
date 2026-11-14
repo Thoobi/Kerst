@@ -83,6 +83,30 @@ describe("broadcast store sync", () => {
     expect(emitToMock).not.toHaveBeenCalled()
   })
 
+  it("switching one output's theme leaves the other outputs on theirs", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const state = useBroadcastStore.getState()
+    const [themeA, themeB, themeC] = state.themes
+    state.setOutputTheme("main", themeA.id)
+    state.addOutput({
+      id: "out-b",
+      name: "Stream",
+      type: "ndi",
+      themeId: themeB.id,
+      monitorIndex: 0,
+      ndi: ndiDefaults,
+      stream: defaultStreamSettings(),
+    })
+    emitToMock.mockClear()
+    useBroadcastStore.getState().setOutputTheme("out-b", themeC.id)
+    const outputs = useBroadcastStore.getState().outputs
+    expect(outputs.find((o) => o.id === "main")!.themeId).toBe(themeA.id)
+    expect(outputs.find((o) => o.id === "out-b")!.themeId).toBe(themeC.id)
+    // Only the switched output is sent its new theme.
+    const sentTo = emitToMock.mock.calls.filter(([, event]) => event === "broadcast:verse-update").map(([label]) => label)
+    expect(sentTo).toEqual(["broadcast-out-b"])
+  })
+
   it("syncBroadcastOutput fans out to every output with its own theme", async () => {
     const { useBroadcastStore } = await import("./broadcast-store")
     const state = useBroadcastStore.getState()

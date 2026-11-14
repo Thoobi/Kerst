@@ -13,9 +13,9 @@ interface ContentTabState {
   /** The Bible style panel is showing in place of detections. */
   bibleStyleOpen: boolean
   setBibleStyleOpen: (open: boolean) => void
-  /** The Lower Third panel is showing, over whichever tab is open. */
-  lowerThirdStyleOpen: boolean
-  setLowerThirdStyleOpen: (open: boolean) => void
+  /** The theme style panel (the lower third's, for now) is showing, over whichever tab is open. */
+  themeStyleOpen: boolean
+  setThemeStyleOpen: (open: boolean) => void
 }
 
 export const useContentTabStore = create<ContentTabState>((set) => ({
@@ -23,6 +23,6 @@ export const useContentTabStore = create<ContentTabState>((set) => ({
   setTab: (tab) => set({ tab }),
   bibleStyleOpen: false,
   setBibleStyleOpen: (bibleStyleOpen) => set({ bibleStyleOpen }),
-  lowerThirdStyleOpen: false,
-  setLowerThirdStyleOpen: (lowerThirdStyleOpen) => set({ lowerThirdStyleOpen }),
+  themeStyleOpen: false,
+  setThemeStyleOpen: (themeStyleOpen) => set({ themeStyleOpen }),
 }))

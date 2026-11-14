@@ -25,7 +25,7 @@ export function Dashboard() {
   const contentTab = useContentTabStore((s) => s.tab)
   const bibleStyleOpen = useContentTabStore((s) => s.bibleStyleOpen)
   const lyricsTab = contentTab === "songs" || contentTab === "texts"
-  const lowerThirdStyling = useContentTabStore((s) => s.lowerThirdStyleOpen)
+  const lowerThirdStyling = useContentTabStore((s) => s.themeStyleOpen)
   // The Lower Third panel, when open, takes the place of the tab's own panel.
   const lyricsStyling = !lowerThirdStyling && lyricsTab
   const scriptureStyling = !lowerThirdStyling && contentTab === "bible" && bibleStyleOpen

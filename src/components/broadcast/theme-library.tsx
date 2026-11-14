@@ -33,7 +33,7 @@ import type { BroadcastTheme, VerseRenderData } from "@/types"
 
 type FilterTab = "all" | "pinned" | "custom"
 
-const THUMBNAIL_VERSE: VerseRenderData = {
+export const THUMBNAIL_VERSE: VerseRenderData = {
   reference: "John 3:16 (KJV)",
   segments: [{ text: "Sample Verse" }],
 }
