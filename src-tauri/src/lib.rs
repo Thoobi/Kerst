@@ -170,6 +170,9 @@ pub fn run() {
             commands::library::delete_video,
             media_server::media_base_url,
             commands::camera::camera_health,
+            commands::backup::create_backup,
+            commands::backup::read_backup,
+            commands::backup::stage_backup_restore,
             commands::remote::start_osc,
             commands::remote::stop_osc,
             commands::remote::get_osc_status,
@@ -234,6 +237,13 @@ pub fn run() {
                         Ok(0) => {}
                         Ok(n) => log::info!("Moved {n} item(s) of earlier data into {}", dir.display()),
                         Err(e) => log::error!("could not move earlier data into {}: {e}", dir.display()),
+                    }
+                    // A backup restored last run goes into place before
+                    // anything opens these files.
+                    match litdeck_backup::apply_pending_restore(&dir) {
+                        Ok(true) => log::info!("Restored a backup into {}", dir.display()),
+                        Ok(false) => {}
+                        Err(e) => log::error!("could not restore the backup: {e}"),
                     }
                     (
                         commands::library::LibraryState::open(&dir),

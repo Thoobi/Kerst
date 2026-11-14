@@ -70,6 +70,11 @@ impl LibraryState {
     fn library(&self) -> Result<&Library, String> {
         self.0.as_ref().map_err(Clone::clone)
     }
+
+    /// A consistent copy of the library database at `path`, for a backup.
+    pub fn snapshot_to(&self, path: &Path) -> Result<(), String> {
+        self.library()?.db.snapshot_to(path).map_err(|e| e.to_string())
+    }
 }
 
 const DEFAULT_SEARCH_LIMIT: usize = 50;

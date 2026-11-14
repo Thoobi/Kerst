@@ -54,6 +54,13 @@ impl LibraryDb {
     pub fn schema_version(&self) -> Result<i64, LibraryError> {
         Ok(self.conn().query_row("PRAGMA user_version", [], |r| r.get(0))?)
     }
+
+    /// Write a consistent copy of the whole library to `path` (which must not
+    /// exist), safe while the app is using it, e.g. for a backup.
+    pub fn snapshot_to(&self, path: &Path) -> Result<(), LibraryError> {
+        self.conn().execute("VACUUM INTO ?1", [path.to_string_lossy()])?;
+        Ok(())
+    }
 }
 
 pub(crate) fn now_millis() -> i64 {
@@ -73,6 +80,18 @@ pub(crate) fn clean_opt(value: Option<&str>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn snapshots_to_a_file_that_opens_as_the_same_library() {
+        let dir = std::env::temp_dir().join(format!("litdeck-snapshot-{}", new_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = LibraryDb::open(&dir.join("library.db")).unwrap();
+        let copy = dir.join("copy.db");
+        db.snapshot_to(&copy).unwrap();
+        let reopened = LibraryDb::open(&copy).unwrap();
+        assert_eq!(reopened.schema_version().unwrap(), db.schema_version().unwrap());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     use super::*;
 
     #[test]

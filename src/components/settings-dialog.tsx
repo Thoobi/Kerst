@@ -45,9 +45,11 @@ import {
   BrainCircuitIcon,
   CameraIcon,
   InfoIcon,
+  ArchiveIcon,
 } from "lucide-react"
 import { CamerasSection } from "@/components/settings/cameras-section"
 import { AboutSection } from "@/components/settings/about-section"
+import { BackupSection } from "@/components/settings/backup-section"
 import { LevelMeter } from "@/components/ui/level-meter"
 import { useAudioTest } from "@/hooks/use-audio-test"
 import { formatMegabytes, useWhisperModel } from "@/hooks/use-whisper-model"
@@ -72,6 +74,7 @@ type NavSection =
   | "api-keys"
   | "remote"
   | "diagnostics"
+  | "backup"
   | "help"
   | "about"
 
@@ -110,6 +113,11 @@ const navItems: { name: string; id: NavSection; icon: React.ReactNode }[] = [
     name: "API Keys",
     id: "api-keys",
     icon: <KeyIcon strokeWidth={2} />,
+  },
+  {
+    name: "Backup",
+    id: "backup",
+    icon: <ArchiveIcon strokeWidth={2} />,
   },
   {
     name: "Diagnostics",
@@ -670,6 +678,7 @@ const sectionTitles: Record<NavSection, string> = {
   remote: "Remote Control",
   "api-keys": "API Keys",
   diagnostics: "Diagnostics",
+  backup: "Backup & Restore",
   help: "Help",
   about: "About Litdeck",
 }
@@ -1105,6 +1114,7 @@ const sectionComponents: Record<NavSection, React.FC> = {
   remote: RemoteControlSection,
   "api-keys": ApiKeysSection,
   diagnostics: DiagnosticsSection,
+  backup: BackupSection,
   help: HelpSection,
   about: AboutSection,
 }

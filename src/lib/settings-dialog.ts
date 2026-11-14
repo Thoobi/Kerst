@@ -9,6 +9,7 @@ type SettingsSection =
   | "api-keys"
   | "remote"
   | "diagnostics"
+  | "backup"
   | "help"
   | "about"
 

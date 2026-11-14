@@ -1,0 +1,15 @@
+[package]
+name = "litdeck-backup"
+version = "0.1.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+zip = { version = "4.6", default-features = false, features = ["deflate-flate2"] }
+# zip turns off flate2's default backend; the pure-Rust one is already in the build.
+flate2 = "1"
