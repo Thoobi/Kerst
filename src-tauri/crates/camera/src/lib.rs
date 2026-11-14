@@ -377,8 +377,15 @@ mod tests {
     }
 
     #[cfg(unix)]
+    static NOBUFS_TRIES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+    #[cfg(unix)]
     fn use_fake_devices() {
         set_device_source(|id| match id {
+            "fake-nobufs" => {
+                NOBUFS_TRIES.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Err("Error opening input files: No buffer space available".into())
+            }
             "fake-ok" => Ok(fake_device(
                 r"while true; do printf -- '--ffmpeg\r\nContent-Type: image/jpeg\r\n\r\n\377\330\377\300\000\021\010\000\360\001\100 picture \377\331\r\n'; sleep 0.05; done",
             )),
@@ -407,10 +414,23 @@ mod tests {
         use_fake_devices();
         let url = format!("{DEVICE_SCHEME}fake-busy");
         let Err(problem) = subscribe(&url).await else { panic!("busy device") };
-        assert!(problem.message.contains("Device or resource busy"), "{problem:?}");
+        assert!(problem.message.contains("in use by another app"), "{problem:?}");
         let shown = health().into_iter().find(|h| h.url == url).expect("tried");
         assert_eq!(shown.state, CameraState::Down);
-        assert!(shown.problem.unwrap().contains("busy"));
+        assert!(shown.problem.unwrap().contains("in use"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn a_device_that_failed_isnt_probed_again_straight_away() {
+        use std::sync::atomic::Ordering;
+        use_fake_devices();
+        let url = format!("{DEVICE_SCHEME}fake-nobufs");
+        let Err(first) = subscribe(&url).await else { panic!("fails") };
+        assert!(first.message.contains("driver couldn't start it"), "{first:?}");
+        let Err(_) = subscribe(&url).await else { panic!("still failing") };
+        // The second ask got the standing answer, without running ffmpeg again.
+        assert_eq!(NOBUFS_TRIES.load(Ordering::SeqCst), 1);
     }
 
     #[test]

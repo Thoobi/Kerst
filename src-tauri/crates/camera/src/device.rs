@@ -5,9 +5,10 @@
 //! process is run, its stdout becomes the camera's bytes, and its last error
 //! line becomes the problem when it can't start.
 
+use std::collections::HashMap;
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::Duration;
+use std::sync::{Arc, LazyLock, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
@@ -25,6 +26,29 @@ pub const DEVICE_SCHEME: &str = "device:";
 const FIRST_PICTURE_TIMEOUT: Duration = Duration::from_secs(15);
 /// Bytes read from ffmpeg at a time.
 const CHUNK: usize = 64 * 1024;
+/// After a device fails to open, the same answer stands for this long:
+/// finding a device's capture options runs ffmpeg several times, too much
+/// to repeat every few seconds while something keeps asking for it.
+const FAILURE_HOLD: Duration = Duration::from_secs(15);
+
+/// The last failure to open each device, while it stands.
+static RECENT_FAILURES: LazyLock<Mutex<HashMap<String, (Instant, Problem)>>> = LazyLock::new(Mutex::default);
+
+/// What went wrong opening a device, in words that say what to do.
+fn explain(said: &str) -> String {
+    let lower = said.to_ascii_lowercase();
+    if lower.contains("no buffer space") || lower.contains("cannot allocate memory") {
+        "The camera's driver couldn't start it (it ran out of buffer memory). Unplug and replug it, or restart the computer.".into()
+    } else if lower.contains("busy") {
+        "The camera is in use by another app. Close the other app, then it'll connect.".into()
+    } else if lower.contains("no such file") || lower.contains("not found") || lower.contains("could not find") {
+        "The camera isn't connected. Plug it back in, then it'll connect.".into()
+    } else if lower.contains("permission denied") {
+        "Litdeck isn't allowed to use the camera. Check the computer's camera permissions.".into()
+    } else {
+        format!("Can't open the camera: {said}.")
+    }
+}
 
 type DeviceSource = dyn Fn(&str) -> Result<Command, String> + Send + Sync;
 
@@ -41,6 +65,25 @@ pub fn set_device_source(source: impl Fn(&str) -> Result<Command, String> + Send
 
 /// The device's pictures, once ffmpeg sends its first bytes.
 pub(crate) async fn open(id: &str) -> Result<ByteStream, Problem> {
+    if let Some(problem) = recent_failure(id) {
+        return Err(problem);
+    }
+    let result = start(id).await;
+    if let Err(problem) = &result {
+        RECENT_FAILURES
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .insert(id.to_owned(), (Instant::now(), problem.clone()));
+    }
+    result
+}
+
+fn recent_failure(id: &str) -> Option<Problem> {
+    let failures = RECENT_FAILURES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    failures.get(id).filter(|(at, _)| at.elapsed() < FAILURE_HOLD).map(|(_, problem)| problem.clone())
+}
+
+async fn start(id: &str) -> Result<ByteStream, Problem> {
     let source = SOURCE
         .get()
         .ok_or_else(|| Problem::answered("Cameras attached to this computer aren't available."))?;
@@ -48,7 +91,7 @@ pub(crate) async fn open(id: &str) -> Result<ByteStream, Problem> {
     let command = tokio::task::spawn_blocking(move || source(&owned))
         .await
         .map_err(|e| Problem::answered(format!("Can't open the camera ({e}).")))?
-        .map_err(|e| Problem::answered(format!("Can't open the camera: {e}")))?;
+        .map_err(|e| Problem::answered(explain(&e)))?;
 
     let mut command = tokio::process::Command::from(command);
     command.stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
@@ -72,8 +115,7 @@ pub(crate) async fn open(id: &str) -> Result<ByteStream, Problem> {
     }
     let why = |fallback: &str| {
         let said = last_error.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
-        let said = if said.is_empty() { fallback.to_owned() } else { said };
-        Problem::answered(format!("Can't open the camera: {said}. It may be in use by another app."))
+        Problem::answered(explain(if said.is_empty() { fallback } else { &said }))
     };
 
     let mut buffer = vec![0u8; CHUNK];
