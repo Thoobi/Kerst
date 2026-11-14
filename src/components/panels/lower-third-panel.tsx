@@ -10,6 +10,7 @@ import { BackgroundPicker } from "@/components/panels/background-picker"
 import { FontFamilyPicker } from "@/components/broadcast/text-properties"
 import { Field, Segmented } from "@/components/panels/style-controls"
 import { FLOAT_LIFT, FLOAT_WIDTH, LOWER_THIRD_LOOKS, currentLook, withTextColors } from "@/lib/lower-third-looks"
+import { bandTimeline } from "@/lib/frame-transition"
 import { buildColorWithOpacity, parseColorOpacity } from "@/lib/color-utils"
 import { pickThemeBackgroundImage } from "@/lib/theme-designer-files"
 import { libraryFileUrl } from "@/lib/library-api"
@@ -199,7 +200,7 @@ export function LowerThirdPanel() {
   const playTransition = () => {
     setSampleShown(false)
     // Off, then back on once it has gone, so both halves show.
-    setTimeout(() => setSampleShown(true), Math.max(400, transition.duration + 250))
+    setTimeout(() => setSampleShown(true), Math.max(400, bandTimeline(transition, false).total + 250))
   }
 
   return (
@@ -600,6 +601,20 @@ export function LowerThirdPanel() {
             </Field>
           )}
           {transition.type !== "cut" && (
+            <Field label="Words">
+              <Segmented
+                label="When the words come in"
+                value={transition.textTiming ?? "with"}
+                options={[
+                  ["with", "With the band"],
+                  ["landing", "As it lands"],
+                  ["after", "After it lands"],
+                ]}
+                onChange={(textTiming) => setTransition({ textTiming })}
+              />
+            </Field>
+          )}
+          {transition.type !== "cut" && (
             <SliderField
               label="Speed"
               value={transition.duration}
@@ -611,7 +626,8 @@ export function LowerThirdPanel() {
             />
           )}
           <p className="text-[0.6875rem] text-muted-foreground">
-            How the band comes on and goes off air, and with Hide/Show band. Press Play above to see it.
+            How the band comes on and goes off air, and with Hide/Show band. With the words after the band, they
+            also leave first. Press Play above to see it.
           </p>
         </Section>
       </div>

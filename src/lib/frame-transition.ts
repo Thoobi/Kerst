@@ -10,9 +10,9 @@
  * in the theme's way, clipped to the background region.
  */
 import { renderVerse } from "@/lib/verse-renderer"
-import type { BroadcastTheme, RenderOptions, VerseRenderData } from "@/types/broadcast"
+import type { BroadcastTheme, RenderOptions, TextTiming, VerseRenderData } from "@/types/broadcast"
 
-export type TransitionSpec = BroadcastTheme["transition"]
+export type TransitionSpec = BroadcastTheme["transition"] & { textTiming?: TextTiming }
 
 export interface Frame {
   theme: BroadcastTheme
@@ -75,10 +75,56 @@ export interface ActiveTransition {
   spec: TransitionSpec
 }
 
-/** 0-1 eased progress of `transition` at `now`; 1 means finished. */
+/** How long the words take to come in once the band is up, and to go before it leaves, in ms. */
+const TEXT_IN_MS = 320
+const TEXT_OUT_MS = 200
+/** How far the words rise as they come in, as a share of the frame height. */
+const TEXT_RISE = 0.012
+
+/** Whether a band transition brings its words in apart from the band. */
+function separateText(spec: TransitionSpec): boolean {
+  return !!spec.textTiming && spec.textTiming !== "with" && spec.type !== "cut"
+}
+
+/**
+ * When the band and its words each move, in ms from the start: coming on
+ * the band goes first and the words follow ("landing": as it settles,
+ * "after": once it has); going off the words leave first, then the band.
+ */
+export function bandTimeline(
+  spec: TransitionSpec,
+  comingOn: boolean
+): { total: number; band: { start: number; length: number }; text: { start: number; length: number } } {
+  const d = Math.max(1, spec.duration)
+  const timing = spec.textTiming ?? "with"
+  if (!separateText(spec)) return { total: d, band: { start: 0, length: d }, text: { start: 0, length: d } }
+  if (comingOn) {
+    const textStart = timing === "landing" ? Math.round(d * 0.6) : d + 60
+    return { total: textStart + TEXT_IN_MS, band: { start: 0, length: d }, text: { start: textStart, length: TEXT_IN_MS } }
+  }
+  const bandStart = timing === "landing" ? Math.round(TEXT_OUT_MS * 0.5) : TEXT_OUT_MS
+  return { total: bandStart + d, band: { start: bandStart, length: d }, text: { start: 0, length: TEXT_OUT_MS } }
+}
+
+/** How long `transition` runs, in ms. */
+export function transitionDuration(transition: ActiveTransition): number {
+  return bandTimeline(transition.spec, transition.from.verse === null).total
+}
+
+/**
+ * Progress of `transition` at `now`, 0-1; 1 means finished. Eased by the
+ * spec, except when a band and its words move apart: then linear time, and
+ * `draw` eases each part on its own.
+ */
 export function transitionProgress(transition: ActiveTransition, now: number): number {
-  const t = (now - transition.start) / Math.max(1, transition.spec.duration)
-  return t >= 1 ? 1 : ease(transition.spec.easing, t)
+  const t = (now - transition.start) / Math.max(1, transitionDuration(transition))
+  if (t >= 1) return 1
+  return separateText(transition.spec) ? Math.max(0, t) : ease(transition.spec.easing, t)
+}
+
+/** 0-1 share of `part` done at `elapsed` ms. */
+function partDone(part: { start: number; length: number }, elapsed: number): number {
+  return Math.min(1, Math.max(0, (elapsed - part.start) / Math.max(1, part.length)))
 }
 
 /** How far the words travel in a slide, as a share of the frame. */
@@ -142,10 +188,16 @@ export class TransitionRenderer {
     const transform = ctx.getTransform()
     const p = Math.min(1, Math.max(0, progress))
 
-    // On or off air, the band comes and goes with its words.
+    // On or off air, the band comes and goes with its words, or (with a
+    // text timing) the band moves first and its words follow.
     const band = from.verse === null || to.verse === null
+    const apart = band && separateText(spec)
+    const comingOn = from.verse === null
+    const timeline = bandTimeline(spec, comingOn)
+    const elapsed = p * timeline.total
+    const bandP = apart ? ease(spec.easing, partDone(timeline.band, elapsed)) : p
     const still = band ? "backdrop" : "base"
-    const moving = band ? "content" : "text"
+    const moving = band ? (apart ? "plates" : "content") : "text"
     const render = (index: number, frame: Frame, layer: NonNullable<RenderOptions["layer"]>) => {
       const target = this.layer(index, width, height)
       if (!target) return null
@@ -191,8 +243,8 @@ export class TransitionRenderer {
     // On or off air only one side has anything, so both move at once. From
     // words to words they take turns: the old words leave in the first half,
     // the new ones arrive in the second, never on top of each other.
-    const out = band ? p : Math.min(1, p * 2)
-    const into = band ? p : Math.max(0, p * 2 - 1)
+    const out = band ? bandP : Math.min(1, p * 2)
+    const into = band ? bandP : Math.max(0, p * 2 - 1)
 
     if (spec.type === "wipe") {
       const area = region ? deviceRect(transform, region) : { x: 0, y: 0, width, height }
@@ -249,6 +301,20 @@ export class TransitionRenderer {
       }
       scaled(fromText.canvas, 1 + SCALE_AMOUNT * out, 1 - out)
       scaled(toText.canvas, 1 - SCALE_AMOUNT * (1 - into), into)
+    }
+
+    // The words, on their own time: rising into the band once it's up, or
+    // sinking out of it before it goes.
+    if (apart) {
+      const words = render(7, comingOn ? to : from, "text")
+      if (words) {
+        const done = partDone(timeline.text, elapsed)
+        const shown = comingOn ? ease("ease-out", done) : 1 - ease("ease-in", done)
+        if (shown > 0) {
+          ctx.globalAlpha = shown
+          ctx.drawImage(words.canvas, 0, height * TEXT_RISE * (1 - shown))
+        }
+      }
     }
     ctx.restore()
   }

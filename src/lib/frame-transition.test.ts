@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { contentKey, ease, shouldTransition, transitionProgress, transitionSpecFor } from "./frame-transition"
+import { bandTimeline, contentKey, ease, shouldTransition, transitionProgress, transitionSpecFor } from "./frame-transition"
 import { BUILTIN_THEMES } from "./builtin-themes"
 import type { BroadcastTheme, VerseRenderData } from "@/types/broadcast"
 
@@ -87,5 +87,47 @@ describe("transitionSpecFor", () => {
     expect(shouldTransition({ theme: cut, verse: null }, { theme: cut, verse: verse("a") })).toBe(false)
     // New words still use the theme's own transition.
     expect(shouldTransition({ theme: cut, verse: verse("a") }, { theme: cut, verse: verse("b") })).toBe(true)
+  })
+})
+
+describe("band first, then words", () => {
+  const band = { type: "slide" as const, duration: 400, easing: "ease-out" as const, direction: "up" as const }
+
+  it("keeps band and words together by default", () => {
+    expect(bandTimeline(band, true)).toEqual({ total: 400, band: { start: 0, length: 400 }, text: { start: 0, length: 400 } })
+    expect(bandTimeline({ ...band, textTiming: "with" }, true).total).toBe(400)
+  })
+
+  it("brings the words in after the band has landed, and takes them off first", () => {
+    const on = bandTimeline({ ...band, textTiming: "after" }, true)
+    expect(on.band).toEqual({ start: 0, length: 400 })
+    expect(on.text.start).toBeGreaterThanOrEqual(400)
+    expect(on.total).toBe(on.text.start + on.text.length)
+
+    const off = bandTimeline({ ...band, textTiming: "after" }, false)
+    expect(off.text.start).toBe(0)
+    expect(off.band.start).toBeGreaterThanOrEqual(off.text.length)
+    expect(off.total).toBe(off.band.start + 400)
+  })
+
+  it("starts the words as the band settles, with landing", () => {
+    const on = bandTimeline({ ...band, textTiming: "landing" }, true)
+    expect(on.text.start).toBeGreaterThan(0)
+    expect(on.text.start).toBeLessThan(400)
+  })
+
+  it("runs the whole timeline, in linear time, when the words are apart", () => {
+    const spec = { ...band, textTiming: "after" as const }
+    const transition = { from: { theme, verse: null }, start: 0, spec }
+    const total = bandTimeline(spec, true).total
+    expect(transitionProgress(transition, total / 2)).toBeCloseTo(0.5, 5)
+    expect(transitionProgress(transition, total)).toBe(1)
+    // Words to words in a band that stays up: unchanged.
+    const words = { from: { theme, verse: verse("a") }, start: 0, spec: theme.transition }
+    expect(transitionProgress(words, theme.transition.duration)).toBe(1)
+  })
+
+  it("never splits a cut", () => {
+    expect(bandTimeline({ ...band, type: "cut", textTiming: "after" }, true).total).toBe(400)
   })
 })

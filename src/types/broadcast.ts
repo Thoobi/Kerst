@@ -147,10 +147,12 @@ export interface RenderOptions {
    * - "text": only the words, reference and credit;
    * - "backdrop": only the background and the logo;
    * - "content": the plates and the words, e.g. a Lower Thirds band coming
-   *   on with its words.
+   *   on with its words;
+   * - "plates": only the plates (the band), for a band that comes on before
+   *   its words.
    * A full-frame slide or video counts as background.
    */
-  layer?: "all" | "base" | "text" | "backdrop" | "content"
+  layer?: "all" | "base" | "text" | "backdrop" | "content" | "plates"
   /**
    * The text box's video fill, playing in a <video>: drawn into the band
    * where the canvas must hold the pixels (NDI, transitions). With
@@ -250,7 +252,15 @@ export interface BandTransition {
   duration: number
   easing: "linear" | "ease-in" | "ease-out" | "ease-in-out"
   direction: "up" | "down" | "left" | "right"
+  /**
+   * When the words come in against the band: "with" it (one piece, the
+   * default), as it "landing"s, or "after" it has landed. Going off air the
+   * words leave first, then the band.
+   */
+  textTiming?: TextTiming
 }
+
+export type TextTiming = "with" | "landing" | "after"
 
 /**
  * A library video used as a fill. Stored by id and file name, not URL: the

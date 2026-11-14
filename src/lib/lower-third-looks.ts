@@ -57,8 +57,14 @@ export const FLOAT_WIDTH = 90
 /** How far a floating band sits above the bottom edge (`layout.bandInset`), in theme px (at 1080p). */
 export const FLOAT_LIFT = 40
 
-function transition(type: BandTransition["type"], direction: BandTransition["direction"], duration: number): BandTransition {
-  return { type, direction, duration, easing: "ease-out" }
+/** A band transition; the words follow once the band has landed, unless said. */
+function transition(
+  type: BandTransition["type"],
+  direction: BandTransition["direction"],
+  duration: number,
+  textTiming: BandTransition["textTiming"] = "after"
+): BandTransition {
+  return { type, direction, duration, easing: "ease-out", textTiming }
 }
 
 /**
@@ -199,7 +205,8 @@ export const LOWER_THIRD_LOOKS: LowerThirdLook[] = [
       ...text(theme, "#ffffff", GOLD, STRONG_SHADOW),
       textBox: { ...band(theme, {}), enabled: false },
       layout: placement(theme, false),
-      bandTransition: transition("fade", "up", 350),
+      // No band to come first: the words are the whole thing.
+      bandTransition: transition("fade", "up", 350, "with"),
     }),
   },
 ]

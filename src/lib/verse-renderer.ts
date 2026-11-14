@@ -2125,7 +2125,7 @@ function renderVerseImpl(
   const drawBase = layer === "all" || layer === "base" || layer === "backdrop"
   // The band and plates come on with the words: with nothing to say (off
   // air), a Lower Thirds band doesn't sit there empty.
-  const drawPlates = verse !== null && (layer === "all" || layer === "base" || layer === "content")
+  const drawPlates = verse !== null && (layer === "all" || layer === "base" || layer === "content" || layer === "plates")
   const drawText = layer === "all" || layer === "text" || layer === "content"
   if (verse?.image || verse?.video) {
     if (!drawBase) return computeVerseLayoutMetrics(ctx, theme, null, options)
