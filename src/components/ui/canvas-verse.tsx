@@ -1,9 +1,11 @@
 import { useRef, useEffect, useState, useCallback, memo } from "react"
-import { activeCamera, backgroundRegion, computeVerseLayoutMetrics, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
+import { activeCamera, activePanel, themeBackgroundVideo, backgroundRegion, cameraPanelRect, computeVerseLayoutMetrics, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { LoopingVideo } from "@/components/ui/looping-video"
 import { CameraLayer } from "@/components/ui/camera-layer"
 import { BandVideo } from "@/components/ui/band-video"
+import { ThemeVideo } from "@/components/ui/theme-video"
+import { cssRadius, radiusOf } from "@/lib/corners"
 import { bandReady, placeBand } from "@/lib/band-layout"
 import { useTimerTick } from "@/hooks/use-timer-tick"
 import type { BroadcastTheme, VerseRenderData } from "@/types"
@@ -82,13 +84,18 @@ export const CanvasVerse = memo(function CanvasVerse({
       const shown = behind && !!bandVideo && !!verse && !verse.image && !verse.video && bandReady(bandRef.current)
       if (shown) {
         const metrics = computeVerseLayoutMetrics(ctx, theme, verse, { scale })
-        placeBand(bandBoxRef.current, metrics.textBoxRect, metrics.scaledTheme.textBox.borderRadius, 1)
+        placeBand(bandBoxRef.current, metrics.textBoxRect, radiusOf(metrics.scaledTheme.textBox), 1)
       } else {
         placeBand(bandBoxRef.current, null, 0, 1)
       }
       return { bandVideo: bandRef.current, bandBehind: shown }
     }
-    const options = { scale, imageCache: themeImageCache(), backgroundBehind: true }
+    const options = {
+      scale,
+      imageCache: themeImageCache(),
+      backgroundBehind: true,
+      panelBehind: !!activePanel(theme, verse)?.camera?.url,
+    }
     const frame: Frame = { theme, verse }
     const shown = shownRef.current
     if (animate && shown && shown.verse !== verse && shouldTransition(shown, frame)) {
@@ -150,10 +157,15 @@ export const CanvasVerse = memo(function CanvasVerse({
   // A motion background plays in a <video> behind the canvas, over the
   // theme's background region, which the canvas leaves transparent.
   const camera = activeCamera(theme, verse)
+  const themeVideo = themeBackgroundVideo(theme, verse)
   const backgroundBox =
-    (verse?.background || camera) && containerWidth > 0
+    (verse?.background || camera || themeVideo) && containerWidth > 0
       ? backgroundRegion(themeForContent(theme, verse), containerWidth / theme.resolution.width)
       : null
+
+  const panelCamera = activePanel(theme, verse)?.camera ?? null
+  const panelPlaced =
+    panelCamera?.url && containerWidth > 0 ? cameraPanelRect(theme, verse, containerWidth / theme.resolution.width) : null
 
   return (
     <div ref={containerRef} className={cn("relative w-full overflow-hidden rounded-md", className)}>
@@ -162,6 +174,18 @@ export const CanvasVerse = memo(function CanvasVerse({
           url={verse.background.url}
           poster={verse.background.poster}
           playing={verse.background.playing}
+          className="absolute"
+          style={{
+            left: backgroundBox.x,
+            top: backgroundBox.y,
+            width: backgroundBox.width,
+            height: backgroundBox.height,
+          }}
+        />
+      )}
+      {themeVideo && backgroundBox && (
+        <ThemeVideo
+          video={themeVideo}
           className="absolute"
           style={{
             left: backgroundBox.x,
@@ -181,6 +205,20 @@ export const CanvasVerse = memo(function CanvasVerse({
             top: backgroundBox.y,
             width: backgroundBox.width,
             height: backgroundBox.height,
+          }}
+        />
+      )}
+      {panelCamera?.url && panelPlaced && (
+        <CameraLayer
+          url={panelCamera.url}
+          fit={panelCamera.fit ?? "cover"}
+          className="absolute"
+          style={{
+            left: panelPlaced.rect.x,
+            top: panelPlaced.rect.y,
+            width: panelPlaced.rect.width,
+            height: panelPlaced.rect.height,
+            borderRadius: cssRadius(panelPlaced.radius),
           }}
         />
       )}

@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client"
 import { useRef, useEffect, useCallback, useState } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
-import { activeCamera, backgroundRegion, computeVerseLayoutMetrics, logoRect, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
+import { activeCamera, activePanel, themeBackgroundVideo, backgroundRegion, cameraPanelRect, computeVerseLayoutMetrics, logoRect, onThemeFontsLoaded, renderVerse, themeForContent } from "@/lib/verse-renderer"
 import { preloadFrameImages, themeImageCache } from "@/lib/theme-image-cache"
 import { isAnimatedGif } from "@/lib/gif-frames"
 import { LogoCanvas } from "@/components/broadcast/logo-canvas"
@@ -12,6 +12,8 @@ import { SyncedVideo } from "@/components/ui/synced-video"
 import { LoopingVideo } from "@/components/ui/looping-video"
 import { CameraLayer } from "@/components/ui/camera-layer"
 import { BandVideo } from "@/components/ui/band-video"
+import { ThemeVideo } from "@/components/ui/theme-video"
+import { cssRadius, radiusOf } from "@/lib/corners"
 import { bandReady, placeBand } from "@/lib/band-layout"
 import { latestCameraFrame } from "@/lib/mjpeg-reader"
 import {
@@ -75,10 +77,18 @@ function BroadcastCanvas() {
   const [background, setBackground] = useState<VideoPlayback | null>(null)
   const backgroundRef = useRef<HTMLVideoElement | null>(null)
   const [backgroundBox, setBackgroundBox] = useState<BackgroundBox | null>(null)
+  // The theme's own looping background video (when no motion background
+  // takes its place), in the same spot; NDI copies its frames too.
+  const [themeVideo, setThemeVideo] = useState<SurfaceVideo | null>(null)
   // A live camera in place of the theme's background, shown behind the canvas.
   const [camera, setCamera] = useState<CameraFeed | null>(null)
   // The same, for NDI frames drawn outside React.
   const cameraRef = useRef<CameraFeed | null>(null)
+  // The theme's camera panel: a camera layer behind a hole in the canvas,
+  // placed and rounded to match. NDI draws its frames into the panel.
+  const [panelCamera, setPanelCamera] = useState<CameraFeed | null>(null)
+  const panelCameraRef = useRef<CameraFeed | null>(null)
+  const [panelBox, setPanelBox] = useState<(BackgroundBox & { radius: string }) | null>(null)
   // The theme's logo sits over the canvas and any video in its own small
   // canvas, so a GIF animates without redrawing the frame; NDI draws it
   // into its own frames.
@@ -152,7 +162,7 @@ function BroadcastCanvas() {
       !!bandVideo && !transitioningNow && !!verse && !verse.image && !verse.video && bandReady(bandRef.current)
     if (bandBehind) {
       const metrics = computeVerseLayoutMetrics(ctx, theme, verse, { scale })
-      placeBand(bandBoxRef.current, metrics.textBoxRect, metrics.scaledTheme.textBox.borderRadius, dpr)
+      placeBand(bandBoxRef.current, metrics.textBoxRect, radiusOf(metrics.scaledTheme.textBox), dpr)
     } else {
       placeBand(bandBoxRef.current, null, 0, dpr)
     }
@@ -164,6 +174,7 @@ function BroadcastCanvas() {
       logoAbove: true,
       bandVideo: bandRef.current,
       bandBehind,
+      panelBehind: !!panelCameraRef.current?.url,
     }
     let drew: boolean
     if (transition && progress < 1) {
@@ -181,6 +192,15 @@ function BroadcastCanvas() {
       height: region.height / dpr,
     }
     setBackgroundBox((prev) => (prev && sameBox(prev, box) ? prev : box))
+    const panelPlaced = cameraPanelRect(theme, verse, scale)
+    const panelAt = panelPlaced && {
+      left: panelPlaced.rect.x / dpr,
+      top: panelPlaced.rect.y / dpr,
+      width: panelPlaced.rect.width / dpr,
+      height: panelPlaced.rect.height / dpr,
+      radius: cssRadius(panelPlaced.radius, dpr),
+    }
+    setPanelBox((prev) => (prev && panelAt && sameBox(prev, panelAt) && prev.radius === panelAt.radius ? prev : panelAt))
     const logoRegion = logoRect(theme, verse, scale, themeImageCache())
     const logoAt = logoRegion && {
       left: logoRegion.x / dpr,
@@ -231,6 +251,7 @@ function BroadcastCanvas() {
         video: videoRef.current,
         backgroundVideo: backgroundRef.current,
         cameraImage: latestCameraFrame(cameraRef.current?.url),
+        panelImage: latestCameraFrame(panelCameraRef.current?.url),
         bandVideo: bandRef.current,
       }
       const transition = transitionRef.current
@@ -337,6 +358,16 @@ function BroadcastCanvas() {
         const next = activeCamera(latestData.current.theme, event.payload.verse)
         cameraRef.current = next
         setCamera((prev) => (prev?.url === next?.url && prev?.fit === next?.fit ? prev : next))
+        const nextVideo = themeBackgroundVideo(latestData.current.theme, event.payload.verse)
+        setThemeVideo((prev) =>
+          prev?.videoId === nextVideo?.videoId && prev?.file === nextVideo?.file && prev?.poster === nextVideo?.poster
+            ? prev
+            : nextVideo
+        )
+        const panelFeed = activePanel(latestData.current.theme, event.payload.verse)?.camera ?? null
+        const nextPanel = panelFeed?.url ? panelFeed : null
+        panelCameraRef.current = nextPanel
+        setPanelCamera((prev) => (prev?.url === nextPanel?.url && prev?.fit === nextPanel?.fit ? prev : nextPanel))
         const textBox = latestData.current.theme.textBox
         const nextBand = textBox.enabled && textBox.video?.videoId ? textBox.video : null
         setBand((prev) =>
@@ -415,6 +446,8 @@ function BroadcastCanvas() {
     (video?.playing ?? false) ||
     (background?.playing ?? false) ||
     camera !== null ||
+    themeVideo !== null ||
+    panelCamera !== null ||
     band !== null ||
     (logo !== null && logoBox !== null && isAnimatedGif(logo.url))
   useEffect(() => {
@@ -469,11 +502,28 @@ function BroadcastCanvas() {
             style={{ position: "absolute", ...backgroundBox }}
           />
         )}
+        {themeVideo && backgroundBox && (
+          <ThemeVideo video={themeVideo} elementRef={backgroundRef} style={{ position: "absolute", ...backgroundBox }} />
+        )}
         {camera && backgroundBox && (
           <CameraLayer
             url={camera.url}
             fit={camera.fit ?? "cover"}
             style={{ position: "absolute", ...backgroundBox }}
+          />
+        )}
+        {panelCamera && panelBox && (
+          <CameraLayer
+            url={panelCamera.url}
+            fit={panelCamera.fit ?? "cover"}
+            style={{
+              position: "absolute",
+              left: panelBox.left,
+              top: panelBox.top,
+              width: panelBox.width,
+              height: panelBox.height,
+              borderRadius: panelBox.radius,
+            }}
           />
         )}
         {band && <BandVideo video={band} boxRef={bandBoxRef} elementRef={bandRef} onReady={draw} />}

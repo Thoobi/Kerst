@@ -13,14 +13,17 @@ import type {
   VerseRenderData,
 } from "@/types"
 import { MAIN_OUTPUT_ID, defaultNdiSettings, defaultStreamSettings, normalizeOutput, outputWindowLabel } from "@/types"
-import { BUILTIN_THEMES, LOWER_THIRDS, CLASSIC_DARK } from "@/lib/builtin-themes"
+import { BUILTIN_THEMES, LOWER_THIRDS, CLASSIC_DARK, SIDE_BY_SIDE } from "@/lib/builtin-themes"
 import { normalizeTheme } from "@/lib/theme-migrations"
 import { isLowerThird } from "@/lib/lower-third"
 import { LOWER_THIRD_LOOKS } from "@/lib/lower-third-looks"
 
-type SelectedElement = "verse" | "reference" | null
+/** What the theme designer shows the theme with (its "Show as" switch). */
+export type DesignerSample = "scripture" | "song" | "text" | "name"
 
-export type NewThemeLayoutKind = "fullscreen" | "lower-thirds"
+export type SelectedElement = "verse" | "reference" | "camera" | "logo" | null
+
+export type NewThemeLayoutKind = "fullscreen" | "lower-thirds" | "custom" | "side-by-side"
 
 interface BroadcastState {
   themes: BroadcastTheme[]
@@ -68,7 +71,12 @@ interface BroadcastState {
   editingThemeId: string | null
   renamingThemeId: string | null
   draftTheme: BroadcastTheme | null
+  /** Earlier versions of the draft, for Undo (newest last), and those undone, for Redo. Not persisted. */
+  draftPast: BroadcastTheme[]
+  draftFuture: BroadcastTheme[]
   selectedElement: SelectedElement
+  designerSample: DesignerSample
+  setDesignerSample: (sample: DesignerSample) => void
 
   // Theme management
   loadThemes: () => void
@@ -145,8 +153,15 @@ interface BroadcastState {
   stopEditing: () => void
   updateDraft: (updates: Partial<BroadcastTheme>) => void
   updateDraftNested: (path: string, value: unknown) => void
+  /** Step the draft back to before the last change, or forward again. */
+  undoDraft: () => void
+  redoDraft: () => void
   /** Save the theme being designed; returns the id it was saved under (a copy, for a built-in). */
-  saveDraft: () => string | null
+  /**
+   * Save the draft; `name` names it. A built-in is saved as a copy, called
+   * `name` (or "… (Custom)" without one).
+   */
+  saveDraft: (name?: string) => string | null
   discardDraft: () => void
   setSelectedElement: (el: SelectedElement) => void
   setRenamingTheme: (id: string | null) => void
@@ -315,6 +330,36 @@ export function outputVerse(
   return state.liveVerse
 }
 
+/** How many steps Undo can go back. */
+const UNDO_LIMIT = 100
+/** Changes to the same setting this close together (a drag, a slider) undo as one step. */
+const UNDO_MERGE_MS = 600
+let lastEdit: { key: string; at: number } | null = null
+
+/**
+ * Keep the draft as it is now for Undo, before a change to `key`: unless
+ * it's the same setting moved again moments ago, so one drag or slider
+ * gesture undoes in one go.
+ */
+function remember(
+  get: () => BroadcastState,
+  set: (partial: Partial<BroadcastState>) => void,
+  key: string
+): void {
+  const { draftTheme, draftPast } = get()
+  if (!draftTheme) return
+  const now = Date.now()
+  const merging = lastEdit !== null && lastEdit.key === key && now - lastEdit.at < UNDO_MERGE_MS
+  lastEdit = { key, at: now }
+  if (merging) return
+  set({ draftPast: [...draftPast, draftTheme].slice(-UNDO_LIMIT), draftFuture: [] })
+}
+
+/** An undone version of the draft, still the theme being edited now (a built-in's saved copy stays the copy). */
+function keepIdentity(version: BroadcastTheme, current: BroadcastTheme): BroadcastTheme {
+  return { ...version, id: current.id, builtin: current.builtin, name: current.name, updatedAt: Date.now() }
+}
+
 function emitDraftToBroadcast(state: BroadcastState): void {
   if (!state.draftTheme) return
   for (const output of state.outputs) {
@@ -387,7 +432,10 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
   editingThemeId: null,
   renamingThemeId: null,
   draftTheme: null,
+  draftPast: [],
+  draftFuture: [],
   selectedElement: null,
+  designerSample: "scripture",
 
   loadThemes: () => {
     set({ themes: [...BUILTIN_THEMES] })
@@ -429,27 +477,14 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     set((s) => ({ themes: [...s.themes, newTheme] }))
   },
   createNewTheme: (layoutKind = "fullscreen") => {
-    // Lower thirds start from the Lower Thirds builtin (transparent background for
-    // NDI keying, text box band at the bottom); fullscreen from Classic Dark.
-    const source = layoutKind === "lower-thirds" ? LOWER_THIRDS : CLASSIC_DARK
     const newTheme: BroadcastTheme = {
-      ...source,
+      ...newThemeStart(layoutKind),
       id: crypto.randomUUID(),
-      name: "Untitled Theme",
+      name: layoutKind === "side-by-side" ? "Side by Side" : "Untitled Theme",
       builtin: false,
       pinned: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      ...(layoutKind === "fullscreen"
-        ? {
-            background: {
-              type: "solid" as const,
-              color: "#000000",
-              gradient: null,
-              image: null,
-            },
-          }
-        : {}),
     }
     set((s) => ({ themes: [...s.themes, newTheme] }))
     get().startEditing(newTheme.id)
@@ -683,6 +718,8 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     set({
       editingThemeId: themeId,
       draftTheme: { ...theme, updatedAt: Date.now() },
+      draftPast: [],
+      draftFuture: [],
       selectedElement: null,
     })
   },
@@ -690,16 +727,20 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     set({
       editingThemeId: null,
       draftTheme: null,
+      draftPast: [],
+      draftFuture: [],
       selectedElement: null,
     })
   },
   updateDraft: (updates) => {
+    remember(get, set, Object.keys(updates).join(","))
     set((s) => ({
       draftTheme: s.draftTheme ? { ...s.draftTheme, ...updates, updatedAt: Date.now() } : null,
     }))
     emitDraftToBroadcast(get())
   },
   updateDraftNested: (path, value) => {
+    remember(get, set, path)
     set((s) => ({
       draftTheme: s.draftTheme
         ? (setNestedValue(s.draftTheme as unknown as Record<string, unknown>, path, value) as unknown as BroadcastTheme)
@@ -707,15 +748,41 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     }))
     emitDraftToBroadcast(get())
   },
-  saveDraft: () => {
-    const { draftTheme } = get()
-    if (!draftTheme) return null
+  undoDraft: () => {
+    const { draftTheme, draftPast, draftFuture } = get()
+    const previous = draftPast[draftPast.length - 1]
+    if (!draftTheme || !previous) return
+    set({
+      draftTheme: keepIdentity(previous, draftTheme),
+      draftPast: draftPast.slice(0, -1),
+      draftFuture: [...draftFuture, draftTheme],
+    })
+    lastEdit = null
+    emitDraftToBroadcast(get())
+  },
+  redoDraft: () => {
+    const { draftTheme, draftPast, draftFuture } = get()
+    const next = draftFuture[draftFuture.length - 1]
+    if (!draftTheme || !next) return
+    set({
+      draftTheme: keepIdentity(next, draftTheme),
+      draftPast: [...draftPast, draftTheme],
+      draftFuture: draftFuture.slice(0, -1),
+    })
+    lastEdit = null
+    emitDraftToBroadcast(get())
+  },
+  saveDraft: (name) => {
+    const named = name?.trim()
+    const current = get().draftTheme
+    if (!current) return null
+    const draftTheme = named && !current.builtin ? { ...current, name: named } : current
     // If editing a builtin, save as a new custom theme
     if (draftTheme.builtin) {
       const customTheme = {
         ...draftTheme,
         id: crypto.randomUUID(),
-        name: `${draftTheme.name} (Custom)`,
+        name: named || `${draftTheme.name} (Custom)`,
         builtin: false,
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -734,6 +801,7 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
       }
       return customTheme.id
     }
+    if (draftTheme !== current) set({ draftTheme })
     get().saveTheme(draftTheme)
     return draftTheme.id
   },
@@ -744,8 +812,38 @@ export const useBroadcastStore = create<BroadcastState>((set, get) => ({
     }
   },
   setSelectedElement: (selectedElement) => set({ selectedElement }),
+  setDesignerSample: (designerSample) => set({ designerSample }),
   setRenamingTheme: (id) => set({ renamingThemeId: id }),
 }))
+
+/**
+ * What a new theme starts as. Lower thirds start from the Lower Thirds
+ * builtin (transparent background for NDI keying, a band at the bottom);
+ * Side by Side from its builtin; full screen and custom from Classic Dark
+ * on black, custom with every element placed freely in a box of its own.
+ */
+function newThemeStart(kind: NewThemeLayoutKind): BroadcastTheme {
+  const black: BroadcastTheme["background"] = { type: "solid", color: "#000000", gradient: null, image: null }
+  switch (kind) {
+    case "lower-thirds":
+      return LOWER_THIRDS
+    case "side-by-side":
+      return { ...SIDE_BY_SIDE, cameraPanel: SIDE_BY_SIDE.cameraPanel && { ...SIDE_BY_SIDE.cameraPanel } }
+    case "custom":
+      return {
+        ...CLASSIC_DARK,
+        background: black,
+        layout: {
+          ...CLASSIC_DARK.layout,
+          mode: "free",
+          referenceBox: { x: 10, y: 18, width: 80, height: 8 },
+          verseBox: { x: 10, y: 28, width: 80, height: 54 },
+        },
+      }
+    default:
+      return { ...CLASSIC_DARK, background: black }
+  }
+}
 
 // ── Theme persistence via tauri-plugin-store ──
 

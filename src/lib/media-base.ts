@@ -39,3 +39,12 @@ export function useMediaBase(): string | null {
 export function surfaceVideoUrl(mediaBase: string, video: SurfaceVideo): string {
   return `${mediaBase}/${encodeURIComponent(video.videoId)}/${encodeURIComponent(video.file)}`
 }
+
+/**
+ * A library video's address as a silent loop: the media server serves a
+ * copy without its sound track (WebKitGTK's player freezes a muted clip
+ * that still has one). Any other address is left as it is.
+ */
+export function silentLoopUrl(url: string): string {
+  return url.replace(/\/videos\/([^/]+\/[^/]+)$/, "/loops/$1")
+}

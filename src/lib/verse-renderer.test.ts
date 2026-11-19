@@ -904,6 +904,14 @@ describe("logoRect", () => {
     expect(bottomRight.y + bottomRight.height).toBeCloseTo(1080 - margin)
   })
 
+  it("uses each side's own margin, in theme px, from the sides of its corner", () => {
+    const margins = { top: 20, right: 40, bottom: 60, left: 80 }
+    expect(logoRect(withLogo({ corner: "top-left", margins }), null, 1, cache)).toMatchObject({ x: 80, y: 20 })
+    const bottomRight = logoRect(withLogo({ corner: "bottom-right", margins }), null, 0.5, cache)!
+    expect(bottomRight.x + bottomRight.width).toBeCloseTo(960 - 20)
+    expect(bottomRight.y + bottomRight.height).toBeCloseTo(540 - 30)
+  })
+
   it("scales with the render scale", () => {
     const rect = logoRect(withLogo({ corner: "top-left" }), null, 0.5, cache)!
     expect(rect).toMatchObject({ x: 27, y: 27 })
@@ -984,12 +992,13 @@ describe("timer font", () => {
   })
 
   it("goes where it's put on the whole screen, caption and all", () => {
-    const shown = themeForContent(theme, timer({ position: { horizontal: "right", vertical: "bottom" }, captionBelow: true }))
+    const placed = timer({ position: { horizontal: "right", vertical: "bottom" }, captionBelow: true })
+    const shown = themeForContent(theme, placed)
     expect(shown.layout).toMatchObject({ anchor: "center", backgroundWidth: 100, textAreaWidth: 90, textAreaHeight: 90 })
     expect(shown.verseText).toMatchObject({ horizontalAlign: "right", verticalAlign: "bottom" })
     expect(shown.reference).toMatchObject({ horizontalAlign: "right", verticalAlign: "bottom", position: "below" })
 
-    const metrics = computeVerseLayoutMetrics(stubCtx(), shown, { ...timer(), segments: [{ text: "5:00" }] })
+    const metrics = computeVerseLayoutMetrics(stubCtx(), theme, { ...placed, segments: [{ text: "5:00" }] })
     // The caption ends in the bottom right of the frame, the time just above it.
     const ref = metrics.referenceRect!
     expect(ref.y + ref.height).toBeGreaterThan(1000)
@@ -1013,5 +1022,185 @@ describe("speaker names", () => {
     expect(metrics.fittedVerseFontSize).toBe(BUILTIN_THEMES[2].verseText.fontSize)
     expect(shown.reference.fontSize).toBe(BUILTIN_THEMES[2].verseText.fontSize / 2)
     expect(shown.verseText.fontWeight).toBeGreaterThanOrEqual(700)
+  })
+})
+
+describe("fill the box", () => {
+  it("grows short words past the theme's size, never more than 3× or taller than the box", async () => {
+    const { fitVerseText, FILL_MAX_SCALE } = await import("./verse-renderer")
+    const ctx = stubCtx()
+    const theme = BUILTIN_THEMES[0]
+    const verse: VerseRenderData = { reference: "", segments: [{ text: "Amen" }] }
+    const plain = fitVerseText(ctx, theme, verse, 1200, 600).fontSize
+    const filled = fitVerseText(ctx, { ...theme, verseText: { ...theme.verseText, fillBox: true } }, verse, 1200, 600).fontSize
+    expect(plain).toBe(theme.verseText.fontSize)
+    expect(filled).toBeGreaterThan(plain)
+    expect(filled).toBeLessThanOrEqual(theme.verseText.fontSize * FILL_MAX_SCALE)
+  })
+})
+
+describe("theme background video", () => {
+  it("plays under the theme's own content, but not under a song's motion background or a slide", async () => {
+    const { themeBackgroundVideo } = await import("./verse-renderer")
+    const video = { videoId: "v1", file: "loop.mp4", poster: "poster.jpg" }
+    const theme: BroadcastTheme = { ...BUILTIN_THEMES[0], background: { ...BUILTIN_THEMES[0].background, type: "video", video } }
+    expect(themeBackgroundVideo(theme, VERSE)).toEqual(video)
+    expect(themeBackgroundVideo(theme, null)).toEqual(video)
+    expect(themeBackgroundVideo(theme, { ...VERSE, image: { url: "slide.png" } })).toBeNull()
+    const motion = { id: "m", url: "m.mp4", duration: 10, loop: true, playing: true, position: 0, anchor: 0 }
+    expect(themeBackgroundVideo(theme, { ...VERSE, background: motion })).toBeNull()
+    expect(themeBackgroundVideo(BUILTIN_THEMES[0], VERSE)).toBeNull()
+  })
+})
+
+describe("Side by Side", () => {
+  const sbs = () => BUILTIN_THEMES.find((t) => t.id === "builtin-side-by-side")!
+
+  it("keeps songs in their card even when set to the whole screen", () => {
+    const theme = { ...sbs(), lyricsText: { area: "screen" as const } }
+    const styled = themeForContent(theme, { ...VERSE, style: "lyrics" })
+    expect(styled.layout.mode).toBe("free")
+    expect(styled.layout.verseBox).toEqual(sbs().layout.verseBox)
+  })
+
+  it("gives a timer its own layout: no camera or card, the clock in the middle", async () => {
+    const { activePanel } = await import("./verse-renderer")
+    const timer = { direction: "down" as const, seconds: 300, anchor: 0, running: false, caption: "Starting soon", endText: "" }
+    const verse: VerseRenderData = { reference: "", segments: [], timer }
+    const styled = themeForContent(sbs(), verse)
+    expect(styled.cameraPanel).toBeNull()
+    expect(styled.layout.mode).toBe("stacked")
+    expect(styled.verseText.surface?.enabled).toBe(false)
+    expect(styled.verseText.horizontalAlign).toBe("center")
+    expect(styled.background).toEqual(sbs().background)
+    expect(activePanel(sbs(), verse)).toBeNull()
+  })
+})
+
+describe("timer caption", () => {
+  const timer = { direction: "down" as const, seconds: 60, anchor: 0, running: false, caption: "Soon", endText: "" }
+  it("goes above or below as chosen, whatever the theme's reference does", () => {
+    for (const theme of BUILTIN_THEMES) {
+      const above = themeForContent(theme, { reference: "", segments: [], timer: { ...timer, style: { size: 300, captionBelow: false } } })
+      const below = themeForContent(theme, { reference: "", segments: [], timer: { ...timer, style: { size: 300, captionBelow: true } } })
+      expect([theme.id, above.reference.position, above.layout.mode ?? "stacked"]).toEqual([theme.id, "above", "stacked"])
+      expect([theme.id, below.reference.position]).toEqual([theme.id, "below"])
+    }
+  })
+})
+
+describe("per-side padding", () => {
+  it("insets a plate's words by each side's own padding", () => {
+    const sbs = BUILTIN_THEMES.find((t) => t.id === "builtin-side-by-side")!
+    const theme: BroadcastTheme = {
+      ...sbs,
+      verseText: { ...sbs.verseText, surface: { ...sbs.verseText.surface!, padding: 8, paddings: { top: 10, right: 20, bottom: 30, left: 40 } } },
+    }
+    const metrics = computeVerseLayoutMetrics(stubCtx(), theme, VERSE)
+    const box = metrics.verseBoxRect!
+    expect(metrics.textRect.x - box.x).toBeCloseTo(40)
+    expect(metrics.textRect.y - box.y).toBeCloseTo(10)
+    expect(box.x + box.width - (metrics.textRect.x + metrics.textRect.width)).toBeCloseTo(20)
+    expect(box.y + box.height - (metrics.textRect.y + metrics.textRect.height)).toBeCloseTo(30)
+  })
+})
+
+describe("names on Side by Side", () => {
+  it("puts the name and title together in the words card, not blown up", async () => {
+    const { nameRenderData } = await import("./speaker-names")
+    const sbs = BUILTIN_THEMES.find((t) => t.id === "builtin-side-by-side")!
+    const content = nameRenderData({ name: "Jane Doe", title: "Worship Leader" })
+    const metrics = computeVerseLayoutMetrics(stubCtx(), sbs, content)
+    const box = { x: 0.58 * 1920, y: 0.25 * 1080, width: 0.38 * 1920, height: 0.5 * 1080 }
+    // The card fills the words' box.
+    expect(metrics.textBoxRect).toMatchObject(box)
+    expect(metrics.scaledTheme.textBox.enabled).toBe(true)
+    // Name then title, both inside the card.
+    const name = metrics.verseRect!
+    const title = metrics.referenceRect!
+    expect(title.y).toBeGreaterThan(name.y)
+    for (const r of [name, title]) {
+      expect(r.x).toBeGreaterThanOrEqual(box.x)
+      expect(r.y).toBeGreaterThanOrEqual(box.y)
+      expect(r.y + r.height).toBeLessThanOrEqual(box.y + box.height + 0.5)
+    }
+    // The name half as big again as the words, never filled up to 3×, and in from the card's sides.
+    expect(metrics.fittedVerseFontSize).toBeLessThanOrEqual(sbs.verseText.fontSize * 1.5)
+    expect(name.x - box.x).toBeGreaterThanOrEqual(32)
+  })
+})
+
+describe("name alignment", () => {
+  it("follows the names' own vertical alignment, leaving verses alone", async () => {
+    const { nameRenderData } = await import("./speaker-names")
+    const sbs = BUILTIN_THEMES.find((t) => t.id === "builtin-side-by-side")!
+    const content = nameRenderData({ name: "Jane Doe", title: "Worship Leader" })
+    const top = computeVerseLayoutMetrics(stubCtx(), { ...sbs, nameStyle: { verticalAlign: "top" } }, content)
+    const middle = computeVerseLayoutMetrics(stubCtx(), sbs, content)
+    const bottom = computeVerseLayoutMetrics(stubCtx(), { ...sbs, nameStyle: { verticalAlign: "bottom" } }, content)
+    expect(top.verseRect!.y).toBeLessThan(middle.verseRect!.y)
+    expect(middle.verseRect!.y).toBeLessThan(bottom.verseRect!.y)
+    // A verse on the same theme keeps the verses' alignment.
+    expect(themeForContent({ ...sbs, nameStyle: { verticalAlign: "top" } }, VERSE).verseText.verticalAlign).toBe(sbs.verseText.verticalAlign)
+  })
+})
+
+describe("lower third band margins", () => {
+  it("places the band by its margins: full width on the bottom, or lifted and inset", async () => {
+    const { LOWER_THIRDS } = await import("./builtin-themes")
+    const full = computeVerseLayoutMetrics(stubCtx(), LOWER_THIRDS, VERSE).textBoxRect
+    const h = (LOWER_THIRDS.layout.textAreaHeight / 100) * 1080
+    expect(full).toMatchObject({ x: 0, width: 1920, y: 1080 - h, height: h })
+    const lifted = { ...LOWER_THIRDS, layout: { ...LOWER_THIRDS.layout, bandMargins: { top: 0, right: 100, bottom: 40, left: 60 } } }
+    expect(computeVerseLayoutMetrics(stubCtx(), lifted, VERSE).textBoxRect).toMatchObject({ x: 60, width: 1760, y: 1080 - 40 - h })
+  })
+})
+
+describe("corners and shadows", () => {
+  it("rounds each corner on its own and scales them", async () => {
+    const { cameraPanelRect } = await import("./verse-renderer")
+    const sbs = BUILTIN_THEMES.find((t) => t.id === "builtin-side-by-side")!
+    const theme = { ...sbs, cameraPanel: { ...sbs.cameraPanel!, radii: { tl: 40, tr: 0, br: 20, bl: 2000 } } }
+    // At half size; a corner never more than half the shorter side (540/2 at 0.5 → 135).
+    expect(cameraPanelRect(theme, null, 0.5)!.radius).toEqual({ tl: 20, tr: 0, br: 10, bl: 135 })
+  })
+})
+
+describe("reference never on the verse", () => {
+  it("keeps an inline reference clear of a two-line verse in a short, bottom-aligned band", async () => {
+    const { LOWER_THIRDS } = await import("./builtin-themes")
+    // Like an operator's own Lower Thirds: a short band, words to the bottom, reference inline.
+    const theme: BroadcastTheme = {
+      ...LOWER_THIRDS,
+      layout: { ...LOWER_THIRDS.layout, mode: "stacked", textAreaHeight: 21, bandMargins: null, textAreaWidth: 98, bandInset: 40,
+        padding: { top: 1, right: 1, bottom: 8, left: 16 }, referenceGap: 17 },
+      textBox: { ...LOWER_THIRDS.textBox, enabled: true, padding: 24 },
+      verseText: { ...LOWER_THIRDS.verseText, fontSize: 64, lineHeight: 1.5, verticalAlign: "bottom" },
+      reference: { ...LOWER_THIRDS.reference, fontSize: 36, position: "inline", verticalAlign: "top" },
+    }
+    const verse: VerseRenderData = {
+      reference: "Genesis 1:1 (AMP)",
+      segments: [{ verseNumber: 1, text: "In the beginning God (Elohim) created [by forming from nothing] the heavens and the earth." }],
+    }
+    const m = computeVerseLayoutMetrics(stubCtx(), theme, verse)
+    expect(m.referenceRect!.y).toBeGreaterThanOrEqual(m.verseRect!.y + m.verseRect!.height - 0.5)
+    expect(m.referenceRect!.y + m.referenceRect!.height).toBeLessThanOrEqual(m.textRect.y + m.textRect.height + 0.5)
+  })
+})
+
+describe("free boxes in a lower third band", () => {
+  it("convert on load without moving, then follow the band", async () => {
+    const { LOWER_THIRDS } = await import("./builtin-themes")
+    const { normalizeTheme } = await import("./theme-migrations")
+    const framed: BroadcastTheme = { ...LOWER_THIRDS, layout: { ...LOWER_THIRDS.layout, mode: "free",
+      referenceBox: { x: 2, y: 80, width: 20, height: 4 }, verseBox: { x: 2, y: 85, width: 90, height: 10 } } }
+    const before = computeVerseLayoutMetrics(stubCtx(), framed, VERSE).verseBoxRect!
+    const loaded = normalizeTheme(framed)
+    expect(loaded.layout.boxesIn).toBe("band")
+    const after = computeVerseLayoutMetrics(stubCtx(), loaded, VERSE).verseBoxRect!
+    expect(after.x).toBeCloseTo(before.x, 0)
+    expect(after.y).toBeCloseTo(before.y, 0)
+    const lifted = { ...loaded, layout: { ...loaded.layout, bandMargins: { top: 0, right: 0, bottom: 50, left: 0 } } }
+    expect(computeVerseLayoutMetrics(stubCtx(), lifted, VERSE).verseBoxRect!.y).toBeCloseTo(after.y - 50, 0)
   })
 })

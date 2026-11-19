@@ -248,7 +248,9 @@ const LOWER_THIRDS_BASE: BroadcastTheme = {
 
 const LOWER_THIRDS: BroadcastTheme = {
   ...LOWER_THIRDS_BASE,
-  ...LOWER_THIRD_LOOKS.find((look) => look.id === "floating")!.apply(LOWER_THIRDS_BASE),
+  // Full width on the bottom edge, at its band height; margins lift it off
+  // the edges only when they're set.
+  ...LOWER_THIRD_LOOKS.find((look) => look.id === "classic")!.apply(LOWER_THIRDS_BASE),
 }
 
 // Free-positioning example: reference in a top-left banner, verse block
@@ -326,11 +328,124 @@ const BANNER_SPLIT: BroadcastTheme = {
   },
 }
 
+
+/**
+ * Side by Side: the camera in a rounded box on the left and the words on
+ * the right, level with it, over a background of the theme's own. The
+ * camera is chosen per church (Camera tab in the designer), so it starts
+ * without one.
+ */
+const SIDE_BY_SIDE: BroadcastTheme = {
+  ...baseTheme,
+  id: "builtin-side-by-side",
+  name: "Side by Side",
+  background: {
+    type: "gradient",
+    color: "#140f2e",
+    gradient: {
+      type: "linear",
+      angle: 135,
+      stops: [
+        { color: "#1e1548", position: 0 },
+        { color: "#0b0a1f", position: 100 },
+      ],
+    },
+    image: null,
+  },
+  textBox: {
+    enabled: false,
+    color: "#000000",
+    opacity: 0,
+    borderRadius: 0,
+    padding: 0,
+    image: null,
+  },
+  verseText: {
+    fontFamily: "Geist Variable",
+    fontSize: 64,
+    fontWeight: 700,
+    color: "#ffffff",
+    horizontalAlign: "left",
+    verticalAlign: "middle",
+    textTransform: "none",
+    textDecoration: "none",
+    lineHeight: 1.3,
+    letterSpacing: 0,
+    shadow: { color: "rgba(0,0,0,0.5)", blur: 12, x: 0, y: 3 },
+    outline: null,
+    shrinkToFit: true,
+    // The words fill their card, short lines as well as long.
+    fillBox: true,
+    // The words' own card, the camera's twin: same size, level with it.
+    surface: {
+      enabled: true,
+      color: "#000000",
+      opacity: 0.35,
+      borderRadius: 24,
+      // The words use the whole card, just off its edge.
+      padding: 8,
+      image: null,
+      border: null,
+      shadow: true,
+    },
+  },
+  verseNumbers: {
+    visible: true,
+    fontSize: 30,
+    color: "#fbbf24",
+    superscript: true,
+  },
+  reference: {
+    fontFamily: "Geist Variable",
+    fontSize: 36,
+    fontWeight: 600,
+    color: "#fbbf24",
+    horizontalAlign: "left",
+    verticalAlign: "top",
+    textTransform: "none",
+    textDecoration: "none",
+    uppercase: true,
+    letterSpacing: 2,
+    position: "below",
+  },
+  layout: {
+    anchor: "center",
+    offsetX: 0,
+    offsetY: 0,
+    padding: { top: 0, right: 0, bottom: 0, left: 0 },
+    textAlign: "left",
+    backgroundWidth: 100,
+    backgroundHeight: 100,
+    textAreaWidth: 100,
+    textAreaHeight: 100,
+    mode: "free",
+    // Level with the camera: the words' card is its height, the reference sits just under.
+    verseBox: { x: 58, y: 25, width: 38, height: 50 },
+    referenceBox: { x: 58.5, y: 77, width: 37, height: 6 },
+  },
+  cameraPanel: {
+    enabled: true,
+    camera: null,
+    // 960 × 540 on a 1080p frame: 16:9, like the camera.
+    box: { x: 4, y: 25, width: 50, height: 50 },
+    borderRadius: 24,
+    border: null,
+    shadow: true,
+  },
+  transition: {
+    type: "fade",
+    duration: 400,
+    easing: "ease-in-out",
+    direction: "up",
+  },
+}
+
 export const BUILTIN_THEMES: BroadcastTheme[] = [
   CLASSIC_DARK,
   MODERN_LIGHT,
   LOWER_THIRDS,
   BANNER_SPLIT,
+  SIDE_BY_SIDE,
 ]
 
-export { CLASSIC_DARK, LOWER_THIRDS }
+export { CLASSIC_DARK, LOWER_THIRDS, SIDE_BY_SIDE }

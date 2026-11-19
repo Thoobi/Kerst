@@ -182,6 +182,14 @@ export interface RenderOptions {
    * this off.
    */
   backgroundBehind?: boolean
+  /**
+   * The camera panel's picture (`BroadcastTheme.cameraPanel`), for canvases
+   * that must hold the pixels (NDI, the stream, the editor). With
+   * `panelBehind` a camera layer shows it through a hole in the canvas.
+   */
+  panelImage?: CanvasImageSource | null
+  /** A camera layer behind this canvas shows the camera panel: leave its box clear. */
+  panelBehind?: boolean
 }
 
 /** A freely positioned element region, all values in % of canvas size (0-100), x/y = top-left. */
@@ -210,8 +218,14 @@ export interface SurfaceFill {
   color: string
   opacity: number
   borderRadius: number
-  /** Inset for the content on this surface, in theme px. */
+  /** Inset for the content on this surface, in theme px (every side, unless `paddings`). */
   padding: number
+  /** Each side's inset on its own, like padding in a design tool; wins over `padding`. */
+  paddings?: EdgeInsets | null
+  /** Each corner's rounding on its own; wins over `borderRadius`. */
+  radii?: CornerRadii | null
+  /** The shadow's look when `shadow` is on; unset, a soft dark one below. */
+  shadowStyle?: ShadowStyle | null
   /** When set, fills the surface, clipped to `borderRadius`. */
   image: ThemeImageFill | null
   /**
@@ -227,6 +241,13 @@ export interface SurfaceFill {
   gradient?: SurfaceGradient | null
   /** A stripe of colour along one edge, e.g. a Lower Thirds band's accent. */
   accent?: SurfaceAccent | null
+  /**
+   * A line around the surface, inside its edge, e.g. a card framing the
+   * words beside a camera. Width in theme px. Absent or null means none.
+   */
+  border?: { color: string; width: number } | null
+  /** A soft shadow around the surface, lifting it off the background like a card. */
+  shadow?: boolean
 }
 
 /** A linear gradient across a surface; `angle` in degrees as for the background: 0 = left to right, 90 = top to bottom. */
@@ -274,6 +295,56 @@ export interface SurfaceVideo {
   poster?: string
 }
 
+/**
+ * A live camera in a box of its own, anywhere on the frame, over the
+ * background and under the words: e.g. a Side by Side theme with the worship
+ * leader on one half and the lyrics on the other.
+ */
+export interface CameraPanel {
+  enabled: boolean
+  /** Null until a camera is chosen: the box shows black (and "Camera" in the editor). */
+  camera: CameraFeed | null
+  /** Where it sits, in % of the frame. */
+  box: ElementBox
+  /** Corner rounding, in theme px. */
+  borderRadius: number
+  /** A frame around the picture, in theme px. Null for none. */
+  border: { color: string; width: number } | null
+  /** A soft shadow under the panel, lifting it off the background. */
+  shadow: boolean
+  /** Each corner's rounding on its own; wins over `borderRadius`. */
+  radii?: CornerRadii | null
+  /** The shadow's look when `shadow` is on; unset, a soft dark one below. */
+  shadowStyle?: ShadowStyle | null
+}
+
+/** A value for each side, e.g. padding or margins, in theme px. */
+export interface EdgeInsets {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
+export type LogoMargins = EdgeInsets
+
+/** A radius for each corner, in theme px: top left, top right, bottom right, bottom left. */
+export interface CornerRadii {
+  tl: number
+  tr: number
+  br: number
+  bl: number
+}
+
+/** A drop shadow as design tools set it, in theme px; `color` carries its opacity (rgba / #rrggbbaa). */
+export interface ShadowStyle {
+  color: string
+  x: number
+  y: number
+  blur: number
+  spread: number
+}
+
 export type LogoCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right"
 
 /**
@@ -287,8 +358,14 @@ export interface ThemeLogo {
   size: number
   /** 0-100. */
   opacity: number
-  /** Inset from the frame's edges, in % of the frame height. */
+  /** Inset from the frame's edges, in % of the frame height (when `margins` is unset). */
   margin: number
+  /**
+   * The inset from each edge, in theme px, like padding in a design tool.
+   * The logo keeps to its corner: only the two sides of that corner place
+   * it. Unset: `margin` on both.
+   */
+  margins?: LogoMargins | null
   /** Also over slides and videos shown full frame, not only over the theme. */
   overMedia: boolean
 }
@@ -311,6 +388,8 @@ export interface LyricsStyle {
   horizontalAlign?: TextHorizontalAlign
   verticalAlign?: TextVerticalAlign
   shrinkToFit?: boolean
+  /** Grow the words to fill their box, as well as shrinking them (see the theme's `verseText.fillBox`). */
+  fillBox?: boolean
   outline?: { color: string; width: number } | null
   /** Extra space between letters, in theme px: below 0 tightens them. */
   letterSpacing?: number
@@ -341,6 +420,16 @@ export interface ScriptureStyle extends LyricsStyle {
   backgroundVideoId?: string | null
 }
 
+/**
+ * Name straps apart from verses: a theme's verses often sit at the top of
+ * their box, but a name belongs in the middle of its band or card unless
+ * set otherwise. Edited in the designer with "Show as: Name".
+ */
+export interface NameStyle {
+  /** Where the name and title sit up and down their box (default: middle). */
+  verticalAlign?: TextVerticalAlign
+}
+
 export interface BroadcastTheme {
   id: string
   name: string
@@ -350,10 +439,16 @@ export interface BroadcastTheme {
   updatedAt: number
   resolution: { width: number; height: number }
   background: {
-    type: "solid" | "gradient" | "image" | "transparent" | "camera"
+    type: "solid" | "gradient" | "image" | "transparent" | "camera" | "video"
     color: string
     /** The live camera when `type` is "camera". */
     camera?: CameraFeed | null
+    /**
+     * A library video looped silently as the background when `type` is
+     * "video", on every content shown on the theme. A song's own motion
+     * background still takes its place.
+     */
+    video?: SurfaceVideo | null
     gradient: {
       type: "linear" | "radial"
       angle: number
@@ -387,11 +482,21 @@ export interface BroadcastTheme {
      * and long text may run past the box.
      */
     shrinkToFit?: boolean
+    /**
+     * Grow the words past `fontSize` until they fill their box (up to
+     * `FILL_MAX_SCALE` times it), shrinking long passages as usual: a short
+     * line fills a Side by Side card instead of sitting small in it.
+     */
+    fillBox?: boolean
   }
   /** Absent or null means none. */
   logo?: ThemeLogo | null
+  /** A live camera in its own box (see `CameraPanel`). Absent or null means none. */
+  cameraPanel?: CameraPanel | null
   /** Songs and texts styled apart from scripture; see `LyricsStyle`. */
   lyricsText?: LyricsStyle
+  /** How speakers' names (name straps) sit; see `NameStyle`. */
+  nameStyle?: NameStyle
   /** Bible verses styled apart from the theme; see `ScriptureStyle`. */
   scriptureText?: ScriptureStyle
   /**
@@ -448,10 +553,29 @@ export interface BroadcastTheme {
      * `offsetX`/`offsetY` do: a band floating above the bottom edge.
      */
     bandInset?: number
+    /**
+     * A Lower Thirds band's distance from each edge of the frame, in theme
+     * px: left and right set its width, bottom (or top, for a band anchored
+     * there) lifts it off the edge. Wins over `textAreaWidth` and
+     * `bandInset`; the band's height stays `textAreaHeight`.
+     */
+    bandMargins?: EdgeInsets | null
     /** "stacked" (default): reference + verse flow as one block. "free": each is positioned by its box. */
     mode?: "stacked" | "free"
+    /**
+     * What the free boxes' % are of: the whole frame (default), or a Lower
+     * Thirds band, so they move and stretch with it when its margins or
+     * height change.
+     */
+    boxesIn?: "frame" | "band"
     referenceBox?: ElementBox
     verseBox?: ElementBox
+    /**
+     * Pins the stacked text area to this box (% of the frame) instead of
+     * anchoring it in the background, e.g. a name strap laid out in a Side
+     * by Side theme's words card. Set while rendering, not saved.
+     */
+    textAreaBox?: ElementBox
   }
   /** How a Lower Thirds band comes on and goes off air; absent: `transition`. */
   bandTransition?: BandTransition

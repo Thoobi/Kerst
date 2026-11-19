@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { useBroadcastStore } from "@/stores/broadcast-store"
 import { pickThemeBackgroundImage } from "@/lib/theme-designer-files"
 import { Slider } from "@/components/ui/slider"
@@ -13,6 +14,9 @@ import { Button } from "@/components/ui/button"
 import { SurfaceControls } from "@/components/broadcast/surface-properties"
 import { buildColorWithOpacity, parseColorOpacity } from "@/lib/color-utils"
 import { CameraPicker } from "@/components/panels/camera-picker"
+import { BackgroundPicker } from "@/components/panels/background-picker"
+import { libraryFileUrl } from "@/lib/library-api"
+import { useVideosStore } from "@/stores/videos-store"
 
 function SolidSection() {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
@@ -349,6 +353,51 @@ function CameraSection() {
   )
 }
 
+/**
+ * A library video looped silently as the whole background, under every
+ * song, text and verse on the theme (a song's own motion background still
+ * takes its place).
+ */
+function VideoSection() {
+  const draftTheme = useBroadcastStore((s) => s.draftTheme)
+  const update = useBroadcastStore((s) => s.updateDraftNested)
+  // The library may not be loaded yet if the Videos tab hasn't been opened.
+  useEffect(() => {
+    if (useVideosStore.getState().videos.length === 0) void useVideosStore.getState().loadVideos()
+  }, [])
+  if (!draftTheme) return null
+  const video = draftTheme.background.video ?? null
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label className="text-xs font-medium text-muted-foreground">Video</label>
+        <div className="rounded-md border">
+          <BackgroundPicker
+            videoId={video?.videoId ?? null}
+            onChoose={async (videoId) => {
+              const chosen = useVideosStore.getState().videos.find((v) => v.id === videoId)
+              update(
+                "background.video",
+                chosen
+                  ? {
+                      videoId: chosen.id,
+                      file: chosen.path.split(/[\\/]/).pop() ?? "",
+                      poster: chosen.poster_path ? libraryFileUrl(chosen.poster_path) : undefined,
+                    }
+                  : null
+              )
+            }}
+          />
+        </div>
+      </div>
+      <p className="text-[0.625rem] text-muted-foreground">
+        Loops silently behind everything on this theme. A song with its own motion background shows that instead.
+        Import clips in the Videos tab.
+      </p>
+    </div>
+  )
+}
+
 export function BackgroundProperties() {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
   const update = useBroadcastStore((s) => s.updateDraftNested)
@@ -397,6 +446,7 @@ export function BackgroundProperties() {
             <SelectItem value="image">Image</SelectItem>
             <SelectItem value="transparent">Transparent</SelectItem>
             <SelectItem value="camera">Live camera</SelectItem>
+            <SelectItem value="video">Video (loops)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -407,6 +457,7 @@ export function BackgroundProperties() {
       {bgType === "image" && <ImageSection />}
       {bgType === "transparent" && <TransparentSection />}
       {bgType === "camera" && <CameraSection />}
+      {bgType === "video" && <VideoSection />}
 
       {/* The container the reference + verse sit in — always available. */}
       <SurfaceControls

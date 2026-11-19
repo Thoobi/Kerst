@@ -1,3 +1,9 @@
+import { cn } from "@/lib/utils"
+import { SidesEditor } from "@/components/broadcast/sides-editor"
+import { RadiusEditor, ShadowEditor } from "@/components/broadcast/figma-fields"
+import { radiusOf } from "@/lib/corners"
+import { writeRadius } from "@/lib/radius-update"
+import { isUniform, surfaceInsets } from "@/lib/edge-insets"
 import { useBroadcastStore } from "@/stores/broadcast-store"
 import { pickThemeBackgroundImage } from "@/lib/theme-designer-files"
 import { buildColorWithOpacity, parseColorOpacity } from "@/lib/color-utils"
@@ -59,10 +65,13 @@ export function SurfaceControls({
   prefix,
   title,
   description,
+  compact = false,
 }: {
   prefix: SurfacePrefix
   title: string
   description?: string
+  /** Inside a fold that already names it: just the on/off row, no heading or rule. */
+  compact?: boolean
 }) {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
   const update = useBroadcastStore((s) => s.updateDraftNested)
@@ -91,14 +100,21 @@ export function SurfaceControls({
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t pt-3">
+    <div className={cn("flex flex-col gap-3", !compact && "border-t pt-3")}>
       <div className="flex items-center justify-between">
-        <div className="flex flex-col">
-          <h4 className="text-xs font-semibold">{title}</h4>
-          {description && (
-            <p className="text-[0.625rem] text-muted-foreground">{description}</p>
-          )}
-        </div>
+        {compact ? (
+          <div className="flex flex-col">
+            <span className="text-xs font-medium text-muted-foreground">Show it</span>
+            {description && <p className="text-[0.625rem] text-muted-foreground">{description}</p>}
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            <h4 className="text-xs font-semibold">{title}</h4>
+            {description && (
+              <p className="text-[0.625rem] text-muted-foreground">{description}</p>
+            )}
+          </div>
+        )}
         <input
           type="checkbox"
           checked={enabled}
@@ -261,20 +277,60 @@ export function SurfaceControls({
             </div>
           )}
 
-          <SliderRow
-            label="Corner Radius"
-            suffix="px"
-            value={surface.borderRadius}
-            max={80}
-            onChange={(v) => update(`${prefix}.borderRadius`, v)}
-          />
-          <SliderRow
+          <RadiusEditor value={radiusOf(surface)} onChange={(r) => writeRadius(update, prefix, r)} />
+          <SidesEditor
             label="Padding"
-            suffix="px"
-            value={surface.padding}
-            max={120}
-            onChange={(v) => update(`${prefix}.padding`, v)}
+            value={surfaceInsets(surface)}
+            onChange={(sides) => {
+              // One value all round stays a plain padding; otherwise each side's own.
+              if (isUniform(sides)) {
+                update(`${prefix}.padding`, sides.top)
+                update(`${prefix}.paddings`, null)
+              } else {
+                update(`${prefix}.paddings`, sides)
+              }
+            }}
           />
+
+          <ShadowEditor
+            enabled={!!surface.shadow}
+            value={surface.shadowStyle}
+            onToggle={(on) => update(`${prefix}.shadow`, on)}
+            onChange={(style) => update(`${prefix}.shadowStyle`, style)}
+          />
+
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor={`${prefix}-border`}>
+              Border
+            </label>
+            <input
+              id={`${prefix}-border`}
+              type="checkbox"
+              checked={!!surface.border}
+              onChange={(e) => update(`${prefix}.border`, e.target.checked ? { color: "#ffffff", width: 4 } : null)}
+              className="h-4 w-4 rounded border-input accent-primary"
+            />
+          </div>
+          {surface.border && (
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={surface.border.color}
+                onChange={(e) => update(`${prefix}.border.color`, e.target.value)}
+                className="h-7 w-8 cursor-pointer rounded border border-input bg-transparent p-0.5"
+                aria-label="Border colour"
+              />
+              <Slider
+                className="flex-1"
+                min={1}
+                max={24}
+                step={1}
+                value={[surface.border.width]}
+                onValueChange={([v]) => update(`${prefix}.border.width`, v)}
+              />
+              <span className="w-9 text-right text-xs tabular-nums text-muted-foreground">{surface.border.width}px</span>
+            </div>
+          )}
         </div>
       )}
     </div>

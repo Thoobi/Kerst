@@ -1,4 +1,5 @@
-import type { BandTransition, BroadcastTheme, LyricsStyle, SurfaceFill } from "@/types/broadcast"
+import { bandMargins } from "@/lib/lower-third"
+import type { BandTransition, BroadcastTheme, LyricsStyle, SurfaceFill, EdgeInsets, ShadowStyle } from "@/types/broadcast"
 
 /**
  * One-click looks for a Lower Thirds band. Each sets the band (fill,
@@ -36,9 +37,23 @@ function band(theme: BroadcastTheme, fill: Partial<SurfaceFill>): SurfaceFill {
     video: null,
     gradient: null,
     accent: null,
+    // One look's border, shadow or corner shapes don't carry into the next.
+    border: null,
+    shadow: false,
+    shadowStyle: null,
+    radii: null,
     ...fill,
   }
 }
+
+/** A band at `margins` from the frame's edges (theme px at 1080p), anchored to the bottom. */
+function placedAt(theme: BroadcastTheme, margins: EdgeInsets): BroadcastTheme["layout"] {
+  return { ...placement(theme, true), bandMargins: margins }
+}
+
+const DEEP_SHADOW: ShadowStyle = { color: "#0000008c", x: 0, y: 16, blur: 48, spread: 0 }
+const SOFT_CARD_SHADOW: ShadowStyle = { color: "#00000059", x: 0, y: 8, blur: 28, spread: 0 }
+const NEWS_BLUE = "#0b2a5b"
 
 /** Full width and sitting on the bottom edge, or a card lifted off it. */
 function placement(theme: BroadcastTheme, floating: boolean): BroadcastTheme["layout"] {
@@ -49,7 +64,17 @@ function placement(theme: BroadcastTheme, floating: boolean): BroadcastTheme["la
     offsetY: 0,
     bandInset: floating ? FLOAT_LIFT : 0,
     textAreaWidth: floating ? FLOAT_WIDTH : 100,
+    bandMargins: floating ? floatingMargins(theme.resolution.width) : FULL_WIDTH_MARGINS,
   }
+}
+
+/** A full-width band: on the bottom edge, side to side. */
+export const FULL_WIDTH_MARGINS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 }
+
+/** A floating band's margins: FLOAT_WIDTH of the frame wide, lifted FLOAT_LIFT off the bottom. */
+export function floatingMargins(frameWidth: number): EdgeInsets {
+  const side = Math.round(((100 - FLOAT_WIDTH) / 200) * frameWidth)
+  return { top: 0, right: side, bottom: FLOAT_LIFT, left: side }
 }
 
 /** A floating band's width, in % of the frame. */
@@ -209,6 +234,116 @@ export const LOWER_THIRD_LOOKS: LowerThirdLook[] = [
       bandTransition: transition("fade", "up", 350, "with"),
     }),
   },
+  {
+    id: "rounded-card",
+    name: "Rounded card",
+    description: "A soft dark card with a fine edge and a deep shadow, popping up",
+    apply: (theme) => ({
+      ...text(theme, "#ffffff", LIME, null),
+      textBox: band(theme, {
+        color: "#0e1014",
+        opacity: 0.92,
+        borderRadius: 24,
+        border: { color: "#ffffff1f", width: 2 },
+        shadow: true,
+        shadowStyle: DEEP_SHADOW,
+      }),
+      layout: placedAt(theme, { top: 0, right: 96, bottom: 48, left: 96 }),
+      bandTransition: transition("pop", "up", 450),
+    }),
+  },
+  {
+    id: "glass",
+    name: "Glass",
+    description: "A light, see-through panel with a bright edge over the picture",
+    apply: (theme) => ({
+      ...text(theme, "#ffffff", "#e0f2fe", STRONG_SHADOW),
+      textBox: band(theme, {
+        color: "#ffffff",
+        opacity: 0.14,
+        borderRadius: 20,
+        border: { color: "#ffffff59", width: 2 },
+        shadow: true,
+        shadowStyle: SOFT_CARD_SHADOW,
+      }),
+      layout: placedAt(theme, { top: 0, right: 96, bottom: 48, left: 96 }),
+      bandTransition: transition("fade", "up", 400),
+    }),
+  },
+  {
+    id: "tab",
+    name: "Tab",
+    description: "A card rising from the bottom edge, rounded only on top",
+    apply: (theme) => ({
+      ...text(theme, "#ffffff", GOLD, SOFT_SHADOW),
+      textBox: band(theme, {
+        color: "#111318",
+        opacity: 0.95,
+        borderRadius: 0,
+        radii: { tl: 22, tr: 22, br: 0, bl: 0 },
+        shadow: true,
+        shadowStyle: { color: "#00000080", x: 0, y: -6, blur: 30, spread: 0 },
+      }),
+      layout: placedAt(theme, { top: 0, right: 120, bottom: 0, left: 120 }),
+      bandTransition: transition("slide", "up", 450),
+    }),
+  },
+  {
+    id: "news",
+    name: "News",
+    description: "A deep blue full-width band, a gold line on top and a gold reference tag, wiping in",
+    apply: (theme) => ({
+      ...text(theme, "#ffffff", "#0b0b0b", null, {
+        enabled: true,
+        color: GOLD,
+        opacity: 1,
+        borderRadius: 4,
+        padding: 10,
+        image: null,
+      }),
+      textBox: band(theme, {
+        color: NEWS_BLUE,
+        opacity: 0.96,
+        borderRadius: 0,
+        accent: { color: GOLD, width: 6, side: "top" },
+      }),
+      layout: placement(theme, false),
+      bandTransition: transition("wipe", "right", 500),
+    }),
+  },
+  {
+    id: "outline",
+    name: "Outline",
+    description: "No fill: a rounded white frame around the words",
+    apply: (theme) => ({
+      ...text(theme, "#ffffff", "#ffffff", STRONG_SHADOW),
+      textBox: band(theme, {
+        color: "#000000",
+        opacity: 0.25,
+        borderRadius: 18,
+        border: { color: "#ffffff", width: 3 },
+      }),
+      layout: placedAt(theme, { top: 0, right: 96, bottom: 48, left: 96 }),
+      bandTransition: transition("fade", "up", 350),
+    }),
+  },
+  {
+    id: "light-card",
+    name: "Light card",
+    description: "A white card with dark words, for bright rooms and daytime streams",
+    apply: (theme) => ({
+      ...text(theme, "#111318", "#2563eb", null),
+      textBox: band(theme, {
+        color: "#ffffff",
+        opacity: 0.97,
+        borderRadius: 18,
+        shadow: true,
+        shadowStyle: SOFT_CARD_SHADOW,
+      }),
+      layout: placedAt(theme, { top: 0, right: 96, bottom: 48, left: 96 }),
+      bandTransition: transition("pop", "up", 450),
+    }),
+  },
 ]
 
 /** The look `theme` was last given, if it still matches one (by its band and transition). */
@@ -218,7 +353,8 @@ export function currentLook(theme: BroadcastTheme): string | null {
     const same =
       JSON.stringify(applied.textBox) === JSON.stringify(theme.textBox) &&
       JSON.stringify(applied.bandTransition) === JSON.stringify(theme.bandTransition) &&
-      applied.layout?.textAreaWidth === theme.layout.textAreaWidth
+      JSON.stringify(applied.layout ? bandMargins({ ...theme, layout: applied.layout }) : null) ===
+        JSON.stringify(bandMargins(theme))
     if (same) return look.id
   }
   return null

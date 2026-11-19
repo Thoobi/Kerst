@@ -247,7 +247,10 @@ pub fn run() {
                     }
                     (
                         commands::library::LibraryState::open(&dir),
-                        media_server::MediaServerState::start(dir.join("videos")),
+                        media_server::MediaServerState::start(
+                            dir.join("videos"),
+                            app.path().resource_dir().ok().into_iter().collect(),
+                        ),
                     )
                 }
                 Err(e) => (

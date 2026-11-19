@@ -6,7 +6,8 @@ import { VideoTransport } from "@/components/controls/video-transport"
 import { useLocalPlayback } from "@/hooks/use-local-playback"
 import { useBibleStore, useBroadcastStore, usePreviewStore } from "@/stores"
 import { bibleActions } from "@/hooks/use-bible"
-import { toVerseRenderData } from "@/hooks/use-broadcast"
+import { presentVerse, toVerseRenderData } from "@/hooks/use-broadcast"
+import { SendIcon } from "lucide-react"
 import type { BroadcastTheme, VideoPlayback } from "@/types"
 
 export function PreviewPanel() {
@@ -50,6 +51,7 @@ export function PreviewPanel() {
       className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs"
     >
       <PanelHeader title="Preview">
+        {!previewContent && selectedVerse && <ShowButton />}
         {previewContent ? (
           <span className="truncate text-[0.6875rem] text-muted-foreground">
             {previewContent.reference || previewContent.credit}
@@ -129,5 +131,32 @@ function PreviewVideo({
         stopTitle="Clear the preview"
       />
     </>
+  )
+}
+
+/**
+ * Put the previewed verse on air (same as Enter or a double-click in the
+ * Bible panel). Shown as done while it's already what's live.
+ */
+function ShowButton() {
+  const selected = useBibleStore((s) => s.selectedVerse)
+  const live = useBroadcastStore((s) => s.liveSourceVerse)
+  const onAir =
+    !!selected &&
+    !!live &&
+    live.book_number === selected.book_number &&
+    live.chapter === selected.chapter &&
+    live.verse === selected.verse
+  return (
+    <button
+      type="button"
+      disabled={!selected || onAir}
+      onClick={() => selected && void presentVerse(selected)}
+      title={onAir ? "Already in Live" : "Show this verse in Live (Enter)"}
+      className="flex h-6 items-center gap-1 rounded-full bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/85 disabled:bg-muted disabled:text-muted-foreground"
+    >
+      <SendIcon className="size-3" />
+      {onAir ? "Shown" : "Show"}
+    </button>
   )
 }

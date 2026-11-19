@@ -156,3 +156,34 @@ describe("seedFreeBoxesFromMetrics", () => {
     ).toBeNull()
   })
 })
+
+describe("camera panel", () => {
+  const sbs = BUILTIN_THEMES.find((t) => t.id === "builtin-side-by-side")!
+
+  it("ships a Side by Side theme with the camera level with the words", () => {
+    const panel = sbs.cameraPanel!
+    expect(panel.enabled).toBe(true)
+    expect(sbs.layout.mode).toBe("free")
+    expect(panel.box.y).toBe(sbs.layout.verseBox!.y)
+    expect(panel.box.height).toBe(sbs.layout.verseBox!.height)
+    // Side by side: the camera ends before the words begin.
+    expect(panel.box.x + panel.box.width).toBeLessThan(sbs.layout.verseBox!.x)
+  })
+
+  it("keeps a saved panel, and drops one whose box can't be placed", () => {
+    expect(normalizeTheme(sbs).cameraPanel).toEqual(sbs.cameraPanel)
+    const broken = { ...sbs, cameraPanel: { ...sbs.cameraPanel!, box: { x: 0, y: 0, width: 0, height: 10 } } }
+    expect(normalizeTheme(broken).cameraPanel).toBeNull()
+    expect(normalizeTheme(stackedBase).cameraPanel).toBeNull()
+  })
+
+  it("places the panel at the output's size and hides it under full-frame media", async () => {
+    const { activePanel, cameraPanelRect } = await import("./verse-renderer")
+    expect(cameraPanelRect(sbs, null, 0.5)).toEqual({
+      rect: { x: 38.4, y: 135, width: 480, height: 270 },
+      radius: { tl: 12, tr: 12, br: 12, bl: 12 },
+    })
+    expect(activePanel(sbs, { reference: "", segments: [], image: { url: "slide.png" } })).toBeNull()
+    expect(activePanel({ ...sbs, cameraPanel: { ...sbs.cameraPanel!, enabled: false } }, null)).toBeNull()
+  })
+})

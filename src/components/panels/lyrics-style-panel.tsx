@@ -143,9 +143,11 @@ function TextStylePanel({ kind }: { kind: Kind }) {
   const lineHeight = style.lineHeight ?? base.lineHeight
   const letterSpacing = style.letterSpacing ?? base.letterSpacing ?? 0
   const color = style.color ?? base.color
-  const shrinkToFit = (style.shrinkToFit ?? base.shrinkToFit) !== false
+  const fillBox = !!(style.fillBox ?? base.fillBox)
+  const shrinkToFit = fillBox || (style.shrinkToFit ?? base.shrinkToFit) !== false
   const outline = style.outline === undefined ? base.outline : style.outline
-  const area = style.area ?? "theme"
+  const beside = !!theme.cameraPanel?.enabled
+  const area = beside ? "theme" : (style.area ?? "theme")
   const bold = fontWeight >= 600
   const shrunk = shrinkToFit && shown !== null && shown < fontSize
   const customised = Object.values(style).some((value) => value !== undefined && value !== null)
@@ -260,7 +262,7 @@ function TextStylePanel({ kind }: { kind: Kind }) {
           </p>
           {shrunk && (
             <div className="flex flex-wrap gap-1.5">
-              {area !== "screen" && (
+              {area !== "screen" && !beside && (
                 <Button variant="outline" size="xs" onClick={() => update({ area: "screen" })}>
                   Use whole screen
                 </Button>
@@ -278,21 +280,30 @@ function TextStylePanel({ kind }: { kind: Kind }) {
         </Field>
 
         <label className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium text-muted-foreground">Shrink to fit</span>
-          <Switch checked={shrinkToFit} onCheckedChange={(on) => update({ shrinkToFit: on })} />
+          <span className="text-xs font-medium text-muted-foreground">Fill the container</span>
+          <Switch checked={fillBox} onCheckedChange={(on) => update({ fillBox: on })} />
         </label>
+        {!fillBox && (
+          <label className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Shrink to fit</span>
+            <Switch checked={shrinkToFit} onCheckedChange={(on) => update({ shrinkToFit: on })} />
+          </label>
+        )}
 
-        <Field label="Text area">
-          <Segmented
-            label="Text area"
-            value={area}
-            options={[
-              ["theme", "Theme's box"],
-              ["screen", "Whole screen"],
-            ]}
-            onChange={(value) => update({ area: value })}
-          />
-        </Field>
+        {/* Beside a camera (Side by Side) the words keep to their card. */}
+        {!beside && (
+          <Field label="Text area">
+            <Segmented
+              label="Text area"
+              value={area}
+              options={[
+                ["theme", "Container"],
+                ["screen", "Whole screen"],
+              ]}
+              onChange={(value) => update({ area: value })}
+            />
+          </Field>
+        )}
 
         <Field
           label="Line spacing"

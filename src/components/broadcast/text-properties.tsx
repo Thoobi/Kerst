@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { BoldIcon, ChevronsUpDownIcon, CheckIcon } from "lucide-react"
 import { useBroadcastStore } from "@/stores/broadcast-store"
 import { SurfaceControls } from "@/components/broadcast/surface-properties"
+import { Fold } from "@/components/broadcast/fold"
 import { HorizontalAlignButtons, VerticalAlignButtons } from "@/components/broadcast/align-buttons"
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
@@ -55,17 +56,37 @@ function useShownVerseSize(theme: BroadcastTheme): number | null {
  * fit. Without this the size control seemed broken: past what fits the
  * box, raising it changed nothing on screen.
  */
-function ShrinkToFitControl({ theme, onChange }: { theme: BroadcastTheme; onChange: (on: boolean) => void }) {
+function ShrinkToFitControl({
+  theme,
+  onChange,
+  onFillChange,
+}: {
+  theme: BroadcastTheme
+  onChange: (on: boolean) => void
+  onFillChange: (on: boolean) => void
+}) {
   const shown = useShownVerseSize(theme)
-  const shrinking = theme.verseText.shrinkToFit !== false
+  const filling = !!theme.verseText.fillBox
+  const shrinking = filling || theme.verseText.shrinkToFit !== false
   const shrunk = shrinking && shown !== null && shown < theme.verseText.fontSize
   return (
     <div className="flex flex-col gap-1.5">
       <label className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-muted-foreground">Shrink to fit box</span>
-        <Switch checked={shrinking} onCheckedChange={onChange} />
+        <span className="text-xs font-medium text-muted-foreground">Fill the box</span>
+        <Switch checked={filling} onCheckedChange={onFillChange} />
       </label>
-      {shrunk ? (
+      {!filling && (
+        <label className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Shrink to fit box</span>
+          <Switch checked={shrinking} onCheckedChange={onChange} />
+        </label>
+      )}
+      {filling ? (
+        <p className="text-[0.6875rem] text-muted-foreground">
+          {shown !== null ? `Showing at ${shown}px. ` : ""}The words grow to fill their box, and long passages shrink to
+          stay inside it (up to 3× the size above).
+        </p>
+      ) : shrunk ? (
         <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400">
           Showing at {shown}px: shrunk to fit the text box. Make the box bigger, or turn this off to
           always use {theme.verseText.fontSize}px.
@@ -244,6 +265,7 @@ function SectionHeader({ title, description }: { title: string; description: str
 function FontControls({ prefix }: { prefix: "verseText" | "reference" }) {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
   const update = useBroadcastStore((s) => s.updateDraftNested)
+  const designerSample = useBroadcastStore((s) => s.designerSample)
 
   if (!draftTheme) return null
 
@@ -251,6 +273,7 @@ function FontControls({ prefix }: { prefix: "verseText" | "reference" }) {
   const { hex: colorHex, opacity: colorOpacity } = parseColorOpacity(data.color)
   const horizontalAlign = data.horizontalAlign ?? draftTheme.layout.textAlign
   const verticalAlign = data.verticalAlign ?? "top"
+  const forNames = designerSample === "name"
   const textTransform = data.textTransform ?? "none"
   const textDecoration = data.textDecoration ?? "none"
 
@@ -339,6 +362,7 @@ function FontControls({ prefix }: { prefix: "verseText" | "reference" }) {
         <ShrinkToFitControl
           theme={draftTheme}
           onChange={(on) => update("verseText.shrinkToFit", on)}
+          onFillChange={(on) => update("verseText.fillBox", on)}
         />
       )}
 
@@ -384,11 +408,24 @@ function FontControls({ prefix }: { prefix: "verseText" | "reference" }) {
         />
       </div>
 
-      {/* Vertical Alignment */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Vertical Alignment</label>
-        <VerticalAlignButtons value={verticalAlign} onChange={(v) => update(`${prefix}.verticalAlign`, v)} />
-      </div>
+      {/* Vertical Alignment: names have their own while the canvas shows a name. */}
+      {forNames ? (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Vertical Alignment (names)</label>
+          <VerticalAlignButtons
+            value={draftTheme.nameStyle?.verticalAlign ?? "middle"}
+            onChange={(v) => update("nameStyle.verticalAlign", v)}
+          />
+          <p className="text-[0.625rem] text-muted-foreground">
+            Where speakers&apos; names sit in their box. Verses keep their own; switch Show as to Bible to set theirs.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Vertical Alignment</label>
+          <VerticalAlignButtons value={verticalAlign} onChange={(v) => update(`${prefix}.verticalAlign`, v)} />
+        </div>
+      )}
 
       {/* Text Transform */}
       <div className="flex flex-col gap-1.5">
@@ -480,6 +517,7 @@ function ReferenceProperties() {
   return (
     <div className="flex flex-col gap-3">
       <SectionHeader title="Reference Text" description="Customize how reference text appears" />
+      <Fold id="reference.font" title="Font and colour" defaultOpen>
       <FontControls prefix="reference" />
 
       {/* Uppercase */}
@@ -492,12 +530,16 @@ function ReferenceProperties() {
           className="h-4 w-4 rounded border-input accent-primary"
         />
       </div>
+      </Fold>
 
-      <SurfaceControls
-        prefix="reference.surface"
-        title="Reference Plate"
-        description="A chip behind the reference alone"
-      />
+      <Fold id="reference.plate" title="Reference plate" summary={draftTheme.reference.surface?.enabled ? "On" : "Off"}>
+        <SurfaceControls
+          prefix="reference.surface"
+          title="Reference Plate"
+          description="A chip behind the reference alone"
+          compact
+        />
+      </Fold>
 
       {/* Reference Position (stacked mode only — free mode positions by box) */}
       {draftTheme.layout.mode !== "free" && (
@@ -523,7 +565,7 @@ function ReferenceProperties() {
 }
 
 const AREA_OPTIONS = [
-  ["theme", "Theme's box"],
+  ["theme", "Container"],
   ["screen", "Whole screen"],
 ] as const
 
@@ -536,6 +578,13 @@ function TextAreaControl() {
   const draftTheme = useBroadcastStore((s) => s.draftTheme)
   const update = useBroadcastStore((s) => s.updateDraftNested)
   if (!draftTheme) return null
+  if (draftTheme.cameraPanel?.enabled) {
+    return (
+      <p className="text-[0.6875rem] text-muted-foreground">
+        Beside a camera panel the words always keep to their card, for songs, texts and Bible verses alike.
+      </p>
+    )
+  }
 
   const row = (label: string, key: "lyricsText" | "scriptureText", savedKey: "savedLyricsText" | "savedScriptureText") => {
     const value = draftTheme[key]?.area ?? "theme"
@@ -571,7 +620,7 @@ function TextAreaControl() {
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t pt-3">
+    <div className="flex flex-col gap-3">
       {row("Songs & texts area", "lyricsText", "savedLyricsText")}
       {row("Bible verses area", "scriptureText", "savedScriptureText")}
     </div>
@@ -597,14 +646,19 @@ function VerseProperties() {
   return (
     <div className="flex flex-col gap-3">
       <SectionHeader title="Verse Text" description="Customize how verse text appears" />
-      <FontControls prefix="verseText" />
-      <TextAreaControl />
+      <Fold id="verse.font" title="Font, size and colour" defaultOpen>
+        <FontControls prefix="verseText" />
+      </Fold>
+      <Fold id="verse.area" title="Text area" summary="Container or whole screen">
+        <TextAreaControl />
+      </Fold>
 
 
       {/* Verse Numbers */}
-      <div className="flex flex-col gap-3 border-t pt-3">
+      <Fold id="verse.numbers" title="Verse numbers" summary={verseNumbers.visible ? "On" : "Off"}>
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold">Verse Numbers</label>
+          <label className="text-xs font-medium text-muted-foreground">Show verse numbers</label>
           <input
             type="checkbox"
             checked={verseNumbers.visible}
@@ -693,10 +747,13 @@ function VerseProperties() {
         )}
       </div>
 
+      </Fold>
+
       {/* Text Shadow */}
-      <div className="flex flex-col gap-3 border-t pt-3">
+      <Fold id="verse.shadow" title="Text shadow" summary={shadow ? "On" : "Off"}>
+      <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold">Text Shadow</label>
+          <label className="text-xs font-medium text-muted-foreground">Show a shadow</label>
           <input
             type="checkbox"
             checked={shadow !== null}
@@ -808,11 +865,16 @@ function VerseProperties() {
         )}
       </div>
 
-      <SurfaceControls
-        prefix="verseText.surface"
-        title="Verse Plate"
-        description="A plate behind the verse text alone"
-      />
+      </Fold>
+
+      <Fold id="verse.plate" title="Words plate (card)" summary={draftTheme.verseText.surface?.enabled ? "On" : "Off"}>
+        <SurfaceControls
+          prefix="verseText.surface"
+          title="Words Plate"
+          description="A card behind the words alone: Bible verses, songs and texts. Give it a border to frame them."
+          compact
+        />
+      </Fold>
     </div>
   )
 }

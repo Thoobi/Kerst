@@ -59,7 +59,7 @@ describe("videos store", () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  it("cues a video at the start when off air, and plays it when on air", async () => {
+  it("cues a video paused at the start, on air or off, until Play", async () => {
     const { videos, broadcast, preview, livePlayback } = await stores()
     await videos.getState().loadVideos()
 
@@ -70,6 +70,8 @@ describe("videos store", () => {
 
     broadcast.getState().setLive(true)
     videos.getState().presentVideo("v1")
+    expect(livePlayback()).toMatchObject({ playing: false, position: 0 })
+    videos.getState().togglePlay()
     expect(livePlayback()).toMatchObject({
       playing: true,
       url: "http://127.0.0.1:4321/token/videos/v1/video.mp4",
@@ -82,6 +84,7 @@ describe("videos store", () => {
     await videos.getState().loadVideos()
     broadcast.getState().setLive(true)
     videos.getState().presentVideo("v1")
+    videos.getState().togglePlay()
 
     vi.advanceTimersByTime(10_000)
     videos.getState().togglePlay()
@@ -100,6 +103,7 @@ describe("videos store", () => {
     await videos.getState().loadVideos()
     broadcast.getState().setLive(true)
     videos.getState().presentVideo("v1")
+    videos.getState().togglePlay()
 
     vi.advanceTimersByTime(60_000)
     expect(livePlayback()).toMatchObject({ playing: false, position: 60 })
@@ -114,6 +118,7 @@ describe("videos store", () => {
     await videos.getState().loadVideos()
     broadcast.getState().setLive(true)
     videos.getState().presentVideo("v1")
+    videos.getState().togglePlay()
     vi.advanceTimersByTime(150_000)
     expect(livePlayback()).toMatchObject({ playing: true, loop: true })
 

@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useBible, bibleActions, findLoadedVerse } from "@/hooks/use-bible"
 import { presentVerse } from "@/hooks/use-broadcast"
+import { DetectionModeSwitch } from "@/components/panels/detection-mode"
 import { useBibleStore, useQueueStore } from "@/stores"
 import type { Book, Verse, SemanticSearchResult } from "@/types"
 import { Input } from "@/components/ui/input"
@@ -281,7 +282,12 @@ export function SearchPanel() {
     return unsubscribe
   }, [applyNavigationSelection])
 
+  // A click previews; a double-click (or Enter, or Show) puts it on air.
+  // Live keeps what it was showing until then.
   const handleVerseClick = useCallback((verse: Verse) => {
+    bibleActions.selectVerse(verse)
+  }, [])
+  const showVerse = useCallback((verse: Verse) => {
     bibleActions.selectVerse(verse)
     void presentVerse(verse)
   }, [])
@@ -300,10 +306,17 @@ export function SearchPanel() {
         setChapter((c) => c + 1)
       } else if (e.key === "ArrowDown") {
         e.preventDefault()
-        void bibleActions.stepVerse("next", { present: true })
+        void bibleActions.stepVerse("next")
       } else if (e.key === "ArrowUp") {
         e.preventDefault()
-        void bibleActions.stepVerse("prev", { present: true })
+        void bibleActions.stepVerse("prev")
+      } else if (e.key === "Enter") {
+        // Enter puts the previewed verse on air.
+        const selected = useBibleStore.getState().selectedVerse
+        if (selected) {
+          e.preventDefault()
+          void presentVerse(selected)
+        }
       }
     },
     [chapter]
@@ -456,16 +469,21 @@ export function SearchPanel() {
       return
     }
 
-    // Enter commits the typed reference: send it live and clear the input
+    // Enter goes to the typed reference in Preview and clears the input;
+    // Enter again (the box now empty) puts it on air.
     if (e.key === "Enter") {
       e.preventDefault()
       const result = autocompleteResult
+      if (!quickInput.trim()) {
+        const selected = useBibleStore.getState().selectedVerse
+        if (selected) void presentVerse(selected)
+        return
+      }
       if (result.matchedBook && result.chapter && result.verse) {
         useBibleStore.getState().setPendingNavigation({
           bookNumber: result.matchedBook.book_number,
           chapter: result.chapter,
           verse: result.verse,
-          present: true,
         })
       }
       setQuickInput("")
@@ -487,7 +505,6 @@ export function SearchPanel() {
       bookNumber: verse.book_number,
       chapter: verse.chapter,
       verse: verse.verse,
-      present: true,
     })
     setQuickInput("")
     setShowQuickVerses(false)
@@ -642,6 +659,7 @@ export function SearchPanel() {
               </Select>
           </div>
         )}
+        <DetectionModeSwitch />
       </div>
 
       {/* Quick nav tab */}
@@ -691,6 +709,8 @@ export function SearchPanel() {
                   key={verse.id}
                   id={`verse-${verse.id}`}
                   onClick={() => handleVerseClick(verse)}
+                  onDoubleClick={() => showVerse(verse)}
+                  title="Click to preview, double-click or Enter to show"
                   className={cn(
                     "group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors",
                     verse.id === effectiveSelectedVerseId
@@ -795,7 +815,18 @@ export function SearchPanel() {
                     text: result.verse_text,
                   }
                   bibleActions.selectVerse(verse)
-                  void presentVerse(verse)
+                }}
+                onDoubleClick={() => {
+                  void presentVerse({
+                    id: 0,
+                    translation_id: activeTranslationId,
+                    book_number: result.book_number,
+                    book_name: result.book_name,
+                    book_abbreviation: "",
+                    chapter: result.chapter,
+                    verse: result.verse,
+                    text: result.verse_text,
+                  })
                 }}
                 className="group flex flex-col cursor-pointer gap-1 rounded-lg p-3 transition-colors hover:bg-muted/50 relative"
               >

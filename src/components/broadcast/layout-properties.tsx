@@ -8,9 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { seedFreeBoxesForTheme } from "@/lib/theme-migrations"
+import { boxesToBand, seedFreeBoxesForTheme } from "@/lib/theme-migrations"
 import { isLowerThird } from "@/lib/lower-third"
-import { backgroundSize } from "@/lib/verse-renderer"
+import { backgroundSize, freeBoxesInBand, textAreaRect } from "@/lib/verse-renderer"
+import { BandMarginsControl } from "@/components/broadcast/band-margins"
+import { SidesEditor } from "@/components/broadcast/sides-editor"
 import { HorizontalAlignButtons, VerticalAlignButtons } from "@/components/broadcast/align-buttons"
 import type { BroadcastTheme, ElementBox } from "@/types/broadcast"
 
@@ -27,7 +29,8 @@ function ElementBoxControls({
   if (!draftTheme) return null
   const box = draftTheme.layout[boxKey]
   if (!box) return null
-  const resolution = draftTheme.resolution
+  // % of the band on a Lower Thirds theme (the boxes move with it), else of the frame.
+  const resolution = freeBoxesInBand(draftTheme) ? textAreaRect(draftTheme) : draftTheme.resolution
 
   const fields: {
     key: keyof ElementBox
@@ -133,6 +136,9 @@ export function LayoutProperties() {
       if (!seeded) return
       patch.referenceBox = seeded.referenceBox
       patch.verseBox = seeded.verseBox
+      patch.boxesIn = "frame"
+      // On a Lower Thirds theme the boxes are kept in the band, so they follow it.
+      if (lowerThird) Object.assign(patch, boxesToBand({ ...draftTheme, layout: { ...layout, ...patch } }) ?? {})
     }
     updateDraft({ layout: { ...layout, ...patch } })
   }
@@ -169,7 +175,9 @@ export function LayoutProperties() {
               Exact position
             </summary>
             <div className="mt-2 flex flex-col gap-3">
-              <p className="text-[11px] text-muted-foreground">Each area as % of the output size.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Each area as % of {freeBoxesInBand(draftTheme) ? "the band (it moves with the band)" : "the output size"}.
+              </p>
               <ElementBoxControls label="Reference area" boxKey="referenceBox" />
               <ElementBoxControls label="Verse area" boxKey="verseBox" />
             </div>
@@ -229,6 +237,31 @@ export function LayoutProperties() {
         </>
       )}
 
+      {lowerThird ? (
+        <>
+          {/* A band: placed by its margins from the frame's edges, and as tall as set. */}
+          <div className="flex flex-col gap-0.5 border-t pt-3 pb-1">
+            <h4 className="text-xs font-semibold">Band</h4>
+          </div>
+          <BandMarginsControl theme={draftTheme} onChange={(m) => update("layout.bandMargins", m)} />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground">Height</label>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {layout.textAreaHeight}% ({Math.round((layout.textAreaHeight / 100) * resolution.height)}px)
+              </span>
+            </div>
+            <Slider
+              min={5}
+              max={100}
+              step={1}
+              value={[layout.textAreaHeight]}
+              onValueChange={([v]) => update("layout.textAreaHeight", v)}
+            />
+          </div>
+        </>
+      ) : (
+        <>
       {/* Text Area Dimensions */}
       <div className="flex flex-col gap-0.5 border-t pt-3 pb-1">
         <h4 className="text-xs font-semibold">Text Area Dimensions</h4>
@@ -268,48 +301,12 @@ export function LayoutProperties() {
         />
       </div>
 
-      {/* Padding */}
-      <div className="flex flex-col gap-0.5 border-t pt-3 pb-1">
-        <h4 className="text-xs font-semibold">Padding</h4>
-      </div>
+        </>
+      )}
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Top</label>
-          <Input
-            type="number"
-            min={0}
-            value={layout.padding.top}
-            onChange={(e) => update("layout.padding.top", Number(e.target.value))}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Right</label>
-          <Input
-            type="number"
-            min={0}
-            value={layout.padding.right}
-            onChange={(e) => update("layout.padding.right", Number(e.target.value))}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Bottom</label>
-          <Input
-            type="number"
-            min={0}
-            value={layout.padding.bottom}
-            onChange={(e) => update("layout.padding.bottom", Number(e.target.value))}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Left</label>
-          <Input
-            type="number"
-            min={0}
-            value={layout.padding.left}
-            onChange={(e) => update("layout.padding.left", Number(e.target.value))}
-          />
-        </div>
+      {/* Padding: inside the text area, all round or per side. */}
+      <div className="border-t pt-3">
+        <SidesEditor label="Padding" value={layout.padding} onChange={(p) => update("layout.padding", p)} />
       </div>
 
       {/* Element Spacing + Reference Position (stacked mode only) */}

@@ -5,10 +5,22 @@ import { useBroadcastStore } from "@/stores"
 import { flushBroadcastThemes } from "@/stores/broadcast-store"
 import { MAIN_OUTPUT_ID } from "@/types"
 import { Button } from "@/components/ui/button"
-import { CheckIcon, LoaderCircleIcon, SaveIcon, TrashIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { CheckIcon, LoaderCircleIcon, Redo2Icon, SaveIcon, TrashIcon, TriangleAlertIcon, Undo2Icon, XIcon } from "lucide-react"
 import { ThemeLibrary } from "@/components/broadcast/theme-library"
 import { DesignCanvas } from "@/components/broadcast/design-canvas"
 import { PropertiesPanel } from "@/components/broadcast/properties-panel"
+import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+
+/** Names a theme starts with (see `createNewTheme`): saving one asks for a real name. */
+const STARTING_NAMES = new Set(["Untitled Theme", "Side by Side"])
 
 export function ThemeDesigner() {
   const isDesignerOpen = useBroadcastStore((s) => s.isDesignerOpen)
@@ -32,13 +44,53 @@ export function ThemeDesigner() {
     if (resetTimer.current) clearTimeout(resetTimer.current)
   }, [])
 
+  const canUndo = useBroadcastStore((s) => s.draftPast.length > 0)
+  const canRedo = useBroadcastStore((s) => s.draftFuture.length > 0)
+
+  // Ctrl+Z undoes, Ctrl+Shift+Z or Ctrl+Y redoes, while the designer is
+  // open; a text field keeps its own undo.
+  useEffect(() => {
+    if (!isDesignerOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return
+      const key = e.key.toLowerCase()
+      if (key !== "z" && key !== "y") return
+      const target = e.target as HTMLElement | null
+      const typing =
+        target?.isContentEditable ||
+        target?.tagName === "TEXTAREA" ||
+        (target?.tagName === "INPUT" && !["checkbox", "radio", "range", "color"].includes((target as HTMLInputElement).type))
+      if (typing) return
+      e.preventDefault()
+      const store = useBroadcastStore.getState()
+      if (key === "y" || e.shiftKey) store.redoDraft()
+      else store.undoDraft()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [isDesignerOpen])
+
   const handleDiscard = () => {
     useBroadcastStore.getState().discardDraft()
   }
 
+  // A built-in is saved as a copy, and a new theme still has its starting
+  // name: ask what to call it rather than saving "… (Custom)" or "Untitled".
+  const [naming, setNaming] = useState<string | null>(null)
   const handleSave = () => {
     if (saveState === "saving") return
-    const savedId = useBroadcastStore.getState().saveDraft()
+    const draft = useBroadcastStore.getState().draftTheme
+    if (!draft) return
+    if (draft.builtin || STARTING_NAMES.has(draft.name)) {
+      setNaming(draft.builtin ? `My ${draft.name}` : draft.name === "Untitled Theme" ? "" : draft.name)
+      return
+    }
+    save()
+  }
+
+  const save = (name?: string) => {
+    setNaming(null)
+    const savedId = useBroadcastStore.getState().saveDraft(name)
     if (!savedId) return
     if (resetTimer.current) clearTimeout(resetTimer.current)
     setSaveState("saving")
@@ -87,6 +139,29 @@ export function ThemeDesigner() {
 
             <div className="flex-1" />
 
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!canUndo}
+                onClick={() => useBroadcastStore.getState().undoDraft()}
+                title="Undo (Ctrl+Z)"
+                aria-label="Undo"
+              >
+                <Undo2Icon className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!canRedo}
+                onClick={() => useBroadcastStore.getState().redoDraft()}
+                title="Redo (Ctrl+Shift+Z)"
+                aria-label="Redo"
+              >
+                <Redo2Icon className="size-4" />
+              </Button>
+            </div>
+
             <Button variant="outline" onClick={handleDiscard}>
               <TrashIcon className="size-4" />
               Discard
@@ -127,6 +202,12 @@ export function ThemeDesigner() {
               Close
             </Button>
           </div>
+
+          <NameThemeDialog
+            initial={naming}
+            onCancel={() => setNaming(null)}
+            onSave={(name) => save(name)}
+          />
 
           {/* 3-panel layout */}
           <div
@@ -178,4 +259,68 @@ function warnIfNotShown(themeId: string): void {
         }
       : undefined,
   })
+}
+
+/** "Name this theme", shown on Save while `initial` is set. Enter saves. */
+function NameThemeDialog({
+  initial,
+  onCancel,
+  onSave,
+}: {
+  initial: string | null
+  onCancel: () => void
+  onSave: (name: string) => void
+}) {
+  return (
+    <Dialog open={initial !== null} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="sm:max-w-sm">
+        {initial !== null && <NameThemeForm initial={initial} onCancel={onCancel} onSave={onSave} />}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function NameThemeForm({
+  initial,
+  onCancel,
+  onSave,
+}: {
+  initial: string
+  onCancel: () => void
+  onSave: (name: string) => void
+}) {
+  const [name, setName] = useState(initial)
+  const trimmed = name.trim()
+  return (
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={(e) => {
+        e.preventDefault()
+        if (trimmed) onSave(trimmed)
+      }}
+    >
+      <DialogHeader>
+        <DialogTitle>Name this theme</DialogTitle>
+        <DialogDescription>It&apos;s saved under this name in your themes. You can rename it later.</DialogDescription>
+      </DialogHeader>
+      <Input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        placeholder="e.g. Sunday Side by Side"
+        aria-label="Theme name"
+        maxLength={60}
+      />
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={!trimmed}>
+          <SaveIcon className="size-4" />
+          Save Theme
+        </Button>
+      </DialogFooter>
+    </form>
+  )
 }

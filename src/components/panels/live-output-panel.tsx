@@ -8,15 +8,13 @@ import { LiveVideoTransport } from "@/components/controls/video-transport"
 import { useVideosStore } from "@/stores/videos-store"
 import { cn } from "@/lib/utils"
 import { useBroadcastStore, useBibleStore } from "@/stores"
-import { presentVerse, toVerseRenderData } from "@/hooks/use-broadcast"
+import { toVerseRenderData } from "@/hooks/use-broadcast"
 import { bibleActions } from "@/hooks/use-bible"
 import { isLowerThird } from "@/lib/lower-third"
 import { isTypingOrHandled } from "@/lib/operator-keys"
 
 export function LiveOutputPanel() {
   const isLive = useBroadcastStore((s) => s.isLive)
-  const autoLive = useBroadcastStore((s) => s.autoLive)
-  const askLive = useBroadcastStore((s) => s.askLive)
   const liveVerse = useBroadcastStore((s) => s.liveVerse)
   const themes = useBroadcastStore((s) => s.themes)
   const activeThemeId = useBroadcastStore((s) => s.activeThemeId)
@@ -72,14 +70,10 @@ export function LiveOutputPanel() {
       .catch(() => {})
   }, [activeTranslationId])
 
+  // Going live shows what was last put on air (or nothing): never the
+  // Preview, which only goes on air when the operator says Show.
   const handleGoLive = (checked: boolean) => {
     useBroadcastStore.getState().setLive(checked)
-    // Going live with nothing presented yet: present the current preview
-    // verse so the output isn't blank.
-    if (checked && !useBroadcastStore.getState().liveVerse) {
-      const selected = useBibleStore.getState().selectedVerse
-      if (selected) void presentVerse(selected)
-    }
   }
 
   return (
@@ -91,37 +85,6 @@ export function LiveOutputPanel() {
       )}
     >
       <PanelHeader title="Live">
-        <div
-          role="radiogroup"
-          aria-label="Detected verses"
-          className="flex items-center rounded-full bg-muted p-0.5"
-          title="Verses the detector hears: Off shows them in the preview only, Ask offers each one over the Live view for one click, Auto puts them on air"
-        >
-          {(
-            [
-              ["manual", "Off"],
-              ["ask", "Ask"],
-              ["auto", "Auto"],
-            ] as const
-          ).map(([mode, label]) => {
-            const on = (autoLive ? "auto" : askLive ? "ask" : "manual") === mode
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                onClick={() => useBroadcastStore.getState().setVerseMode(mode)}
-                className={cn(
-                  "h-5 rounded-full px-2 text-[0.6875rem] font-medium transition-colors",
-                  on ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {label}
-              </button>
-            )
-          })}
-        </div>
         <button
           type="button"
           role="switch"

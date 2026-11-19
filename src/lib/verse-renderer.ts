@@ -11,11 +11,20 @@ import {
 import { gifFrameAt } from "@/lib/gif-frames"
 import { isLowerThird } from "@/lib/lower-third"
 import { drawImageSmooth } from "@/lib/image-scaling"
+import { filteredPicture } from "@/lib/image-filter"
+import { scaleInsets, surfaceInsets, uniformInsets } from "@/lib/edge-insets"
+import { DEFAULT_SHADOW, corners, radiusOf, scaleRadius, shrinkRadius, type Radius } from "@/lib/corners"
 import { imageContentBox } from "@/lib/theme-image-cache"
 import { withTimerText } from "@/lib/timer"
 import type {
   BroadcastTheme,
   CameraFeed,
+  CameraPanel,
+  CornerRadii,
+  EdgeInsets,
+  ShadowStyle,
+  LogoMargins,
+  SurfaceVideo,
   LyricsStyle,
   SurfaceFill,
   ThemeImageFill,
@@ -128,12 +137,12 @@ export interface VerseLayoutMetrics {
 }
 
 /** Grow a rect outwards by `padding` on every side, never past zero size. */
-function inflateRect(rect: VerseLayoutRect, padding: number): VerseLayoutRect {
+function inflateRect(rect: VerseLayoutRect, p: EdgeInsets): VerseLayoutRect {
   return {
-    x: rect.x - padding,
-    y: rect.y - padding,
-    width: Math.max(0, rect.width + padding * 2),
-    height: Math.max(0, rect.height + padding * 2),
+    x: rect.x - p.left,
+    y: rect.y - p.top,
+    width: Math.max(0, rect.width + p.left + p.right),
+    height: Math.max(0, rect.height + p.top + p.bottom),
   }
 }
 
@@ -149,16 +158,16 @@ function surfaceRectFor(
   if (!surface?.enabled) return null
   if (boxRect) return boxRect
   if (!textRect) return null
-  return inflateRect(textRect, surface.padding)
+  return inflateRect(textRect, surfaceInsets(surface))
 }
 
 /** Shrink a rect inwards by `padding` on every side, never past zero size. */
-function deflateRect(rect: VerseLayoutRect, padding: number): VerseLayoutRect {
-  const width = Math.max(0, rect.width - padding * 2)
-  const height = Math.max(0, rect.height - padding * 2)
+function deflateRect(rect: VerseLayoutRect, p: EdgeInsets): VerseLayoutRect {
+  const width = Math.max(0, rect.width - p.left - p.right)
+  const height = Math.max(0, rect.height - p.top - p.bottom)
   return {
-    x: rect.x + Math.min(padding, rect.width / 2),
-    y: rect.y + Math.min(padding, rect.height / 2),
+    x: rect.x + Math.min(p.left, rect.width / 2),
+    y: rect.y + Math.min(p.top, rect.height / 2),
     width,
     height,
   }
@@ -458,19 +467,80 @@ function roundRect(
   y: number,
   width: number,
   height: number,
-  radius: number
+  radius: Radius
 ): void {
   ctx.beginPath()
-  ctx.moveTo(x + radius, y)
-  ctx.lineTo(x + width - radius, y)
-  ctx.arcTo(x + width, y, x + width, y + radius, radius)
-  ctx.lineTo(x + width, y + height - radius)
-  ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius)
-  ctx.lineTo(x + radius, y + height)
-  ctx.arcTo(x, y + height, x, y + height - radius, radius)
-  ctx.lineTo(x, y + radius)
-  ctx.arcTo(x, y, x + radius, y, radius)
+  traceRoundRect(ctx, x, y, width, height, radius)
+}
+
+/** A rounded rect added to the current path (or a Path2D), without starting a new one. */
+function traceRoundRect(
+  ctx: CanvasPath,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: Radius
+): void {
+  // Each corner its own, never more than half the shorter side.
+  const most = Math.max(0, Math.min(width, height) / 2)
+  const c = corners(radius)
+  const tl = Math.min(Math.max(0, c.tl), most)
+  const tr = Math.min(Math.max(0, c.tr), most)
+  const br = Math.min(Math.max(0, c.br), most)
+  const bl = Math.min(Math.max(0, c.bl), most)
+  ctx.moveTo(x + tl, y)
+  ctx.lineTo(x + width - tr, y)
+  ctx.arcTo(x + width, y, x + width, y + tr, tr)
+  ctx.lineTo(x + width, y + height - br)
+  ctx.arcTo(x + width, y + height, x + width - br, y + height, br)
+  ctx.lineTo(x + bl, y + height)
+  ctx.arcTo(x, y + height, x, y + height - bl, bl)
+  ctx.lineTo(x, y + tl)
+  ctx.arcTo(x, y, x + tl, y, tl)
   ctx.closePath()
+}
+
+/**
+ * A drop shadow around `rect`, as design tools draw one: offset, blurred and
+ * spread, outside the shape only (a see-through card doesn't show its own
+ * shadow through it). The shape itself is drawn far off the canvas with the
+ * shadow offset back into place, so only the shadow lands.
+ */
+function drawDropShadow(
+  ctx: CanvasRenderingContext2D,
+  rect: VerseLayoutRect,
+  radius: Radius,
+  style: ShadowStyle,
+  scale: number,
+  alpha: number
+): void {
+  const far = 100000
+  const device = Math.hypot(ctx.getTransform().a, ctx.getTransform().b) || 1
+  const spread = style.spread * scale
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(-far, -far, far * 3, far * 3)
+  traceRoundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius)
+  ctx.clip("evenodd")
+  ctx.globalAlpha = alpha
+  ctx.shadowColor = style.color
+  ctx.shadowBlur = style.blur * scale * device
+  // Shadow offsets ignore the transform: in device pixels.
+  ctx.shadowOffsetX = (style.x * scale + far) * device
+  ctx.shadowOffsetY = style.y * scale * device
+  ctx.fillStyle = "#000"
+  const r = corners(radius)
+  roundRect(
+    ctx,
+    rect.x - spread - far,
+    rect.y - spread,
+    rect.width + spread * 2,
+    rect.height + spread * 2,
+    { tl: Math.max(0, r.tl + spread), tr: Math.max(0, r.tr + spread), br: Math.max(0, r.br + spread), bl: Math.max(0, r.bl + spread) }
+  )
+  ctx.fill()
+  ctx.restore()
 }
 
 function drawBackground(
@@ -526,6 +596,12 @@ function drawBackground(
     case "camera":
       if (options?.backgroundBehind) ctx.clearRect(rect.x, rect.y, rect.width, rect.height)
       else drawCameraBackground(ctx, bg.camera?.fit ?? "cover", rect, options?.cameraImage)
+      break
+
+    case "video":
+      // Played by a <video> behind the canvas, or its frames (else its poster) drawn in.
+      if (options?.backgroundBehind) ctx.clearRect(rect.x, rect.y, rect.width, rect.height)
+      else drawVideoBackground(ctx, { poster: bg.video?.poster }, rect, options)
       break
   }
 }
@@ -613,7 +689,7 @@ function drawImageFill(
   ctx: CanvasRenderingContext2D,
   image: ThemeImageFill | null,
   rect: VerseLayoutRect,
-  radius: number,
+  radius: Radius,
   imageCache?: Map<string, HTMLImageElement>
 ): void {
   if (!image) {
@@ -634,12 +710,6 @@ function drawImageFill(
   roundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius)
   ctx.clip()
   ctx.imageSmoothingQuality = "high"
-
-  if (image.blur > 0) {
-    ctx.filter = `blur(${image.blur}px) brightness(${image.brightness / 100})`
-  } else if (image.brightness !== 100) {
-    ctx.filter = `brightness(${image.brightness / 100})`
-  }
 
   let drawX = rect.x
   let drawY = rect.y
@@ -679,8 +749,10 @@ function drawImageFill(
       break
   }
 
-  drawImageSmooth(ctx, img, sx, sy, sw, sh, drawX, drawY, drawW, drawH)
-  ctx.filter = "none"
+  // Blur and brightness are worked out in pixels: WebKit's canvas ignores `ctx.filter`.
+  const filtered = filteredPicture(img, sx, sy, sw, sh, drawW, drawH, image.blur, image.brightness)
+  if (filtered) ctx.drawImage(filtered, drawX, drawY, drawW, drawH)
+  else drawImageSmooth(ctx, img, sx, sy, sw, sh, drawX, drawY, drawW, drawH)
 
   if (image.tint) {
     ctx.fillStyle = image.tint
@@ -692,7 +764,7 @@ function drawImageFill(
 function fillRoundRect(
   ctx: CanvasRenderingContext2D,
   rect: VerseLayoutRect,
-  radius: number
+  radius: Radius
 ): void {
   roundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius)
   ctx.fill()
@@ -711,19 +783,39 @@ function drawSurface(
   options?: RenderOptions
 ): void {
   if (!surface?.enabled) return
+  if (surface.shadow) drawDropShadow(ctx, rect, radiusOf(surface), surface.shadowStyle ?? DEFAULT_SHADOW, options?.scale ?? 1, baseOpacity)
   if (surface.video?.videoId) {
     drawVideoSurface(ctx, surface, surface.video, rect, baseOpacity, imageCache, options)
+    drawSurfaceBorder(ctx, surface, rect, baseOpacity)
     return
   }
   ctx.save()
   ctx.globalAlpha = baseOpacity * surface.opacity
   ctx.fillStyle = surface.gradient?.stops.length ? surfaceGradient(ctx, surface.gradient, rect) : surface.color
-  fillRoundRect(ctx, rect, surface.borderRadius)
+  fillRoundRect(ctx, rect, radiusOf(surface))
   if (surface.image) {
-    drawImageFill(ctx, surface.image, rect, surface.borderRadius, imageCache)
+    drawImageFill(ctx, surface.image, rect, radiusOf(surface), imageCache)
   }
   ctx.restore()
   drawAccent(ctx, surface, rect, baseOpacity)
+  drawSurfaceBorder(ctx, surface, rect, baseOpacity)
+}
+
+/** A surface's border, inside its edge so it never grows the surface; solid whatever the fill's opacity. */
+function drawSurfaceBorder(ctx: CanvasRenderingContext2D, surface: SurfaceFill, rect: VerseLayoutRect, baseOpacity: number): void {
+  const border = surface.border
+  if (!border || !(border.width > 0)) return
+  const w = border.width
+  const width = rect.width - w
+  const height = rect.height - w
+  if (width <= 0 || height <= 0) return
+  ctx.save()
+  ctx.globalAlpha = baseOpacity
+  ctx.strokeStyle = border.color
+  ctx.lineWidth = w
+  roundRect(ctx, rect.x + w / 2, rect.y + w / 2, width, height, shrinkRadius(radiusOf(surface), w / 2))
+  ctx.stroke()
+  ctx.restore()
 }
 
 function surfaceGradient(
@@ -741,7 +833,7 @@ function drawAccent(ctx: CanvasRenderingContext2D, surface: SurfaceFill, rect: V
   const accent = surface.accent
   if (!accent || !(accent.width > 0)) return
   ctx.save()
-  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, surface.borderRadius)
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, radiusOf(surface))
   ctx.clip()
   ctx.globalAlpha = baseOpacity
   ctx.fillStyle = accent.color
@@ -766,7 +858,7 @@ function drawVideoSurface(
   options?: RenderOptions
 ): void {
   ctx.save()
-  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, surface.borderRadius)
+  roundRect(ctx, rect.x, rect.y, rect.width, rect.height, radiusOf(surface))
   ctx.clip()
   if (options?.bandBehind) {
     ctx.clearRect(rect.x, rect.y, rect.width, rect.height)
@@ -999,6 +1091,7 @@ function buildScaledTheme(
     offsetX: theme.layout.offsetX * scale,
     offsetY: theme.layout.offsetY * scale,
     bandInset: (theme.layout.bandInset ?? 0) * scale,
+    bandMargins: theme.layout.bandMargins ? scaleInsets(theme.layout.bandMargins, scale) : theme.layout.bandMargins,
     padding: {
       top: theme.layout.padding.top * scale,
       right: theme.layout.padding.right * scale,
@@ -1068,8 +1161,11 @@ function scaleSurface(
   return {
     ...surface,
     borderRadius: surface.borderRadius * scale,
+    radii: surface.radii ? (scaleRadius(surface.radii, scale) as CornerRadii) : surface.radii,
     padding: surface.padding * scale,
+    paddings: surface.paddings ? scaleInsets(surface.paddings, scale) : surface.paddings,
     accent: surface.accent ? { ...surface.accent, width: surface.accent.width * scale } : surface.accent,
+    border: surface.border ? { ...surface.border, width: surface.border.width * scale } : surface.border,
     image: surface.image
       ? { ...surface.image, blur: surface.image.blur * scale }
       : null,
@@ -1103,9 +1199,11 @@ function calculateMaxAvailableVerseHeight(
       return textRect.height - referenceHeight
     case "below":
       return textRect.height - referenceHeight - referenceGap
+    // Inline still puts the reference on the line after the verse (see
+    // layoutVerse): it needs its room too, or it lands on the verse.
     case "inline":
     default:
-      return textRect.height
+      return textRect.height - referenceHeight
   }
 }
 
@@ -1119,6 +1217,9 @@ function calculateMaxAvailableVerseHeight(
  * @param maxHeight 
  * @returns 
  */
+/** How far "fill the box" may grow the words past the theme's size: one word mustn't become a wall. */
+export const FILL_MAX_SCALE = 3
+
 function calculateScaledFontSize(
   ctx: CanvasRenderingContext2D,
   theme: BroadcastTheme,
@@ -1129,9 +1230,12 @@ function calculateScaledFontSize(
   const originalFontSize = theme.verseText.fontSize
   const minFontSize = Math.max(8, originalFontSize * 0.3) // Don't go below 30% of original or 8px
 
-  // Binary search for optimal font size
+  // Binary search for optimal font size; filling the box searches above
+  // the theme's size too, though never taller than the box.
   let low = minFontSize
-  let high = originalFontSize
+  let high = theme.verseText.fillBox
+    ? Math.max(originalFontSize, Math.floor(Math.min(originalFontSize * FILL_MAX_SCALE, maxHeight)))
+    : originalFontSize
   // When nothing fits, the smallest size overflows least: never fall back
   // to full size, which shows only the first line or two.
   let bestFit = minFontSize
@@ -1210,7 +1314,7 @@ function fitAtThemeSize(
   maxHeight: number
 ): { fontSize: number; verse: VerseRenderData } {
   const fit =
-    theme.verseText.shrinkToFit === false
+    theme.verseText.shrinkToFit === false && !theme.verseText.fillBox
       ? fixedSizeLayout(ctx, theme, verse, width / scale, maxHeight / scale)
       : fitVerseText(ctx, theme, verse, width / scale, maxHeight / scale)
   return { fontSize: fit.fontSize * scale, verse: fit.verse }
@@ -1274,6 +1378,68 @@ export function measureVerseHeight(
     height: Math.max(1, lineCount) * lineHeightPx,
     maxLineWidth: Math.max(1, maxLineWidth),
   }
+}
+
+/** A Lower Thirds band from its margins: as wide as they leave, `height` tall, off the edge it's anchored to. */
+function bandRect(
+  m: EdgeInsets,
+  anchor: BroadcastTheme["layout"]["anchor"],
+  canvasW: number,
+  canvasH: number,
+  height: number
+): VerseLayoutRect {
+  const width = Math.max(1, canvasW - m.left - m.right)
+  const h = Math.max(1, Math.min(height, canvasH))
+  const y = anchor.startsWith("top")
+    ? m.top
+    : anchor.startsWith("bottom")
+      ? canvasH - m.bottom - h
+      : (canvasH - h) / 2 + (m.top - m.bottom) / 2
+  return { x: m.left, y, width, height: h }
+}
+
+/** Whether a theme's free boxes are kept as % of its Lower Thirds band. */
+export function freeBoxesInBand(theme: BroadcastTheme): boolean {
+  return theme.layout.boxesIn === "band" && isLowerThird(theme)
+}
+
+/** A % box within `frame` (px). */
+function pctBoxIn(box: { x: number; y: number; width: number; height: number }, frame: VerseLayoutRect): VerseLayoutRect {
+  return {
+    x: frame.x + (box.x / 100) * frame.width,
+    y: frame.y + (box.y / 100) * frame.height,
+    width: Math.max(1, (box.width / 100) * frame.width),
+    height: Math.max(1, (box.height / 100) * frame.height),
+  }
+}
+
+/**
+ * Where an already-scaled theme's text area (a Lower Thirds band, or the
+ * box the words flow in) sits: pinned by `textAreaBox`, placed by a band's
+ * margins, or anchored within the background region (offsets already
+ * applied to the region). At 100% × 100% that's anchoring to the canvas.
+ */
+function textAreaOf(scaledTheme: BroadcastTheme, backgroundRect: VerseLayoutRect): VerseLayoutRect {
+  const layout = scaledTheme.layout
+  const canvasW = scaledTheme.resolution.width
+  const canvasH = scaledTheme.resolution.height
+  const bgW = backgroundRect.width
+  const bgH = backgroundRect.height
+  if (layout.textAreaBox) return pctBoxToPx(layout.textAreaBox, canvasW, canvasH)
+  if (layout.bandMargins && isLowerThird(scaledTheme)) {
+    return bandRect(layout.bandMargins, layout.anchor, canvasW, canvasH, (layout.textAreaHeight / 100) * bgH)
+  }
+  const width = (layout.textAreaWidth / 100) * bgW
+  const height = (layout.textAreaHeight / 100) * bgH
+  const inner = anchorPosition(layout.anchor, width, height, bgW, bgH, 0, 0)
+  const inset = bandInsetOffset(layout.anchor, layout.bandInset ?? 0)
+  return { x: backgroundRect.x + inner.x + inset.x, y: backgroundRect.y + inner.y + inset.y, width, height }
+}
+
+/** A theme's text area (its Lower Thirds band) at `scale`, from the theme alone. */
+export function textAreaRect(theme: BroadcastTheme, scale = 1): VerseLayoutRect {
+  const scaled = buildScaledTheme(theme, scale)
+  return textAreaOf(scaled, regionFor(scaled, 0, 0))
 }
 
 function pctBoxToPx(
@@ -1370,6 +1536,69 @@ export const DEFAULT_TIMER_CAPTION_SIZE = 100
 const SCREEN_AREA_MARGIN = 5
 
 /**
+ * A name on a freely laid out theme (Side by Side, Custom): the name and
+ * its title together in the words' box, as a strap, rather than the name
+ * blown up to fill the card and the title off in the reference's own box.
+ * The words' card, if any, becomes the strap's container so it still fills
+ * the box.
+ */
+function nameInWordsBox(theme: BroadcastTheme): BroadcastTheme {
+  const card = theme.verseText.surface
+  // A big card holds a name better at half as big again, title in step,
+  // and a little in from the card's sides.
+  const grow = 1.5
+  const insets = surfaceInsets(card)
+  const side = Math.max(NAME_SIDE_INSET, insets.left, insets.right)
+  const strapCard = card?.enabled ? { ...card, paddings: { ...insets, left: side, right: side } } : null
+  return {
+    ...theme,
+    textBox: strapCard ?? { ...theme.textBox, enabled: false },
+    verseText: {
+      ...theme.verseText,
+      fontSize: theme.verseText.fontSize * grow,
+      surface: card ? { ...card, enabled: false } : card,
+      fillBox: false,
+      shrinkToFit: true,
+    },
+    reference: {
+      ...theme.reference,
+      surface: theme.reference.surface ? { ...theme.reference.surface, enabled: false } : theme.reference.surface,
+      fontSize: theme.reference.fontSize * grow,
+      horizontalAlign: theme.verseText.horizontalAlign,
+    },
+    layout: {
+      ...theme.layout,
+      mode: "stacked",
+      textAreaBox: theme.layout.verseBox,
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      referenceGap: (theme.layout.referenceGap ?? 0) * grow,
+    },
+  }
+}
+
+/** How far a name strap sits in from its card's sides, at least, in theme px. */
+const NAME_SIDE_INSET = 32
+
+/**
+ * A timer on a Side by Side or freely laid out theme: no camera card and no words card, just
+ * the clock big in the middle of the theme's background (colour, picture
+ * or video), unless the timer itself is placed elsewhere.
+ */
+function timerLayout(theme: BroadcastTheme): BroadcastTheme {
+  const off = <T extends { enabled: boolean }>(surface: T | undefined) => (surface ? { ...surface, enabled: false } : surface)
+  const centred = withTextStyle(
+    { ...theme, cameraPanel: null },
+    { area: "screen", horizontalAlign: "center", verticalAlign: "middle" }
+  )
+  return {
+    ...centred,
+    verseText: { ...centred.verseText, surface: off(centred.verseText.surface), fillBox: false },
+    reference: { ...centred.reference, surface: off(centred.reference.surface), horizontalAlign: "center" },
+    lyricsText: theme.lyricsText ? { ...theme.lyricsText, area: undefined, fillBox: false } : undefined,
+  }
+}
+
+/**
  * The theme as the content sees it: songs and texts get its song and text
  * style, Bible verses its Bible style, each laid over its verse text (and,
  * if asked, the whole screen as the text area). Everything else gets the
@@ -1379,7 +1608,10 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
   if (verse?.timer) {
     // A clock is a few characters: drawn big by default, shrunk to fit the box.
     const style = verse.timer.style
-    const themed = theme.lyricsText ? withTextStyle(theme, theme.lyricsText) : theme
+    // Freely placed boxes (Custom, Side by Side) would fix the caption's
+    // place whatever the timer says: a timer lays itself out instead.
+    const base = theme.cameraPanel?.enabled || theme.layout.mode === "free" ? timerLayout(theme) : theme
+    const themed = base.lyricsText ? withTextStyle(base, base.lyricsText) : base
     // Placed by the timer: the whole screen, aligned to where it was put.
     const position = style?.position
     const styled = position
@@ -1403,7 +1635,9 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
         ...font,
         fontSize: (styled.reference.fontSize * (style?.captionSize ?? DEFAULT_TIMER_CAPTION_SIZE)) / 100,
         ...(position ? { horizontalAlign: position.horizontal } : {}),
-        ...(style?.captionBelow ? { position: "below" as const } : {}),
+        // Always set: left unset, the theme's own reference position (below,
+        // in Side by Side) won over choosing "above".
+        position: style?.captionBelow ? ("below" as const) : ("above" as const),
         ...(style?.captionColor ? { color: style.captionColor } : {}),
       },
       ...backgroundOverride(styled, style?.backgroundCamera, style?.backgroundColor),
@@ -1415,23 +1649,25 @@ export function themeForContent(theme: BroadcastTheme, verse: VerseRenderData | 
     // theme's own reference is often nearly as big as its words, which in a
     // short band would shrink the name below its title.
     const nameSize = theme.verseText.fontSize
-    return {
+    const nameAlign = theme.nameStyle?.verticalAlign ?? "middle"
+    const strap: BroadcastTheme = {
       ...theme,
       verseNumbers: { ...theme.verseNumbers, visible: false },
       verseText: {
         ...theme.verseText,
         fontWeight: Math.max(theme.verseText.fontWeight, 700),
         lineHeight: 1.15,
-        verticalAlign: "middle",
+        verticalAlign: nameAlign,
       },
       reference: {
         ...theme.reference,
         position: "below",
         fontSize: Math.round(nameSize * NAME_TITLE_SCALE),
-        verticalAlign: "middle",
+        verticalAlign: nameAlign,
       },
       layout: { ...theme.layout, referenceGap: Math.round(nameSize * 0.12) },
     }
+    return theme.layout.mode === "free" && theme.layout.verseBox ? nameInWordsBox(strap) : strap
   }
   if (verse?.style === "lyrics" && theme.lyricsText) return withTextStyle(theme, theme.lyricsText)
   if (verse?.style === "scripture" && theme.scriptureText) {
@@ -1462,6 +1698,17 @@ function backgroundOverride(
 }
 
 /**
+ * The theme's own looping background video, when it shows: not under a
+ * song's motion background, a slide or a full-frame video, nor where a
+ * Bible style puts a colour or camera in its place.
+ */
+export function themeBackgroundVideo(theme: BroadcastTheme, verse: VerseRenderData | null): SurfaceVideo | null {
+  if (verse?.background || verse?.image || verse?.video) return null
+  const bg = themeForContent(theme, verse).background
+  return bg.type === "video" && bg.video?.videoId ? bg.video : null
+}
+
+/**
  * The camera showing behind this frame, if any: the theme's camera
  * background or a style's camera in its place. A motion background, a slide
  * or a full-frame video covers it, so then there is none.
@@ -1481,12 +1728,15 @@ const TEXT_STYLE_KEYS = [
   "horizontalAlign",
   "verticalAlign",
   "shrinkToFit",
+  "fillBox",
   "outline",
   "letterSpacing",
 ] as const satisfies readonly (keyof LyricsStyle)[]
 
 function withTextStyle(theme: BroadcastTheme, style: LyricsStyle): BroadcastTheme {
-  const area = style.area
+  // Beside a camera (Side by Side) the words keep to their card: there's
+  // no whole screen to spread over.
+  const area = theme.cameraPanel?.enabled ? undefined : style.area
   const set = Object.fromEntries(
     TEXT_STYLE_KEYS.filter((key) => style[key] !== undefined).map((key) => [key, style[key]])
   )
@@ -1549,26 +1799,19 @@ function layoutVerse(
   const layout = scaledTheme.layout
 
   const backgroundRect = regionFor(scaledTheme, options?.offsetX ?? 0, options?.offsetY ?? 0)
-  const bgPos = { x: backgroundRect.x, y: backgroundRect.y }
-  const bgW = backgroundRect.width
-  const bgH = backgroundRect.height
-  const textAreaW = (layout.textAreaWidth / 100) * bgW
-  const textAreaH = (layout.textAreaHeight / 100) * bgH
-  // Text area is anchored within the background region (offsets are already
-  // applied to the region itself). At 100% × 100% this matches anchoring to
-  // the canvas directly.
-  const innerPos = anchorPosition(layout.anchor, textAreaW, textAreaH, bgW, bgH, 0, 0)
-  const inset = bandInsetOffset(layout.anchor, layout.bandInset ?? 0)
-  const pos = { x: bgPos.x + innerPos.x + inset.x, y: bgPos.y + innerPos.y + inset.y }
+  const areaRect = textAreaOf(scaledTheme, backgroundRect)
+  const pos = { x: areaRect.x, y: areaRect.y }
+  const textAreaW = areaRect.width
+  const textAreaH = areaRect.height
 
   const pad = layout.padding
   // The container's own padding insets the text too, so content wraps inside
   // the surface rather than running to its edges.
-  const surfacePad = scaledTheme.textBox.enabled ? scaledTheme.textBox.padding : 0
-  const textRectX = pos.x + pad.left + surfacePad
-  const textRectY = pos.y + pad.top + surfacePad
-  const textRectW = textAreaW - pad.left - pad.right - surfacePad * 2
-  const textRectH = textAreaH - pad.top - pad.bottom - surfacePad * 2
+  const sp = scaledTheme.textBox.enabled ? surfaceInsets(scaledTheme.textBox) : uniformInsets(0)
+  const textRectX = pos.x + pad.left + sp.left
+  const textRectY = pos.y + pad.top + sp.top
+  const textRectW = textAreaW - pad.left - pad.right - sp.left - sp.right
+  const textRectH = textAreaH - pad.top - pad.bottom - sp.top - sp.bottom
   const textAreaRect: VerseLayoutRect = {
     x: pos.x,
     y: pos.y,
@@ -1586,12 +1829,10 @@ function layoutVerse(
     layout.mode === "free" &&
     layout.referenceBox !== undefined &&
     layout.verseBox !== undefined
-  const referenceBoxRect: VerseLayoutRect | null = freeMode
-    ? pctBoxToPx(layout.referenceBox!, canvasW, canvasH)
-    : null
-  const verseBoxRect: VerseLayoutRect | null = freeMode
-    ? pctBoxToPx(layout.verseBox!, canvasW, canvasH)
-    : null
+  // Free boxes are % of the frame, or of a Lower Thirds band (see `boxesIn`).
+  const boxFrame = freeBoxesInBand(scaledTheme) ? textAreaRect : { x: 0, y: 0, width: canvasW, height: canvasH }
+  const referenceBoxRect: VerseLayoutRect | null = freeMode ? pctBoxIn(layout.referenceBox!, boxFrame) : null
+  const verseBoxRect: VerseLayoutRect | null = freeMode ? pctBoxIn(layout.verseBox!, boxFrame) : null
 
   if (!verse) {
     return {
@@ -1645,11 +1886,11 @@ function layoutVerse(
   // the fill instead of running to its edges.
   const referenceContentRect =
     referenceBoxRect && scaledTheme.reference.surface?.enabled
-      ? deflateRect(referenceBoxRect, scaledTheme.reference.surface.padding)
+      ? deflateRect(referenceBoxRect, surfaceInsets(scaledTheme.reference.surface))
       : referenceBoxRect
   const verseContentRect =
     verseBoxRect && scaledTheme.verseText.surface?.enabled
-      ? deflateRect(verseBoxRect, scaledTheme.verseText.surface.padding)
+      ? deflateRect(verseBoxRect, surfaceInsets(scaledTheme.verseText.surface))
       : verseBoxRect
 
   if (freeMode && referenceBoxRect && verseBoxRect) {
@@ -1779,11 +2020,12 @@ function layoutVerse(
       : scaledTheme.reference.position === "below"
         ? verseHeight + referenceGap + referenceHeight
         : verseHeight + referenceHeight
-  const blockStartY = alignY(
-    blockVerticalAlign,
+  // A block taller than its box starts at the box's top: aligned to the
+  // bottom it would start above the box, and the verse (kept inside the
+  // box) would slide down onto the reference.
+  const blockStartY = Math.max(
     textRectY,
-    textRectH,
-    blockHeight
+    alignY(blockVerticalAlign, textRectY, textRectH, blockHeight)
   )
 
   let referenceRect: VerseLayoutRect
@@ -1953,7 +2195,7 @@ export function videoReadable(el: HTMLVideoElement): boolean {
 }
 
 function videoPicture(
-  video: VideoPlayback,
+  video: Pick<VideoPlayback, "poster">,
   el: HTMLVideoElement | null | undefined,
   options?: RenderOptions
 ) {
@@ -1970,7 +2212,7 @@ function videoPicture(
  */
 function drawVideoBackground(
   ctx: CanvasRenderingContext2D,
-  background: VideoPlayback,
+  background: Pick<VideoPlayback, "poster">,
   rect: VerseLayoutRect,
   options?: RenderOptions
 ): void {
@@ -2030,11 +2272,92 @@ function drawCredit(
 }
 
 /**
+ * The theme's camera panel when it shows: over the theme, never over a
+ * slide or video shown full frame.
+ */
+export function activePanel(theme: BroadcastTheme, verse: VerseRenderData | null): CameraPanel | null {
+  const panel = theme.cameraPanel
+  if (!panel?.enabled) return null
+  // A timer has a layout of its own (see `timerLayout`): no camera beside it.
+  if (verse?.image || verse?.video || verse?.timer) return null
+  return panel
+}
+
+/** Where the camera panel is drawn at `scale`, with its corner rounding; null when it doesn't show. */
+export function cameraPanelRect(
+  theme: BroadcastTheme,
+  verse: VerseRenderData | null,
+  scale = 1
+): { rect: VerseLayoutRect; radius: CornerRadii } | null {
+  const panel = activePanel(theme, verse)
+  if (!panel) return null
+  const rect = pctBoxToPx(panel.box, theme.resolution.width * scale, theme.resolution.height * scale)
+  const most = Math.min(rect.width, rect.height) / 2
+  const c = corners(scaleRadius(radiusOf(panel), scale))
+  const clampTo = (v: number) => Math.max(0, Math.min(v, most))
+  return { rect, radius: { tl: clampTo(c.tl), tr: clampTo(c.tr), br: clampTo(c.br), bl: clampTo(c.bl) } }
+}
+
+/**
+ * The camera panel: its shadow, its picture (or a hole for a camera layer
+ * behind the canvas to show through) and its border.
+ */
+function drawCameraPanel(
+  ctx: CanvasRenderingContext2D,
+  theme: BroadcastTheme,
+  verse: VerseRenderData | null,
+  options?: RenderOptions
+): void {
+  const scale = options?.scale ?? 1
+  const placed = cameraPanelRect(theme, verse, scale)
+  const panel = theme.cameraPanel
+  if (!placed || !panel) return
+  const { rect, radius } = placed
+  ctx.save()
+  if (options?.opacity !== undefined) ctx.globalAlpha = options.opacity
+  if (panel.shadow) drawDropShadow(ctx, rect, radius, panel.shadowStyle ?? DEFAULT_SHADOW, scale, ctx.globalAlpha)
+  if (options?.panelBehind) {
+    ctx.save()
+    ctx.globalAlpha = 1
+    ctx.globalCompositeOperation = "destination-out"
+    roundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius)
+    ctx.fill()
+    ctx.restore()
+  } else {
+    ctx.save()
+    roundRect(ctx, rect.x, rect.y, rect.width, rect.height, radius)
+    ctx.clip()
+    drawCameraBackground(ctx, panel.camera?.fit ?? "cover", rect, options?.panelImage)
+    ctx.restore()
+  }
+  const border = panel.border
+  if (border && border.width > 0) {
+    const w = border.width * scale
+    // Inside the panel's edge, so the border never grows it.
+    const inset = { x: rect.x + w / 2, y: rect.y + w / 2, width: rect.width - w, height: rect.height - w }
+    if (inset.width > 0 && inset.height > 0) {
+      ctx.strokeStyle = border.color
+      ctx.lineWidth = w
+      roundRect(ctx, inset.x, inset.y, inset.width, inset.height, shrinkRadius(radius, w / 2))
+      ctx.stroke()
+    }
+  }
+  ctx.restore()
+}
+
+/**
  * Where the theme's logo goes, in canvas px at `scale`: its corner of the
  * whole frame, inset by its margin, at its height with the picture's own
  * aspect. Null when there is no logo, it isn't shown over this content, or
  * its picture hasn't loaded.
  */
+/** A logo's inset from each edge in theme px: its own, or the one `margin` (% of height) on every side. */
+export function logoMargins(logo: ThemeLogo, frameHeight: number): LogoMargins {
+  if (logo.margins) return logo.margins
+  const m = Math.round((frameHeight * logo.margin) / 100)
+  return { top: m, right: m, bottom: m, left: m }
+}
+
 export function logoRect(
   theme: BroadcastTheme,
   verse: VerseRenderData | null,
@@ -2053,12 +2376,12 @@ export function logoRect(
   // An SVG without a width and height has no natural size: draw it square.
   const aspect = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1
   const width = Math.min(frameW, height * aspect)
-  const margin = (frameH * logo.margin) / 100
+  const m = logoMargins(logo, theme.resolution.height)
   const left = logo.corner.endsWith("left")
   const top = logo.corner.startsWith("top")
   return {
-    x: left ? margin : frameW - margin - width,
-    y: top ? margin : frameH - margin - height,
+    x: left ? m.left * scale : frameW - m.right * scale - width,
+    y: top ? m.top * scale : frameH - m.bottom * scale - height,
     width,
     height,
   }
@@ -2158,6 +2481,8 @@ function renderVerseImpl(
   } else {
     drawBackground(ctx, scaledTheme, metrics.backgroundRect, options?.imageCache, options)
   }
+  // The camera panel is part of the backdrop: it stays put while words change.
+  if (drawBase) drawCameraPanel(ctx, theme, verse, options)
 
   // The container behind the reference + verse block, then each element's own
   // plate on top of it.
@@ -2176,7 +2501,8 @@ function renderVerseImpl(
       scaledTheme.reference.surface,
       metrics.referenceSurfaceRect,
       baseOpacity,
-      options?.imageCache
+      options?.imageCache,
+      options
     )
   }
   if (drawPlates && metrics.verseSurfaceRect) {
@@ -2185,7 +2511,8 @@ function renderVerseImpl(
       scaledTheme.verseText.surface,
       metrics.verseSurfaceRect,
       baseOpacity,
-      options?.imageCache
+      options?.imageCache,
+      options
     )
   }
 
@@ -2198,8 +2525,13 @@ function renderVerseImpl(
 
   const referenceRect = metrics.referenceRect
   const verseRect = metrics.verseRect
-  const verseArea = metrics.verseBoxRect ?? metrics.textRect
-  const referenceArea = metrics.referenceBoxRect ?? metrics.textRect
+  // Inside each element's plate padding, as the words were fitted (in free
+  // mode `textRect` is the verse box less its plate's padding).
+  const verseArea = metrics.textRect
+  const referenceArea =
+    metrics.referenceBoxRect && scaledTheme.reference.surface?.enabled
+      ? deflateRect(metrics.referenceBoxRect, surfaceInsets(scaledTheme.reference.surface))
+      : (metrics.referenceBoxRect ?? metrics.textRect)
   if (verseRect) {
     drawVerseText(
       ctx,

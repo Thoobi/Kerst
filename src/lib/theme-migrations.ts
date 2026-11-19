@@ -1,13 +1,16 @@
 import type {
   BroadcastTheme,
+  CameraPanel,
   ElementBox,
   SurfaceFill,
   VerseRenderData,
 } from "@/types/broadcast"
 import {
   computeVerseLayoutMetrics,
+  textAreaRect,
   type VerseLayoutMetrics,
 } from "./verse-renderer"
+import { isLowerThird } from "./lower-third"
 
 /** Sample verse used wherever a layout must be computed without live data. */
 export const SAMPLE_VERSE: VerseRenderData = {
@@ -73,6 +76,12 @@ export function normalizeTheme(theme: BroadcastTheme): BroadcastTheme {
   ) {
     layout.mode = "stacked"
   }
+  // A Lower Thirds theme's free boxes move with its band: kept as % of
+  // the band, converted from % of the frame where they were saved so.
+  if (layout.mode === "free" && layout.boxesIn !== "band" && isLowerThird(theme)) {
+    const inBand = boxesToBand({ ...theme, layout })
+    if (inBand) Object.assign(layout, inBand)
+  }
   return {
     ...theme,
     verseNumbers: { ...DEFAULT_VERSE_NUMBERS, ...theme.verseNumbers },
@@ -86,8 +95,41 @@ export function normalizeTheme(theme: BroadcastTheme): BroadcastTheme {
       surface: normalizeSurface(theme.reference?.surface),
     },
     layout,
+    cameraPanel: normalizeCameraPanel(theme.cameraPanel),
     transition: theme.transition ?? { type: "fade", duration: 400, easing: "ease-out", direction: "up" },
   }
+}
+
+/** A camera panel with every field set, or null if what was saved can't be placed. */
+function normalizeCameraPanel(panel: CameraPanel | null | undefined): CameraPanel | null {
+  if (!panel || !isValidBox(panel.box)) return null
+  return {
+    enabled: panel.enabled !== false,
+    camera: panel.camera?.url ? panel.camera : null,
+    box: panel.box,
+    borderRadius: Number.isFinite(panel.borderRadius) ? Math.max(0, panel.borderRadius) : 0,
+    border: panel.border && Number.isFinite(panel.border.width) ? panel.border : null,
+    shadow: panel.shadow === true,
+  }
+}
+
+/** Frame-% boxes as %s of a Lower Thirds band, in the same place on screen; null if there's no band to measure. */
+export function boxesToBand(
+  theme: BroadcastTheme
+): { referenceBox: ElementBox; verseBox: ElementBox; boxesIn: "band" } | null {
+  const { referenceBox, verseBox } = theme.layout
+  if (!referenceBox || !verseBox) return null
+  const band = textAreaRect({ ...theme, layout: { ...theme.layout, mode: "stacked" } })
+  if (!(band.width > 0 && band.height > 0)) return null
+  const { width: W, height: H } = theme.resolution
+  const r2 = (v: number) => Math.round(v * 100) / 100
+  const toBand = (box: ElementBox): ElementBox => ({
+    x: r2((((box.x / 100) * W - band.x) / band.width) * 100),
+    y: r2((((box.y / 100) * H - band.y) / band.height) * 100),
+    width: r2((((box.width / 100) * W) / band.width) * 100),
+    height: r2((((box.height / 100) * H) / band.height) * 100),
+  })
+  return { referenceBox: toBand(referenceBox), verseBox: toBand(verseBox), boxesIn: "band" }
 }
 
 // Floor the origin and ceil the size (at 2 decimals) so the percent box is

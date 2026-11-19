@@ -41,8 +41,9 @@ describe("lower third looks", () => {
     expect(classic.textBox).toMatchObject({ video: null, image: null, gradient: null, accent: null, enabled: true })
   })
 
-  it("is the built-in Lower Thirds' own look", () => {
-    expect(currentLook(LOWER_THIRDS)).toBe("floating")
+  it("is the built-in Lower Thirds' own look: full width on the bottom", () => {
+    expect(currentLook(LOWER_THIRDS)).toBe("classic")
+    expect(LOWER_THIRDS.layout.bandMargins).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
   })
 })
 

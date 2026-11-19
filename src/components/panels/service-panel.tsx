@@ -9,7 +9,7 @@ import {
   FilmIcon,
   CheckIcon,
   GripVerticalIcon,
-  LayersIcon,
+  ClapperboardIcon,
   ListOrderedIcon,
   MegaphoneIcon,
   MoreHorizontalIcon,
@@ -363,7 +363,7 @@ function SceneMenu({ item }: { item: ScheduleItem }) {
               : "hidden size-6 justify-center text-muted-foreground group-hover:flex hover:bg-muted"
           )}
         >
-          <LayersIcon className="size-3 shrink-0" />
+          <ClapperboardIcon className="size-3 shrink-0" />
           {scene && <span className="truncate">{scene.name}</span>}
         </button>
       </DropdownMenuTrigger>
@@ -376,7 +376,7 @@ function SceneMenu({ item }: { item: ScheduleItem }) {
           <>
             {scenes.map((sc) => (
               <DropdownMenuItem key={sc.id} onSelect={() => choose(sc.id)}>
-                {sc.id === sceneId ? <CheckIcon /> : <LayersIcon />}
+                {sc.id === sceneId ? <CheckIcon /> : <ClapperboardIcon />}
                 {sc.name}
               </DropdownMenuItem>
             ))}

@@ -53,7 +53,7 @@ export function NewThemeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New Theme</DialogTitle>
           <DialogDescription>Choose a starting layout.</DialogDescription>
@@ -80,6 +80,37 @@ export function NewThemeDialog({
                 <div className="absolute inset-x-2 bottom-1.5 flex h-1/3 flex-col items-center justify-center gap-1 rounded-sm bg-zinc-950/80">
                   <div className="h-1 w-2/3 rounded-sm bg-zinc-400" />
                   <div className="h-1 w-1/3 rounded-sm bg-amber-400/80" />
+                </div>
+              </div>
+            }
+          />
+          <LayoutOption
+            title="Custom"
+            description="Place the reference and words anywhere: drag and resize each box"
+            onSelect={() => handleCreate("custom")}
+            preview={
+              <div className="absolute inset-0 bg-zinc-900">
+                <div className="absolute top-[14%] left-[8%] h-[14%] w-[40%] rounded-sm border border-dashed border-amber-400/80 p-1">
+                  <div className="h-1 w-2/3 rounded-sm bg-amber-400/80" />
+                </div>
+                <div className="absolute top-[38%] right-[8%] flex h-[48%] w-[58%] flex-col justify-center gap-1 rounded-sm border border-dashed border-amber-400/80 p-1.5">
+                  <div className="h-1.5 w-full rounded-sm bg-zinc-500" />
+                  <div className="h-1.5 w-4/5 rounded-sm bg-zinc-600" />
+                </div>
+              </div>
+            }
+          />
+          <LayoutOption
+            title="Side by Side"
+            description="A camera on one side and the words level with it, over your own background"
+            onSelect={() => handleCreate("side-by-side")}
+            preview={
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-950 to-zinc-950">
+                <div className="absolute top-1/4 left-[4%] h-1/2 w-1/2 rounded-md bg-zinc-700 shadow-lg" />
+                <div className="absolute top-1/4 right-[4%] flex h-1/2 w-[38%] flex-col justify-center gap-1">
+                  <div className="h-1.5 w-full rounded-sm bg-zinc-300" />
+                  <div className="h-1.5 w-4/5 rounded-sm bg-zinc-300" />
+                  <div className="h-1.5 w-3/5 rounded-sm bg-zinc-300" />
                 </div>
               </div>
             }

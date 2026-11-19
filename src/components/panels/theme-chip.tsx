@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronDownIcon, EyeOffIcon, LayersIcon, PaletteIcon, PencilIcon, PinIcon, PlusIcon, XIcon } from "lucide-react"
+import { ChevronDownIcon, EyeOffIcon, ClapperboardIcon, PaletteIcon, PencilIcon, PinIcon, PlusIcon, XIcon } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
@@ -178,7 +178,7 @@ function Scenes() {
                   : "border-border hover:bg-muted"
               )}
             >
-              <LayersIcon className="size-3" />
+              <ClapperboardIcon className="size-3" />
               {scene.name}
             </button>
             <button

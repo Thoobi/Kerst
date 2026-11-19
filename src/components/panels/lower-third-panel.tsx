@@ -9,7 +9,9 @@ import { CanvasVerse } from "@/components/ui/canvas-verse"
 import { BackgroundPicker } from "@/components/panels/background-picker"
 import { FontFamilyPicker } from "@/components/broadcast/text-properties"
 import { Field, Segmented } from "@/components/panels/style-controls"
-import { FLOAT_LIFT, FLOAT_WIDTH, LOWER_THIRD_LOOKS, currentLook, withTextColors } from "@/lib/lower-third-looks"
+import { FULL_WIDTH_MARGINS, LOWER_THIRD_LOOKS, currentLook, floatingMargins, withTextColors } from "@/lib/lower-third-looks"
+import { bandMargins } from "@/lib/lower-third"
+import { BandMarginsControl } from "@/components/broadcast/band-margins"
 import { bandTimeline } from "@/lib/frame-transition"
 import { buildColorWithOpacity, parseColorOpacity } from "@/lib/color-utils"
 import { pickThemeBackgroundImage } from "@/lib/theme-designer-files"
@@ -145,7 +147,8 @@ export function LowerThirdPanel() {
 
   const band = theme.textBox
   const fill = fillOf(band)
-  const floating = theme.layout.textAreaWidth < 100 || (theme.layout.bandInset ?? 0) > 0
+  const margins = bandMargins(theme)
+  const floating = margins.left > 0 || margins.right > 0 || margins.bottom > 0 || margins.top > 0
   const look = currentLook(theme)
   const transition: BandTransition = theme.bandTransition ?? {
     ...DEFAULT_TRANSITION,
@@ -277,8 +280,11 @@ export function LowerThirdPanel() {
                   look === option.id ? "border-primary bg-primary/10" : "border-border hover:border-foreground/30"
                 )}
               >
-                <div className={cn("overflow-hidden rounded-sm", CHECKER)}>
-                  <CanvasVerse theme={{ ...theme, ...option.apply(theme) }} verse={SAMPLE} />
+                {/* Just the bottom of the frame, where the band is, so each look is big enough to tell apart. */}
+                <div className={cn("relative aspect-[16/5] overflow-hidden rounded-sm", CHECKER)}>
+                  <div className="absolute inset-x-0 bottom-0">
+                    <CanvasVerse theme={{ ...theme, ...option.apply(theme) }} verse={SAMPLE} className="rounded-none" />
+                  </div>
                 </div>
                 <span className="px-0.5 text-xs font-medium">{option.name}</span>
               </button>
@@ -416,32 +422,13 @@ export function LowerThirdPanel() {
               onChange={(shape) =>
                 setLayout(
                   shape === "floating"
-                    ? { textAreaWidth: FLOAT_WIDTH, bandInset: FLOAT_LIFT, offsetY: 0 }
-                    : { textAreaWidth: 100, bandInset: 0, offsetY: 0 }
+                    ? { bandMargins: floatingMargins(theme.resolution.width), offsetY: 0 }
+                    : { bandMargins: FULL_WIDTH_MARGINS, offsetY: 0 }
                 )
               }
             />
           </Field>
-          {floating && (
-            <>
-              <SliderField
-                label="Width"
-                value={theme.layout.textAreaWidth}
-                min={50}
-                max={100}
-                unit="%"
-                onChange={(v) => setLayout({ textAreaWidth: Math.round(v) })}
-              />
-              <SliderField
-                label="Lift from the bottom"
-                value={theme.layout.bandInset ?? 0}
-                min={0}
-                max={160}
-                unit="px"
-                onChange={(v) => setLayout({ bandInset: Math.round(v) })}
-              />
-            </>
-          )}
+          <BandMarginsControl theme={theme} onChange={(m) => setLayout({ bandMargins: m })} />
           <SliderField
             label="Height"
             value={theme.layout.textAreaHeight}

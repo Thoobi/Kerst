@@ -41,7 +41,10 @@ interface VideosState {
   loadVideos: () => Promise<void>
   /** Copy video files into the library, keeping only those this computer can play. */
   importPaths: (paths: string[]) => Promise<VideoImportOutcome>
-  /** Put a video on the live output: playing if on air, cued at the start if not. */
+  /**
+   * Put a video on the live output cued at the start, paused: whatever the
+   * live mode (Off, Ask, Auto), only the operator's Play starts it.
+   */
   presentVideo: (id: string) => void
   togglePlay: () => void
   seekTo: (seconds: number) => void
@@ -187,9 +190,9 @@ export const useVideosStore = create<VideosState>((set, get) => ({
     const { videos, mediaBase } = get()
     const video = videos.find((v) => v.id === id)
     if (!video || !mediaBase) return
-    // Off air there is no sound and no picture, so don't let it run away
-    // unseen: cue it, and Play starts it once the operator is ready.
-    const content = videoContent(video, mediaBase, useBroadcastStore.getState().isLive)
+    // Never start on its own: a video with sound mustn't begin before the
+    // person at the computer is ready. Play starts it.
+    const content = videoContent(video, mediaBase, false)
     usePreviewStore.getState().show(content)
     useBroadcastStore.getState().setLiveVerse(content)
   },

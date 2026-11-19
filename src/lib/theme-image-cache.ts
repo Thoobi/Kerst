@@ -129,7 +129,7 @@ export function imageContentBox(img: HTMLImageElement): ImageContentBox {
 
 /** Every image URL a theme references, across the frame and all surfaces. */
 export function themeImageUrls(theme: {
-  background?: { image?: { url: string } | null }
+  background?: { image?: { url: string } | null; video?: { poster?: string } | null }
   textBox?: { image?: { url: string } | null; video?: { poster?: string } | null }
   reference?: { surface?: { image?: { url: string } | null } }
   verseText?: { surface?: { image?: { url: string } | null } }
@@ -137,6 +137,7 @@ export function themeImageUrls(theme: {
 }): string[] {
   const urls = [
     theme.background?.image?.url,
+    theme.background?.video?.poster,
     theme.textBox?.image?.url,
     theme.textBox?.video?.poster,
     theme.reference?.surface?.image?.url,

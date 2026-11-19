@@ -673,7 +673,8 @@ describe("styling the lower third", () => {
     expect(copy.bandTransition?.type).toBe("wipe")
     // The full-screen output and the built-ins are untouched.
     expect(s.outputs.find((o) => o.id === "main")!.themeId).toBe(CLASSIC_DARK.id)
-    expect(s.themes.find((t) => t.id === LOWER_THIRDS.id)!.textBox.accent?.side).toBe("top")
+    // The built-in itself is untouched.
+    expect(s.themes.find((t) => t.id === LOWER_THIRDS.id)!.textBox).toEqual(LOWER_THIRDS.textBox)
 
     useBroadcastStore.getState().updateLowerThird((t) => ({ bandTransition: { ...t.bandTransition!, type: "cut" } }))
     const again = useBroadcastStore.getState()
@@ -794,5 +795,55 @@ describe("saveDraft", () => {
     // Saving again edits the copy, not another copy.
     expect(useBroadcastStore.getState().saveDraft()).toBe(copyId)
     expect(useBroadcastStore.getState().themes.filter((t) => t.name === copy.name)).toHaveLength(1)
+  })
+
+  it("saves under the name given: a built-in's copy, or a theme of one's own", async () => {
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { SIDE_BY_SIDE } = await import("@/lib/builtin-themes")
+    useBroadcastStore.getState().startEditing(SIDE_BY_SIDE.id)
+    const id = useBroadcastStore.getState().saveDraft("  Sunday Stage  ")!
+    expect(useBroadcastStore.getState().themes.find((t) => t.id === id)?.name).toBe("Sunday Stage")
+    expect(useBroadcastStore.getState().themes.find((t) => t.id === SIDE_BY_SIDE.id)?.name).toBe("Side by Side")
+
+    useBroadcastStore.getState().saveDraft("Evening Stage")
+    expect(useBroadcastStore.getState().themes.find((t) => t.id === id)?.name).toBe("Evening Stage")
+    expect(useBroadcastStore.getState().draftTheme?.name).toBe("Evening Stage")
+  })
+})
+
+describe("undo in the designer", () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  it("undoes and redoes, one step per gesture", async () => {
+    vi.useFakeTimers()
+    const { useBroadcastStore } = await import("./broadcast-store")
+    const { CLASSIC_DARK } = await import("@/lib/builtin-themes")
+    const s = () => useBroadcastStore.getState()
+    s().startEditing(CLASSIC_DARK.id)
+    // A slider dragged: many changes moments apart, one step.
+    for (const size of [80, 90, 100]) {
+      s().updateDraftNested("verseText.fontSize", size)
+      vi.advanceTimersByTime(50)
+    }
+    vi.advanceTimersByTime(1000)
+    s().updateDraftNested("verseText.color", "#ff0000")
+
+    s().undoDraft()
+    expect(s().draftTheme?.verseText.color).toBe(CLASSIC_DARK.verseText.color)
+    expect(s().draftTheme?.verseText.fontSize).toBe(100)
+    s().undoDraft()
+    expect(s().draftTheme?.verseText.fontSize).toBe(CLASSIC_DARK.verseText.fontSize)
+    expect(s().draftPast).toHaveLength(0)
+
+    s().redoDraft()
+    s().redoDraft()
+    expect(s().draftTheme?.verseText).toMatchObject({ fontSize: 100, color: "#ff0000" })
+    // A new change drops what was undone.
+    s().undoDraft()
+    s().updateDraftNested("verseText.fontWeight", 700)
+    expect(s().draftFuture).toHaveLength(0)
+    vi.useRealTimers()
   })
 })
