@@ -2,9 +2,12 @@ import {
   IconArrowLeft,
   IconArrowRight,
   IconBroadcast,
+  IconCamera,
   IconDeviceDesktop,
   IconDeviceTv,
   IconGripVertical,
+  IconLayoutBottombar,
+  IconLayoutDashboard,
   IconListNumbers,
   IconMessageCircle,
   IconMovie,
@@ -175,6 +178,33 @@ export function FeaturesSection() {
               </kbd>
             </div>
           </Tile>
+
+          <Tile
+            className="md:col-span-3"
+            icon={IconCamera}
+            title="The camera beside the words"
+            body="Side by Side puts a live camera in a rounded card with the lyrics or verse level beside it, over a background of your own. Webcams, phones and HDMI capture cards all work."
+          >
+            <SideBySide />
+          </Tile>
+
+          <Tile
+            className="md:col-span-3"
+            icon={IconLayoutDashboard}
+            title="Lay it out your way"
+            body="Start a custom theme and drag every box where you want it. Resize with handles, snap to the grid and the centre, and round the corners and frame each card."
+          >
+            <CustomLayout />
+          </Tile>
+
+          <Tile
+            className="md:col-span-6"
+            icon={IconLayoutBottombar}
+            title="Lower thirds in one click"
+            body="Twelve ready looks, from a news band to a glass card, each with its own way of coming on. Set the band's margins, corners, border and shadow the way a design tool does, and keep the room's camera clean behind it."
+          >
+            <LowerThirds />
+          </Tile>
         </div>
       </div>
     </section>
@@ -259,6 +289,90 @@ function Outputs() {
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** A Side by Side frame: the camera's card and the words' card, level. */
+function SideBySide() {
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[linear-gradient(135deg,#1e1548_0%,#0b0a1f_100%)]">
+      <div className="absolute top-1/4 left-[4%] flex h-1/2 w-1/2 items-end overflow-hidden rounded-[10px] bg-[radial-gradient(circle_at_50%_38%,#5b5a66_0%,#2a2a33_38%,#131318_75%)] shadow-[0_10px_30px_rgba(0,0,0,0.55)]">
+        {/* A figure at a microphone, in silhouette. */}
+        <svg viewBox="0 0 160 90" className="h-full w-full" aria-hidden>
+          <circle cx="80" cy="38" r="13" fill="#0c0c10" />
+          <path d="M52 90 C54 66 66 56 80 56 C94 56 106 66 108 90 Z" fill="#0c0c10" />
+          <rect x="94" y="44" width="3" height="46" rx="1.5" fill="#1c1c22" />
+          <circle cx="95.5" cy="44" r="4" fill="#2a2a33" />
+        </svg>
+        <span className="absolute top-2 left-2 flex items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 text-[9px] font-semibold tracking-wider text-white/80 uppercase">
+          <span className="size-1.5 rounded-full bg-accent shadow-[0_0_6px_var(--accent)]" />
+          Live
+        </span>
+      </div>
+      <div className="absolute top-1/4 right-[4%] flex h-1/2 w-[38%] items-center rounded-[10px] bg-black/35 p-[2%] shadow-[0_10px_30px_rgba(0,0,0,0.55)]">
+        <p className="font-display text-[clamp(10px,1.45vw,19px)] leading-[1.15] font-bold tracking-[-0.02em] text-white">
+          Lift your voice and let the whole room hear it sing
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** The designer: boxes with handles, a grid and a snap line. */
+function CustomLayout() {
+  const handles: [string, string][] = [["0%", "0%"], ["100%", "0%"], ["0%", "100%"], ["100%", "100%"], ["0%", "50%"], ["100%", "50%"]];
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-[#0d0f12] [background-image:linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:8.333%_14.81%]">
+      <span className="absolute inset-y-0 left-1/2 w-px bg-[#ec4899]/80" aria-hidden />
+      <div className="absolute top-[14%] left-[8%] h-[12%] w-[34%] rounded border border-dashed border-amber-400/70 px-1.5 py-1">
+        <div className="h-1.5 w-2/3 rounded-sm bg-amber-400/80" />
+      </div>
+      <div className="absolute top-[32%] left-[8%] flex h-[52%] w-[42%] flex-col justify-center gap-1.5 rounded-[8px] border-2 border-accent bg-white/[0.06] p-2">
+        <div className="h-1.5 w-full rounded-sm bg-white/70" />
+        <div className="h-1.5 w-5/6 rounded-sm bg-white/70" />
+        <div className="h-1.5 w-2/3 rounded-sm bg-white/70" />
+        {handles.map(([left, top]) => (
+          <span
+            key={left + top}
+            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-accent bg-background"
+            style={{ left, top }}
+          />
+        ))}
+      </div>
+      <div className="absolute top-[32%] right-[6%] h-[52%] w-[38%] rounded-[8px] border border-dashed border-sky-400/70 bg-white/[0.04]">
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white/40">Camera</span>
+      </div>
+    </div>
+  );
+}
+
+/** Three lower-third looks over a stage, as they'd sit on the stream. */
+function LowerThirds() {
+  const stage = "bg-[radial-gradient(circle_at_50%_30%,#3a3a44_0%,#1a1a20_55%,#0c0c10_100%)]"
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className={cn("relative aspect-video overflow-hidden rounded-xl", stage)}>
+        <div className="absolute inset-x-0 bottom-0 border-t-[3px] border-[#fbbf24] bg-[#0b2a5b]/95 px-3 py-2.5">
+          <span className="rounded-sm bg-[#fbbf24] px-1.5 py-0.5 text-[10px] font-bold text-[#0b0b0b]">JOHN 3:16</span>
+          <p className="mt-1.5 text-[11px] leading-tight text-white">For God so loved the world, that he gave his only Son</p>
+        </div>
+        <span className="absolute top-2 left-2 text-[10px] text-white/50">News</span>
+      </div>
+      <div className={cn("relative aspect-video overflow-hidden rounded-xl", stage)}>
+        <div className="absolute inset-x-[6%] bottom-[8%] rounded-[14px] border border-white/15 bg-[#0e1014]/90 px-3 py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.6)]">
+          <p className="text-[10px] font-semibold text-accent">Jane Doe</p>
+          <p className="text-[11px] leading-tight text-white/85">Keynote speaker</p>
+        </div>
+        <span className="absolute top-2 left-2 text-[10px] text-white/50">Rounded card</span>
+      </div>
+      <div className={cn("relative aspect-video overflow-hidden rounded-xl", stage)}>
+        <div className="absolute inset-x-[6%] bottom-[8%] rounded-[14px] bg-white px-3 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.35)]">
+          <p className="text-[10px] font-semibold text-[#2563eb]">Up next</p>
+          <p className="text-[11px] leading-tight text-[#111318]">Q&amp;A with the panel, straight after the break</p>
+        </div>
+        <span className="absolute top-2 left-2 text-[10px] text-white/50">Light card</span>
       </div>
     </div>
   );

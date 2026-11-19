@@ -11,6 +11,7 @@ const ITEMS: ReadonlyArray<{ word: string; icon: IsoconName }> = [
   { word: "Every screen", icon: "desktop-landscape" },
   { word: "NDI", icon: "output" },
   { word: "Themes", icon: "diamond" },
+  { word: "Side by Side", icon: "pip" },
 ];
 
 /** A slow ribbon of everything Litdeck puts on screen, each with its isometric icon. */

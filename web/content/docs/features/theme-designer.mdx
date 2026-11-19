@@ -21,12 +21,33 @@ NDI exactly as designed.
 - **Typography**: choose any installed system font, set size, weight,
   letter-spacing, line-height, and alignment.
 - **Effects**: drop shadows, outlines/strokes, fills, and blur.
-- **Layout**: drag elements to position them with pixel precision; the
-  canvas reflects the exact NDI output dimensions. Dragging the reference
-  or verse frame detaches them into **free positioning** mode, where each
-  block has its own X/Y/width/height (also editable as percentages in the
-  Layout tab). Keep them stacked and the classic above/below/inline flow
-  applies instead.
+- **Layout**: drag elements to move them and pull their handles to resize
+  them; the canvas reflects the exact NDI output dimensions. Boxes snap to
+  the frame's edges and middle and to each other (hold Alt to place
+  freely), and the Grid button adds a grid to snap to. Arrow keys nudge the
+  selected box (Shift for 10px); scroll pans and Ctrl+scroll zooms.
+  Dragging or resizing the reference or verse frame detaches them into
+  **free positioning** mode, where each block has its own
+  X/Y/width/height (also editable as percentages in the Layout tab). Keep
+  them stacked and the classic above/below/inline flow applies instead.
+- **Camera panel**: a live camera in a box of its own, with rounded
+  corners, a border and a shadow, placed and sized anywhere (Camera tab).
+- **Design-tool controls**: padding, corner radius and drop shadows are
+  set the way Figma does it. Padding is left and right together and top
+  and bottom together, or each side on its own; corners are one radius or
+  each corner its own; a shadow has colour, opacity, X, Y, blur and
+  spread. Drag sideways on a field's icon to scrub its value.
+- **Layers and preview**: the Layers bar selects or locks the reference,
+  words, camera and logo; "Show as" previews the theme with a Bible
+  verse, a song, a text or a speaker's name. Undo and redo (Ctrl+Z,
+  Ctrl+Shift+Z) step back through every change.
+- **Backgrounds**: a colour, gradient, picture (with blur and
+  brightness), a live camera, or a looping video from your library.
+- **Lower thirds**: a band at a set height, full width on the bottom edge
+  by default, with margins from the frame's edges when you want it
+  lifted or inset. Words placed freely in a band move with it.
+- **Plates and borders**: a plate behind the words or the reference, with
+  its own colour, image, corner radius and an optional border.
 - **Tokens**: place the verse text, the reference, the translation tag,
   and the verse number as separate elements so they can be styled
   independently.
@@ -36,7 +57,7 @@ NDI exactly as designed.
 
 ## Built-in starters
 
-Litdeck ships with four opinionated starter themes (`src/lib/builtin-themes.ts`)
+Litdeck ships with five opinionated starter themes (`src/lib/builtin-themes.ts`)
 that you can clone and modify:
 
 - **Classic Dark** — a high-contrast dark overlay tuned for typical
@@ -48,6 +69,13 @@ that you can clone and modify:
   keying over a live camera feed.
 - **Banner Split** — a free-positioning example with the reference in a
   top-left banner and the verse block detached below it.
+- **Side by Side** — the camera in a rounded panel on the left and the
+  words level with it on the right, over a background of your choice.
+  **Swap sides** in the Camera tab puts the camera on the right.
+
+**New** in the theme library also starts a theme from a layout: Full
+Screen, Lower Thirds, **Custom** (the reference and words each in a box
+you drag and resize anywhere) or Side by Side.
 
 Each starter is a regular project file you can save, version, and
 re-export.
